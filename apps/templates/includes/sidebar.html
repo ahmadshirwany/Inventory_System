@@ -16,11 +16,18 @@
             </a>
           </li>
           <li class="nav-item {% if 'page-user' in segment %} active {% endif %}">
-            <a class="nav-link" href="/page-user.html">
+             <a class="nav-link" href="{% url 'update_password' %}">
               <i class="material-icons">person</i>
               <p>User Profile</p>
             </a>
-          </li>
+          {% if user.is_superuser or is_owner %}
+                <li class="nav-item {% if 'page-user' in segment %} active {% endif %}">
+                    <a class="nav-link" href="{% url 'create_user' %}">
+                        <i class="material-icons">person</i>
+                        <p>Create User</p>
+                    </a>
+                </li>
+            {% endif %}
           <li class="nav-item {% if 'ui-tables' in segment %} active {% endif %}">
             <a class="nav-link" href="/ui-tables.html">
               <i class="material-icons">content_paste</i>

@@ -1,0 +1,93 @@
+{% extends "layouts/base.html" %}
+{% block title %} User Profile {% endblock %}
+
+<!-- Specific Page CSS goes HERE -->
+{% block stylesheets %}{% endblock stylesheets %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header card-header-primary">
+                <h4 class="card-title">User Profile</h4>
+                <p class="card-category">View and update your password</p>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{% url 'update_password' %}">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="bmd-label-floating">Username</label>
+                                <input type="text" class="form-control" value="{{ current_user.username }}" disabled>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="bmd-label-floating">Email Address</label>
+                                    <input type="email" class="form-control" value="{{ current_user.email }}" disabled>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="bmd-label-floating">First Name</label>
+                                <input type="text" class="form-control" value="{{ current_user.first_name }}" disabled>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="bmd-label-floating">Last Name</label>
+                                <input type="text" class="form-control" value="{{ current_user.last_name }}" disabled>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label>Change Password</label>
+                                <input type="password" name="new_password1" class="form-control" placeholder="Enter new password">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label>Confirm Password</label>
+                                <input type="password" name="new_password2" class="form-control" placeholder="Confirm new password">
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary pull-right">Update Password</button>
+                    <div class="clearfix"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-profile">
+            <div class="card-avatar">
+                <a href="#pablo">
+                    <img class="img" src="/static/assets/img/faces/marc.jpg" />
+                </a>
+            </div>
+            <div class="card-body">
+                <h6 class="card-category text-gray">
+                    {{ current_user.username }}
+                </h6>
+                <h4 class="card-title">
+                    {{ current_user.email }}
+                </h4>
+                <p class="card-description">
+                    First Name: {{ current_user.first_name }}<br>
+                    Last Name: {{ current_user.last_name }}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+<!-- Specific Page JS goes HERE -->
+{% block javascripts %}{% endblock javascripts %}
