@@ -10,9 +10,9 @@ urlpatterns = [
 
     # The home page
     path('', views.index, name='home'),
-    # re_path(r'^.*\.*', views.pages, name='pages'),
     path('user-profile/', views.update_password, name='update_password'),
-    # Matches any html file
-    # re_path(r'^.*\.*', views.pa ges, name='pages'),
+    path('warehouses-list/', views.warehouse_list, name='warehouse_list'),
+    # re_path(r'^.*$', views.pages, name='pages'),
+
 
 ]

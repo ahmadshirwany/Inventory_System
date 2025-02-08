@@ -6,6 +6,8 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.template import loader
 from django.urls import reverse
 from django.contrib.auth.forms import PasswordChangeForm
+from .models import Warehouse
+from django.db.models import Q
 
 
 @login_required
@@ -45,7 +47,7 @@ def pages(request):
             return HttpResponseRedirect(reverse('admin:index'))
         context['segment'] = load_template
 
-        html_template = loader.get_template('home/' + load_template)
+        html_template = loader.get_template('managment/' + load_template)
         return HttpResponse(html_template.render(context, request))
 
     except template.TemplateDoesNotExist:
@@ -56,3 +58,60 @@ def pages(request):
     except:
         html_template = loader.get_template('home/page-500.html')
         return HttpResponse(html_template.render(context, request))
+
+#
+# @login_required  # Ensure the user is authenticated
+# def warehouse_list(request):
+#     if request.user.is_superuser:
+#         # Superusers can see all warehouses
+#         warehouses = Warehouse.objects.all()
+#     else:
+#         # Regular users can only see warehouses they are associated with
+#         warehouses = Warehouse.objects.filter(users=request.user)
+#     # If no warehouses are found for a regular user, raise a 403 Forbidden error
+#     if not request.user.is_superuser and not warehouses.exists():
+#         return render(
+#             request,
+#             "home/page-403.html",
+#             {"message": "Access Denied: You do not have Acess to any of the warehouses."},
+#             status=403
+#         )
+#     context = {
+#         'warehouses': warehouses
+#     }
+#     return render(request, 'managment/warehouse_list.html', context)
+
+# views.py
+
+
+
+@login_required  # Ensure the user is authenticated
+def warehouse_list(request):
+    search_query = request.GET.get('search', '').strip()
+    if request.user.is_superuser:
+        # Superusers can see all warehouses
+        queryset = Warehouse.objects.all()
+    else:
+        # Regular users can only see warehouses they are associated with
+        queryset = Warehouse.objects.filter(users=request.user)
+    # Apply search filtering
+    if search_query:
+        queryset = queryset.filter(
+            Q(name__icontains=search_query) |  # Search by name
+            Q(location__icontains=search_query)  # Search by location
+        )
+
+    # If no warehouses are found for a regular user, raise a 403 Forbidden error
+    if not request.user.is_superuser and not queryset.exists():
+        return render(
+            request,
+            "home/page-403.html",
+            {"message": "Access Denied: You do not have Acess to any of the warehouses."},
+            status=403
+        )
+
+    context = {
+        'warehouses': queryset,
+        'search_query': search_query,  # Pass the search query back to the template
+    }
+    return render(request, 'managment/warehouse_list.html', context)
