@@ -1,27 +1,107 @@
 from django.contrib import admin
 from .models import Warehouse, Farmer, Product
 
-# Register your models here.
+
 
 @admin.register(Warehouse)
 class WarehouseAdmin(admin.ModelAdmin):
+    # Fields to display in the list view of the admin interface
     list_display = (
-        'name', 'ownership', 'type', 'location', 'total_capacity', 'available_space', 'utilization_rate'
+        'name',
+        'ownership',
+        'type',
+        'location',
+        'total_capacity',
+        'available_space',
+        'utilization_rate',
+        'slug',
     )
-    list_filter = ('ownership', 'type')
-    search_fields = ('name', 'location')
-    filter_horizontal = ('users',)
+
+    # Add filters to the right sidebar in the admin interface
+    list_filter = (
+        'type',
+        'ownership',
+        'location',
+    )
+
+    # Add search functionality to the admin interface
+    search_fields = (
+        'name',
+        'location',
+        'ownership__username',  # Assuming ownership is a User model with a username field
+        'slug'
+    )
+
+    # Specify fields that can be edited directly from the list view
+    list_editable = (
+        'available_space',
+    )
+
+    # Fields to display in the form when editing or creating a warehouse
     fieldsets = (
-        ('Warehouse Information', {
-            'fields': ('name', 'ownership', 'type', 'location', 'total_capacity', 'available_space', 'utilization_rate')
+        ('Warehouse Details', {
+            'fields': (
+                'name',
+                'ownership',
+                'type',
+                'location',
+                'slug'
+            ),
         }),
-        ('Zone Layout', {
-            'fields': ('zone_layout',)
+        ('Capacity Information', {
+            'fields': (
+                'total_capacity',
+                'available_space',
+                'utilization_rate',
+            ),
         }),
-        ('Users', {
-            'fields': ('users',)
-        })
+        ('Additional Information', {
+            'fields': (
+                'zone_layout',
+                'users',
+            ),
+        }),
     )
+
+    # Read-only fields that cannot be edited directly
+    readonly_fields = (
+        'utilization_rate',
+        'slug'
+    )
+
+    # Override the save_model method to ensure proper handling of the subscription plan limit
+    def save_model(self, request, obj, form, change):
+        if not change:  # If this is a new warehouse being created
+            user = obj.ownership
+            subscription_plan = getattr(user, 'subscription_plan', None)
+
+            if subscription_plan == 'basic' and user.owned_warehouses.count() >= 3:
+                self.message_user(request, "Basic plan users can only create up to 3 warehouses.", level='error')
+                return
+            elif subscription_plan == 'pro' and user.owned_warehouses.count() >= 5:
+                self.message_user(request, "Pro plan users can only create up to 5 warehouses.", level='error')
+                return
+            elif subscription_plan == 'premium' and user.owned_warehouses.count() >= 10:
+                self.message_user(request, "Premium plan users can only create up to 10 warehouses.", level='error')
+                return
+
+        super().save_model(request, obj, form, change)
+
+    # Custom action to update available space for selected warehouses
+    def update_available_space(self, request, queryset):
+        updated_count = 0
+        for warehouse in queryset:
+            if warehouse.total_capacity > 0:
+                used_space = warehouse.total_capacity - warehouse.available_space
+                warehouse.utilization_rate = (used_space / warehouse.total_capacity) * 100
+                warehouse.save()
+                updated_count += 1
+        self.message_user(request, f"Successfully updated available space for {updated_count} warehouses.")
+
+    update_available_space.short_description = "Update Available Space and Utilization Rate"
+
+    # Register the custom action
+    actions = [update_available_space]
 
 @admin.register(Farmer)
 class FarmerAdmin(admin.ModelAdmin):

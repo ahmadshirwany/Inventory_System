@@ -1,5 +1,5 @@
 from django.contrib.auth import update_session_auth_hash
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django import template
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseRedirect
@@ -8,6 +8,8 @@ from django.urls import reverse
 from django.contrib.auth.forms import PasswordChangeForm
 from .models import Warehouse
 from django.db.models import Q
+from .forms import WarehouseForm
+from django.core.exceptions import PermissionDenied
 
 
 @login_required
@@ -82,8 +84,55 @@ def pages(request):
 #     return render(request, 'managment/warehouse_list.html', context)
 
 # views.py
+@login_required
+def warehouse_detail(request, slug):
+    context = {}
+    html_template = loader.get_template('home/page-404.html')
+    return HttpResponse(html_template.render(context, request))
 
+@login_required
+def edit_warehouse(request, slug):
+    warehouse = get_object_or_404(Warehouse, slug=slug)
+    if not request.user.is_superuser and warehouse.ownership != request.user:
+        return render(
+            request,
+            "home/page-403.html",
+            {"message": "Access Denied: You do not have Acess to edit this warehouse."},
+            status=403
+        )
+    if request.method == 'POST':
+        form = WarehouseForm(request.POST, instance=warehouse, user=request.user)
+        if form.is_valid():
+            form.save()
+            return redirect('warehouse_list')  # Redirect to the warehouse list page
+    else:
+        form = WarehouseForm(instance=warehouse, user=request.user)
+    context = {'form': form, 'warehouse': warehouse}
+    return render(request, 'managment/edit_warehouse.html', context)
 
+@login_required
+def create_warehouse(request):
+    def is_within_limit(user):
+        subscription_plan = getattr(user, 'subscription_plan', 'free')  # Default to 'free' if not set
+
+        return user.owned_warehouses.count() < user.warehouse_limit
+
+    if not is_within_limit(request.user):
+        raise PermissionDenied("You have reached the maximum number of warehouses allowed by your subscription plan.")
+
+    if request.method == 'POST':
+        form = WarehouseForm(request.POST, user=request.user)
+        if form.is_valid():
+            warehouse = form.save(commit=False)
+            warehouse.ownership = request.user  # Set the ownership to the current user
+            warehouse.save()
+            form.save_m2m()  # Save ManyToMany relationships (e.g., users)
+            return redirect('warehouse_list')  # Redirect to the warehouse list page
+    else:
+        form = WarehouseForm(user=request.user)
+
+    context = {'form': form}
+    return render(request, 'managment/create_warehouse.html', context)
 
 @login_required  # Ensure the user is authenticated
 def warehouse_list(request):
@@ -93,7 +142,7 @@ def warehouse_list(request):
         queryset = Warehouse.objects.all()
     else:
         # Regular users can only see warehouses they are associated with
-        queryset = Warehouse.objects.filter(users=request.user)
+        queryset = Warehouse.objects.filter(users=request.user) | Warehouse.objects.filter(ownership=request.user)
     # Apply search filtering
     if search_query:
         queryset = queryset.filter(

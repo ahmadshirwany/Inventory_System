@@ -1,8 +1,17 @@
-# -*- encoding: utf-8 -*-
-"""
-Copyright (c) 2019 - present AppSeed.us
-"""
-
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from .models import CustomUser
 
-# Register your models here.
+class CustomUserAdmin(UserAdmin):
+    list_display = ('username', 'email', 'is_staff', 'is_superuser', 'owner')
+    fieldsets = (
+        *UserAdmin.fieldsets,  # Include all default fields from UserAdmin
+        (
+            'Ownership Information',  # New section for the owner field
+            {
+                'fields': ('owner','user_limit')
+            }
+        )
+    )
+
+admin.site.register(CustomUser, CustomUserAdmin)

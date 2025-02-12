@@ -1,9 +1,7 @@
 {% extends "layouts/base.html" %}
 {% block title %} Warehouses {% endblock %}
-
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}{% endblock stylesheets %}
-
 {% block content %}
     <div class="row">
         <div class="col-md-12">
@@ -20,28 +18,35 @@
                                 type="text"
                                 class="form-control"
                                 name="search"
-                                placeholder="Search by name or location"
+                                placeholder="Search by name, location, or owner"
                                 value="{{ search_query }}"
                             >
                             <button type="submit" class="btn btn-primary">Search</button>
                         </div>
                     </form>
-
                     <!-- Table -->
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead class="">
-                                <th>ID</th>
                                 <th>Name</th>
+                                <th>Type</th>
                                 <th>Location</th>
+                                <th>Owner</th>
+                                <th>Total Capacity (sqm)</th>
+                                <th>Available Space (sqm)</th>
+                                <th>Utilization Rate (%)</th>
                                 <th>Users</th>
                             </thead>
                             <tbody>
                                 {% for warehouse in warehouses %}
-                                <tr>
-                                    <td>{{ warehouse.id }}</td>
-                                    <td>{{ warehouse.name }}</td>
+                                <tr onclick="window.location.href='{% url 'warehouse_detail' warehouse.slug %}'">
+                                    <td >{{ warehouse.name }}</td>
+                                    <td>{{ warehouse.type }}</td>
                                     <td>{{ warehouse.location }}</td>
+                                    <td>{{ warehouse.ownership.username }}</td>
+                                    <td>{{ warehouse.total_capacity }}</td>
+                                    <td>{{ warehouse.available_space }}</td>
+                                    <td>{{ warehouse.utilization_rate }}</td>
                                     <td>
                                         {% if warehouse.users.all %}
                                             {% for user in warehouse.users.all %}
@@ -51,10 +56,15 @@
                                             None
                                         {% endif %}
                                     </td>
+                                <td style="text-align: center;">
+        <a href="{% url 'edit_warehouse' warehouse.slug %}" class="btn btn-sm btn-primary" onclick="event.stopPropagation();">
+            Edit
+        </a>
+    </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="4" class="text-center">No warehouses available.</td>
+                                    <td colspan="9" class="text-center">No warehouses available.</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -65,6 +75,5 @@
         </div>
     </div>
 {% endblock content %}
-
 <!-- Specific Page JS goes HERE  -->
 {% block javascripts %}{% endblock javascripts %}

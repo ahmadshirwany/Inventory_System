@@ -28,12 +28,27 @@
                     </a>
                 </li>
             {% endif %}
-          <li class="nav-item {% if 'ui-tables' in segment %} active {% endif %}">
-            <a class="nav-link" href="/warehouses-list">
-              <i class="material-icons">content_paste</i>
-              <p>Warehouses</p>
-            </a>
-          </li>
+           <li class="nav-item">
+  <a class="nav-link" href="#" data-toggle="collapse" data-target="#warehouseMenu" aria-expanded="false">
+    <i class="material-icons">content_paste</i>
+    <p>Warehouses</p>
+  </a>
+  <div id="warehouseMenu" class="collapse">
+    <ul class="nav flex-column ml-3">
+      <li class="nav-item">
+        <a class="nav-link" href="/warehouses-list">
+          <i class="material-icons">list</i> Warehouse List
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/create-warehouse">
+          <i class="material-icons">add</i> Create Warehouse
+        </a>
+      </li>
+    </ul>
+  </div>
+</li>
+
             <li class="nav-item {% if 'ui-tables' in segment %} active {% endif %}">
             <a class="nav-link" href="/ui-tables.html">
               <i class="material-icons">content_paste</i>

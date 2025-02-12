@@ -1,0 +1,62 @@
+{% extends "layouts/base.html" %}
+{% block title %} Edit Warehouse - {{ warehouse.name }} {% endblock %}
+<!-- Specific Page CSS goes HERE -->
+{% block stylesheets %}
+<style>
+    .form-group {
+        margin-bottom: 15px;
+    }
+    .form-control {
+        width: 100%;
+    }
+</style>
+{% endblock stylesheets %}
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card card-plain">
+            <div class="card-header card-header-primary">
+                <h4 class="card-title mt-0">Edit Warehouse - {{ warehouse.name }}</h4>
+                <p class="card-category">Update the details of the warehouse below.</p>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{% url 'edit_warehouse' warehouse.slug %}" class="form-horizontal">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label for="{{ form.name.id_for_label }}">Name:</label>
+                        {{ form.name }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.type.id_for_label }}">Type:</label>
+                        {{ form.type }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.location.id_for_label }}">Location:</label>
+                        {{ form.location }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.total_capacity.id_for_label }}">Total Capacity (sqm):</label>
+                        {{ form.total_capacity }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.available_space.id_for_label }}">Available Space (sqm):</label>
+                        {{ form.available_space }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.zone_layout.id_for_label }}">Zone Layout:</label>
+                        {{ form.zone_layout }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.users.id_for_label }}">Users:</label>
+                        {{ form.users }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <a href="{% url 'warehouse_list' %}" class="btn btn-secondary">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+<!-- Specific Page JS goes HERE -->
+{% block javascripts %}{% endblock javascripts %}
