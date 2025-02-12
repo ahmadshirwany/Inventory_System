@@ -14,11 +14,19 @@
                     <!-- Search Form -->
                     <form method="GET" action="{% url 'warehouse_list' %}" class="mb-3">
                         <div class="input-group">
+                            <!-- Dropdown for selecting the filter field -->
+                            <select name="filter_field" class="form-control" style="width: 150px;">
+                                <option value="name" {% if filter_field == 'name' %}selected{% endif %}>Name</option>
+                                <option value="location" {% if filter_field == 'location' %}selected{% endif %}>Location</option>
+                                <option value="owner" {% if filter_field == 'owner' %}selected{% endif %}>Owner</option>
+                                <option value="type" {% if filter_field == 'type' %}selected{% endif %}>Type</option>
+                                <option value="users" {% if filter_field == 'users' %}selected{% endif %}>Users</option>
+                            </select>
                             <input
                                 type="text"
                                 class="form-control"
                                 name="search"
-                                placeholder="Search by name, location, or owner"
+                                placeholder="Search..."
                                 value="{{ search_query }}"
                             >
                             <button type="submit" class="btn btn-primary">Search</button>
@@ -57,10 +65,10 @@
                                         {% endif %}
                                     </td>
                                 <td style="text-align: center;">
-        <a href="{% url 'edit_warehouse' warehouse.slug %}" class="btn btn-sm btn-primary" onclick="event.stopPropagation();">
-            Edit
-        </a>
-    </td>
+                                    <a href="{% url 'edit_warehouse' warehouse.slug %}" class="btn btn-sm btn-primary" onclick="event.stopPropagation();">
+                                        Edit
+                                    </a>
+                                </td>
                                 </tr>
                                 {% empty %}
                                 <tr>

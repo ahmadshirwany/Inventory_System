@@ -137,6 +137,7 @@ def create_warehouse(request):
 @login_required  # Ensure the user is authenticated
 def warehouse_list(request):
     search_query = request.GET.get('search', '').strip()
+    query_field = request.GET.get('filter_field', '').strip()
     if request.user.is_superuser:
         # Superusers can see all warehouses
         queryset = Warehouse.objects.all()
@@ -145,10 +146,8 @@ def warehouse_list(request):
         queryset = Warehouse.objects.filter(users=request.user) | Warehouse.objects.filter(ownership=request.user)
     # Apply search filtering
     if search_query:
-        queryset = queryset.filter(
-            Q(name__icontains=search_query) |  # Search by name
-            Q(location__icontains=search_query)  # Search by location
-        )
+        filter_kwargs = {f"{query_field}__icontains": search_query}
+        queryset = queryset.filter(**filter_kwargs)
 
     # If no warehouses are found for a regular user, raise a 403 Forbidden error
     if not request.user.is_superuser and not queryset.exists():

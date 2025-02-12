@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django import forms
 from .models import Warehouse
+from apps.authentication.models import CustomUser
 
 @login_required
 def update_password(request):
@@ -24,6 +25,11 @@ def update_password(request):
 
 
 class WarehouseForm(forms.ModelForm):
+    users = forms.ModelMultipleChoiceField(
+        queryset=CustomUser.objects.all(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-control'})
+    )
     class Meta:
         model = Warehouse
         fields = [
