@@ -65,27 +65,31 @@
             </div>
         </div>
     </div>
-{#    <div class="col-md-4">#}
-{#        <div class="card card-profile">#}
-{#            <div class="card-avatar">#}
-{#                <a href="#pablo">#}
-{#                    <img class="img" src="/static/assets/img/faces/marc.jpg" />#}
-{#                </a>#}
-{#            </div>#}
-{#            <div class="card-body">#}
-{#                <h6 class="card-category text-gray">#}
-{#                    {{ current_user.username }}#}
-{#                </h6>#}
-{#                <h4 class="card-title">#}
-{#                    {{ current_user.email }}#}
-{#                </h4>#}
-{#                <p class="card-description">#}
-{#                    First Name: {{ current_user.first_name }}<br>#}
-{#                    Last Name: {{ current_user.last_name }}#}
-{#                </p>#}
-{#            </div>#}
-{#        </div>#}
-{#    </div>#}
+    <div class="col-md-4">
+        <div class="card card-profile">
+            <div class="card-avatar">
+                <a href="#pablo">
+                    {% if current_user.profile_picture %}
+                        <img class="img" src="{{ current_user.profile_picture.url }}" alt="Profile Picture" />
+                    {% else %}
+                          <img class="img" src="{{ MEDIA_URL }}profile_pictures/blank-profile-picture.png" />
+                    {% endif %}
+                </a>
+            </div>
+            <div class="card-body">
+                <h6 class="card-category text-gray">
+                    {{ current_user.username }}
+                </h6>
+                <h4 class="card-title">
+                    {{ current_user.email }}
+                </h4>
+                <p class="card-description">
+                    First Name: {{ current_user.first_name }}<br>
+                    Last Name: {{ current_user.last_name }}
+                </p>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock content %}
 

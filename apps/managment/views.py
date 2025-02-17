@@ -10,6 +10,7 @@ from .models import Warehouse
 from django.db.models import Q
 from .forms import WarehouseForm
 from django.core.exceptions import PermissionDenied
+from apps.authentication.models import CustomUser
 
 
 @login_required
@@ -26,15 +27,45 @@ def update_password(request):
     return render(
         request,
         "managment/user_profile.html",
-        {"current_user": request.user, "form": form}
+        {"current_user": request.user,
+         'is_owner': request.user.groups.filter(name='owner').exists(),
+         "form": form}
     )
 
 # Create your views here.
 @login_required(login_url="/login/")
 def index(request):
-    context = {'segment': 'index',
-               'is_owner': request.user.groups.filter(name='owner').exists()
-               }
+    if request.user.is_superuser:
+        queryset = Warehouse.objects.all()
+        userqueryset = CustomUser.objects.all()
+    else:
+        queryset = (Warehouse.objects.filter(users=request.user) | Warehouse.objects.filter(ownership=request.user)).distinct()[:4]
+    if  request.user.groups.filter(name='owner').exists():
+        users = CustomUser.objects.filter(owner=request.user)
+        for user in users:
+            accessible_warehouses  = list(Warehouse.objects.filter(users=user).values_list('name', flat=True))
+            user.acess = accessible_warehouses
+        context = {'segment': 'index',
+                   'warehouses': queryset,
+                   'is_owner': request.user.groups.filter(name='owner').exists(),
+                   'users' : users
+                   }
+    elif  request.user.is_superuser:
+        for user in userqueryset:
+            if request.user.groups.filter(name='owner').exists():
+                accessible_warehouses = list(Warehouse.objects.filter(users=user).values_list('name', flat=True))
+                user.acess = accessible_warehouses
+        context = {'segment': 'index',
+                   'warehouses': queryset,
+
+                   'users': userqueryset
+                   }
+
+    else:
+        context = {'segment': 'index',
+                   'warehouses': queryset,
+                   'is_owner': request.user.groups.filter(name='owner').exists()
+                   }
 
     html_template = loader.get_template('managment/index.html')
     return HttpResponse(html_template.render(context, request))
@@ -61,27 +92,6 @@ def pages(request):
         html_template = loader.get_template('home/page-500.html')
         return HttpResponse(html_template.render(context, request))
 
-#
-# @login_required  # Ensure the user is authenticated
-# def warehouse_list(request):
-#     if request.user.is_superuser:
-#         # Superusers can see all warehouses
-#         warehouses = Warehouse.objects.all()
-#     else:
-#         # Regular users can only see warehouses they are associated with
-#         warehouses = Warehouse.objects.filter(users=request.user)
-#     # If no warehouses are found for a regular user, raise a 403 Forbidden error
-#     if not request.user.is_superuser and not warehouses.exists():
-#         return render(
-#             request,
-#             "home/page-403.html",
-#             {"message": "Access Denied: You do not have Acess to any of the warehouses."},
-#             status=403
-#         )
-#     context = {
-#         'warehouses': warehouses
-#     }
-#     return render(request, 'managment/warehouse_list.html', context)
 
 # views.py
 @login_required
@@ -136,20 +146,23 @@ def create_warehouse(request):
 
 @login_required  # Ensure the user is authenticated
 def warehouse_list(request):
-    search_query = request.GET.get('search', '').strip()
-    query_field = request.GET.get('filter_field', '').strip()
+    name_query = request.GET.get('name', '').strip()
+    location_query = request.GET.get('location', '').strip()
+    owner_query = request.GET.get('owner', '').strip()
+    users_query = request.GET.get('users', '').strip()
     if request.user.is_superuser:
-        # Superusers can see all warehouses
         queryset = Warehouse.objects.all()
     else:
-        # Regular users can only see warehouses they are associated with
-        queryset = Warehouse.objects.filter(users=request.user) | Warehouse.objects.filter(ownership=request.user)
-    # Apply search filtering
-    if search_query:
-        filter_kwargs = {f"{query_field}__icontains": search_query}
-        queryset = queryset.filter(**filter_kwargs)
-
-    # If no warehouses are found for a regular user, raise a 403 Forbidden error
+        queryset = (Warehouse.objects.filter(users=request.user) | Warehouse.objects.filter(ownership=request.user)).distinct()
+    query = Q()
+    if name_query:
+        query &= Q(name__icontains=name_query)
+    if location_query:
+        query &= Q(location__icontains=location_query)
+    if owner_query:
+        query &= Q(users__username__icontains=owner_query)
+    if query:
+        queryset = queryset.filter(query).distinct()
     if not request.user.is_superuser and not queryset.exists():
         return render(
             request,
@@ -160,6 +173,11 @@ def warehouse_list(request):
 
     context = {
         'warehouses': queryset,
-        'search_query': search_query,  # Pass the search query back to the template
+        'filters': {
+            'name': name_query,
+            'location': location_query,
+            'owner': owner_query,
+            'users': users_query,
+        }  # Pass the search query back to the template
     }
     return render(request, 'managment/warehouse_list.html', context)

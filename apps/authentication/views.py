@@ -9,8 +9,9 @@ from django.contrib.auth import authenticate, login
 from .forms import LoginForm, SignUpForm
 from django.contrib.auth.decorators import login_required
 from .forms import CustomUserCreationForm
-
-
+from .models import CustomUser
+from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth import update_session_auth_hash
 def login_view(request):
     form = LoginForm(request.POST or None)
 
@@ -32,6 +33,24 @@ def login_view(request):
     return render(request, "accounts/login.html", {"form": form, "msg": msg})
 
 
+@login_required
+def update_password(request):
+    if request.method == "POST":
+        form = PasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)  # Keep the user logged in after changing the password
+            return redirect("profile")  # Redirect to the profile page after successful password change
+    else:
+        form = PasswordChangeForm(request.user)
+
+    return render(
+        request,
+        "managment/user_profile.html",
+        {"current_user": request.user,
+         'is_owner': request.user.groups.filter(name='owner').exists(),
+         "form": form}
+    )
 
 @login_required
 def create_user(request):
@@ -41,7 +60,9 @@ def create_user(request):
             return render(
                 request,
                 "home/page-403.html",
-                {"message": "Access Denied: You do not have permission to create users."},
+                {
+                    'is_owner': request.user.groups.filter(name='owner').exists(),
+                    "message": "Access Denied: You do not have permission to create users."},
                 status=403
             )
     msg = None
@@ -72,7 +93,9 @@ def create_user(request):
     return render(
         request,
         "accounts/create_user.html",
-        {"form": form, "msg": msg, "success": success}
+        {"form": form,
+         'is_owner': request.user.groups.filter(name='owner').exists(),
+         "msg": msg, "success": success}
     )
 def register_user(request):
     msg = None
@@ -97,3 +120,26 @@ def register_user(request):
         form = SignUpForm()
 
     return render(request, "accounts/register.html", {"form": form, "msg": msg, "success": success})
+@login_required
+def user_list(request):
+    # Ensure only superusers or users in the 'owner' group can access this view
+    if not request.user.is_superuser:
+        if not request.user.groups.filter(name='owner').exists():
+            return render(
+                request,
+                "home/page-403.html",
+                {
+                    'is_owner': request.user.groups.filter(name='owner').exists(),
+                    "message": "Access Denied: You do not have any users."},
+                status=403
+            )
+        else:
+            pass
+    else:
+        queryset = CustomUser.objects.all()
+        context = {
+            'users': queryset, }
+    return render(request, 'accounts/user_list.html', context)
+@login_required
+def edit_user(request):
+    pass
