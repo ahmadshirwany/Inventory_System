@@ -124,7 +124,6 @@ def edit_warehouse(request, slug):
 def create_warehouse(request):
     def is_within_limit(user):
         subscription_plan = getattr(user, 'subscription_plan', 'free')  # Default to 'free' if not set
-
         return user.owned_warehouses.count() < user.warehouse_limit
 
     if not is_within_limit(request.user):

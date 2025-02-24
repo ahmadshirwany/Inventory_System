@@ -12,6 +12,8 @@ from .forms import CustomUserCreationForm
 from .models import CustomUser
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import update_session_auth_hash
+
+
 def login_view(request):
     form = LoginForm(request.POST or None)
 
@@ -34,13 +36,17 @@ def login_view(request):
 
 
 @login_required
-def update_password(request):
+def user_profile(request):
     if request.method == "POST":
         form = PasswordChangeForm(request.user, request.POST)
         if form.is_valid():
             user = form.save()
             update_session_auth_hash(request, user)  # Keep the user logged in after changing the password
             return redirect("profile")  # Redirect to the profile page after successful password change
+        profile = CustomUser.objects.get_or_create(user=request.user)[0]
+        if 'profile_picture' in request.FILES:
+            profile.profile_picture = request.FILES['profile_picture']
+            profile.save()
     else:
         form = PasswordChangeForm(request.user)
 
@@ -51,6 +57,18 @@ def update_password(request):
          'is_owner': request.user.groups.filter(name='owner').exists(),
          "form": form}
     )
+from django.contrib import messages
+@login_required
+def update_profile_picture(request):
+    if request.method == 'POST':
+        if 'profile_picture' in request.FILES:
+            profile_picture = request.FILES['profile_picture']
+            request.user.profile_picture = profile_picture
+            request.user.save()
+            messages.success(request, 'Your profile picture has been updated successfully.')
+        else:
+            messages.error(request, 'No file was selected.')
+    return redirect('user_profile')  # Redirect back to the user profile page
 
 @login_required
 def create_user(request):

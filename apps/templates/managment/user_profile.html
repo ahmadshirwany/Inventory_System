@@ -2,6 +2,7 @@
 {% block title %} User Profile {% endblock %}
 
 <!-- Specific Page CSS goes HERE -->
+
 {% block stylesheets %}{% endblock stylesheets %}
 
 {% block content %}
@@ -10,11 +11,13 @@
         <div class="card">
             <div class="card-header card-header-primary">
                 <h4 class="card-title">User Profile</h4>
-                <p class="card-category">View and update your password</p>
+                <p class="card-category">View and update your password and profile picture</p>
             </div>
             <div class="card-body">
+                <!-- Password Change Form -->
                 <form method="POST" action="{% url 'update_password' %}">
                     {% csrf_token %}
+                    <input type="hidden" name="update_password" value="true">
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
@@ -25,7 +28,7 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label class="bmd-label-floating">Email Address</label>
-                                    <input type="email" class="form-control" value="{{ current_user.email }}" disabled>
+                                <input type="email" class="form-control" value="{{ current_user.email }}" disabled>
                             </div>
                         </div>
                     </div>
@@ -62,6 +65,21 @@
                     <button type="submit" class="btn btn-primary pull-right">Update Password</button>
                     <div class="clearfix"></div>
                 </form>
+
+                <!-- Profile Picture Update Form -->
+                <form method="POST" action="{% url 'update_profile_picture' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label>Update Profile Picture</label>
+                                <input type="file" name="profile_picture" class="form-control-file" accept="image/*" required>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success pull-right">Update Picture</button>
+                    <div class="clearfix"></div>
+                </form>
             </div>
         </div>
     </div>
@@ -72,7 +90,7 @@
                     {% if current_user.profile_picture %}
                         <img class="img" src="{{ current_user.profile_picture.url }}" alt="Profile Picture" />
                     {% else %}
-                          <img class="img" src="{{ MEDIA_URL }}profile_pictures/blank-profile-picture.png" />
+                        <img class="img" src="{{ MEDIA_URL }}profile_pictures/blank-profile-picture.png" />
                     {% endif %}
                 </a>
             </div>
