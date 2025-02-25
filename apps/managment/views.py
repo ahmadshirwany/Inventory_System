@@ -6,7 +6,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.template import loader
 from django.urls import reverse
 from django.contrib.auth.forms import PasswordChangeForm
-from .models import Warehouse
+from .models import Warehouse,Product
 from django.db.models import Q
 from .forms import WarehouseForm
 from django.core.exceptions import PermissionDenied
@@ -96,9 +96,39 @@ def pages(request):
 # views.py
 @login_required
 def warehouse_detail(request, slug):
-    context = {}
-    html_template = loader.get_template('home/page-404.html')
-    return HttpResponse(html_template.render(context, request))
+    # Get the warehouse by slug
+    warehouse = get_object_or_404(Warehouse, slug=slug)
+
+    # Get filter parameters from GET request
+    sku = request.GET.get('sku', '')
+    product_name = request.GET.get('product_name', '')
+    product_type = request.GET.get('product_type', '')
+    status = request.GET.get('status', '')
+
+    # Filter products for this warehouse
+    products = Product.objects.filter(warehouse=warehouse)
+    if sku:
+        products = products.filter(sku__icontains=sku)
+    if product_name:
+        products = products.filter(product_name__icontains=product_name)
+    if product_type:
+        products = products.filter(product_type=product_type)
+    if status:
+        products = products.filter(status=status)
+
+    # Prepare context
+    filters = {
+        'sku': sku,
+        'product_name': product_name,
+        'product_type': product_type,
+        'status': status,
+    }
+    context = {
+        'warehouse': warehouse,
+        'products': products,
+        'filters': filters,
+    }
+    return render(request, 'managment/products.html', context)
 
 @login_required
 def edit_warehouse(request, slug):
