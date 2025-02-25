@@ -1,0 +1,181 @@
+{% extends "layouts/base.html" %}
+{% block title %} Products in {{ warehouse.name }} {% endblock %}
+
+<!-- Specific Page CSS goes HERE -->
+{% block stylesheets %}
+    <style>
+        .filter-dropdown {
+            margin-bottom: 15px;
+        }
+        .clear-filters-btn {
+            margin-left: 10px;
+        }
+        .filter-row {
+            margin-bottom: 10px;
+        }
+        .collapse.show {
+            display: block; /* Ensure proper display for Bootstrap collapse */
+        }
+        .table-hover tr:hover {
+            cursor: pointer;
+        }
+        .table-responsive {
+            overflow-x: auto; /* Enable horizontal scrolling */
+        }
+        .table th, .table td {
+            white-space: nowrap; /* Prevent text wrapping */
+            padding: 8px; /* Adjust padding for readability */
+        }
+    </style>
+{% endblock stylesheets %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card card-plain">
+                <div class="card-header card-header-primary">
+                    <h4 class="card-title mt-0">Products in {{ warehouse.name }}</h4>
+                    <p class="card-category">Inventory details for {{ warehouse.location }} ({{ warehouse.type }})</p>
+                </div>
+                <div class="card-body">
+                    <!-- Filter Dropdown Button -->
+                    <button class="btn btn-secondary mb-3" type="button" data-toggle="collapse" data-target="#filterPanel" aria-expanded="false" aria-controls="filterPanel">
+                        <i class="fa fa-filter"></i> Filters
+                    </button>
+
+                    <!-- Collapsible Filter Panel -->
+                    <div class="collapse" id="filterPanel">
+                        <form method="GET" action="{% url 'warehouse_detail' warehouse.slug %}" class="mb-3 filter-dropdown">
+                            <div class="filter-row">
+                                <label>SKU:</label>
+                                <input type="text" class="form-control" name="sku" placeholder="Filter by SKU" value="{{ filters.sku }}">
+                            </div>
+                            <div class="filter-row">
+                                <label>Product Name:</label>
+                                <input type="text" class="form-control" name="product_name" placeholder="Filter by Product Name" value="{{ filters.product_name }}">
+                            </div>
+                            <div class="filter-row">
+                                <label>Product Type:</label>
+                                <select class="form-control" name="product_type">
+                                    <option value="">All</option>
+                                    <option value="Raw" {% if filters.product_type == "Raw" %}selected{% endif %}>Raw</option>
+                                    <option value="Processed" {% if filters.product_type == "Processed" %}selected{% endif %}>Processed</option>
+                                </select>
+                            </div>
+                            <div class="filter-row">
+                                <label>Status:</label>
+                                <select class="form-control" name="status">
+                                    <option value="">All</option>
+                                    <option value="In Stock" {% if filters.status == "In Stock" %}selected{% endif %}>In Stock</option>
+                                    <option value="Out of Stock" {% if filters.status == "Out of Stock" %}selected{% endif %}>Out of Stock</option>
+                                    <option value="Expired" {% if filters.status == "Expired" %}selected{% endif %}>Expired</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Apply Filters</button>
+                            <button type="button" class="btn btn-secondary clear-filters-btn" onclick="clearFilters()">Clear Filters</button>
+                        </form>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="table-responsive">
+                        {% if products %}
+                            <table class="table table-hover">
+                                <thead>
+                                    <th>SKU</th>
+                                    <th>Product Name</th>
+                                    <th>Type</th>
+                                    <th>Origin</th>
+                                    <th>Lot Number</th>
+                                    <th>Harvest Date</th>
+                                    <th>Entry Date</th>
+                                    <th>Manufacturing Date</th>
+                                    <th>Expiration Date</th>
+                                    <th>Exit Date</th>
+                                    <th>Supplier Code</th>
+                                    <th>Variety/Species</th>
+                                    <th>Weight (Default)</th>
+                                    <th>Weight (kg)</th>
+                                    <th>Quantity in Stock</th>
+                                    <th>Packaging Condition</th>
+                                    <th>Status</th>
+                                    <th>Quality Standards</th>
+                                    <th>Storage Temp (°C)</th>
+                                    <th>Humidity (%)</th>
+                                    <th>CO₂ (%)</th>
+                                    <th>O₂ (%)</th>
+                                    <th>N₂ (%)</th>
+                                    <th>Ethylene Management</th>
+                                    <th>Unit Price</th>
+                                    <th>Total Value</th>
+                                    <th>Nutritional Info</th>
+                                    <th>Regulatory Codes</th>
+                                    <th>Notes/Comments</th>
+                                    <th>Farmer</th>
+                                    <th>Actions</th>
+                                </thead>
+                                <tbody>
+                                    {% for product in products %}
+                                    <tr onclick="window.location.href='{% url 'product_detail' product.sku %}'">
+                                        <td>{{ product.sku }}</td>
+                                        <td>{{ product.product_name }}</td>
+                                        <td>{{ product.product_type }}</td>
+                                        <td>{{ product.origin|default:"N/A" }}</td>
+                                        <td>{{ product.lot_number|default:"N/A" }}</td>
+                                        <td>{{ product.harvest_date|date:"Y-m-d"|default:"N/A" }}</td>
+                                        <td>{{ product.entry_date|date:"Y-m-d" }}</td>
+                                        <td>{{ product.manufacturing_date|date:"Y-m-d"|default:"N/A" }}</td>
+                                        <td>{{ product.expiration_date|date:"Y-m-d"|default:"N/A" }}</td>
+                                        <td>{{ product.exit_date|date:"Y-m-d"|default:"N/A" }}</td>
+                                        <td>{{ product.supplier_code|default:"N/A" }}</td>
+                                        <td>{{ product.variety_or_species|default:"N/A" }}</td>
+                                        <td>{{ product.weight_quantity|default:"N/A" }}</td>
+                                        <td>{{ product.weight_quantity_kg|default:"N/A" }}</td>
+                                        <td>{{ product.quantity_in_stock }}</td>
+                                        <td>{{ product.packaging_condition|default:"N/A" }}</td>
+                                        <td>{{ product.status }}</td>
+                                        <td>{{ product.quality_standards|default:"N/A" }}</td>
+                                        <td>{{ product.storage_temperature|default:"N/A" }}</td>
+                                        <td>{{ product.humidity_rate|default:"N/A" }}</td>
+                                        <td>{{ product.co2|default:"N/A" }}</td>
+                                        <td>{{ product.o2|default:"N/A" }}</td>
+                                        <td>{{ product.n2|default:"N/A" }}</td>
+                                        <td>{{ product.ethylene_management|default:"N/A" }}</td>
+                                        <td>{{ product.unit_price|default:"N/A" }}</td>
+                                        <td>{{ product.total_value|default:"N/A" }}</td>
+                                        <td>{{ product.nutritional_info|default:"N/A"|truncatewords:10 }}</td>
+                                        <td>{{ product.regulatory_codes|default:"N/A" }}</td>
+                                        <td>{{ product.notes_comments|default:"N/A"|truncatewords:10 }}</td>
+                                        <td>{{ product.farmer.name|default:"N/A" }}</td>
+                                        <td style="text-align: center;">
+                                            <a href="{% url 'edit_product' product.sku %}" class="btn btn-sm btn-primary" onclick="event.stopPropagation();">
+                                                Edit
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <p class="text-center text-muted">No products found in {{ warehouse.name }} matching your criteria.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function clearFilters() {
+            document.querySelectorAll('input[name], select[name]').forEach(function(input) {
+                input.value = '';
+            });
+            document.querySelector('form').submit();
+        }
+    </script>
+{% endblock content %}
+
+<!-- Specific Page JS goes HERE -->
+{% block javascripts %}
+    <!-- Ensure Bootstrap's collapse functionality is included -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock javascripts %}
