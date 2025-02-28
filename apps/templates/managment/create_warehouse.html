@@ -2,140 +2,180 @@
 
 {% block title %} Create Warehouse {% endblock %}
 
-<!-- Specific Page CSS goes HERE -->
+<!-- Specific Page CSS -->
 {% block stylesheets %}
 <style>
     .form-group {
-        margin-bottom: 15px;
+        margin-bottom: 20px;
+        position: relative;
     }
     .form-control {
         width: 100%;
+        transition: border-color 0.3s ease;
+    }
+    .form-control.invalid {
+        border-color: #dc3545;
     }
     .error-message {
-        color: red;
+        color: #dc3545;
         font-size: 14px;
+        margin-top: 5px;
+        display: none;
     }
     .alert-danger {
         background-color: #f8d7da;
         color: #721c24;
         padding: 10px;
         border-radius: 5px;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
+    }
+    .capacity-info {
+        margin-top: 10px;
+        font-size: 14px;
+        color: #666;
+    }
+    .card-header {
+        border-bottom: 1px solid #eee;
+    }
+    .card-body {
+        padding: 20px;
+    }
+    .btn-group {
+        margin-top: 20px;
+    }
+    @media (max-width: 768px) {
+        .card-header {
+            padding: 15px;
+        }
+        .btn {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+        }
     }
 </style>
 {% endblock stylesheets %}
 
 {% block content %}
 <div class="row">
-    <div class="col-md-12">
-        <div class="card card-plain">
-            <div class="card-header card-header-primary">
-                <h4 class="card-title mt-0">Create New Warehouse</h4>
-                <p class="card-category">Fill in the details below to create a new warehouse.</p>
+    <div class="col-12">
+        <div class="card card-plain shadow-sm">
+            <div class="card-header card-header-primary bg-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="card-title mt-0 mb-2">Create New Warehouse</h4>
+                        <p class="card-category mb-0">Fill in the details below</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="mb-0">Warehouses: {{ current_count }}/{{ warehouse_limit }}</p>
+                    </div>
+                </div>
             </div>
             <div class="card-body">
-                
-                <!-- Display general form errors -->
-                {% if form.non_field_errors %}
-                    <div class="alert alert-danger">
-                        <ul>
-                            {% for error in form.non_field_errors %}
-                                <li>{{ error }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
                 {% endif %}
 
-                <form method="POST" action="{% url 'create_warehouse' %}" class="form-horizontal">
+                <form method="POST" action="{% url 'warehouse_create' %}" class="form-horizontal" id="warehouseForm">
                     {% csrf_token %}
-                    
-                    <div class="form-group">
-                        <label for="{{ form.name.id_for_label }}">Name:</label>
-                        {{ form.name }}
-                        {% if form.name.errors %}
-                            <div class="error-message">
-                                {% for error in form.name.errors %}
-                                    {{ error }}
-                                {% endfor %}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                                {{ form.name }}
+                                {% if form.name.help_text %}
+                                    <small class="form-text text-muted">{{ form.name.help_text }}</small>
+                                {% endif %}
+                                <div class="error-message" id="{{ form.name.id_for_label }}-error">
+                                    {% for error in form.name.errors %}{{ error }}<br>{% endfor %}
+                                </div>
                             </div>
-                        {% endif %}
+
+                            <div class="form-group">
+                                <label for="{{ form.type.id_for_label }}">{{ form.type.label }}</label>
+                                {{ form.type }}
+                                {% if form.type.help_text %}
+                                    <small class="form-text text-muted">{{ form.type.help_text }}</small>
+                                {% endif %}
+                                <div class="error-message" id="{{ form.type.id_for_label }}-error">
+                                    {% for error in form.type.errors %}{{ error }}<br>{% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="{{ form.location.id_for_label }}">{{ form.location.label }}</label>
+                                {{ form.location }}
+                                {% if form.location.help_text %}
+                                    <small class="form-text text-muted">{{ form.location.help_text }}</small>
+                                {% endif %}
+                                <div class="error-message" id="{{ form.location.id_for_label }}-error">
+                                    {% for error in form.location.errors %}{{ error }}<br>{% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.total_capacity.id_for_label }}">{{ form.total_capacity.label }}</label>
+                                {{ form.total_capacity }}
+                                {% if form.total_capacity.help_text %}
+                                    <small class="form-text text-muted">{{ form.total_capacity.help_text }}</small>
+                                {% endif %}
+                                <div class="error-message" id="{{ form.total_capacity.id_for_label }}-error">
+                                    {% for error in form.total_capacity.errors %}{{ error }}<br>{% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="{{ form.available_space.id_for_label }}">{{ form.available_space.label }}</label>
+                                {{ form.available_space }}
+                                {% if form.available_space.help_text %}
+                                    <small class="form-text text-muted">{{ form.available_space.help_text }}</small>
+                                {% endif %}
+                                <div class="error-message" id="{{ form.available_space.id_for_label }}-error">
+                                    {% for error in form.available_space.errors %}{{ error }}<br>{% endfor %}
+                                </div>
+                                <div class="capacity-info" id="utilization-rate">
+                                    Utilization Rate: 0%
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="{{ form.users.id_for_label }}">{{ form.users.label }}</label>
+                                {{ form.users }}
+                                {% if form.users.help_text %}
+                                    <small class="form-text text-muted">{{ form.users.help_text }}</small>
+                                {% endif %}
+                                <div class="error-message" id="{{ form.users.id_for_label }}-error">
+                                    {% for error in form.users.errors %}{{ error }}<br>{% endfor %}
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="{{ form.type.id_for_label }}">Type:</label>
-                        {{ form.type }}
-                        {% if form.type.errors %}
-                            <div class="error-message">
-                                {% for error in form.type.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="form-group">
-                        <label for="{{ form.location.id_for_label }}">Location:</label>
-                        {{ form.location }}
-                        {% if form.location.errors %}
-                            <div class="error-message">
-                                {% for error in form.location.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="form-group">
-                        <label for="{{ form.total_capacity.id_for_label }}">Total Capacity (sqm):</label>
-                        {{ form.total_capacity }}
-                        {% if form.total_capacity.errors %}
-                            <div class="error-message">
-                                {% for error in form.total_capacity.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="form-group">
-                        <label for="{{ form.available_space.id_for_label }}">Available Space (sqm):</label>
-                        {{ form.available_space }}
-                        {% if form.available_space.errors %}
-                            <div class="error-message">
-                                {% for error in form.available_space.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="form-group">
-                        <label for="{{ form.zone_layout.id_for_label }}">Zone Layout:</label>
+                        <label for="{{ form.zone_layout.id_for_label }}">{{ form.zone_layout.label }}</label>
                         {{ form.zone_layout }}
-                        {% if form.zone_layout.errors %}
-                            <div class="error-message">
-                                {% for error in form.zone_layout.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
+                        {% if form.zone_layout.help_text %}
+                            <small class="form-text text-muted">{{ form.zone_layout.help_text }}</small>
                         {% endif %}
+                        <div class="error-message" id="{{ form.zone_layout.id_for_label }}-error">
+                            {% for error in form.zone_layout.errors %}{{ error }}<br>{% endfor %}
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="{{ form.users.id_for_label }}">Users:</label>
-                        {{ form.users }}
-                        {% if form.users.errors %}
-                            <div class="error-message">
-                                {% for error in form.users.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
+                    <div class="btn-group d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary mr-2" id="submitBtn">Create Warehouse</button>
+                        <a href="{% url 'warehouse_list' %}" class="btn btn-secondary">Cancel</a>
                     </div>
-
-                    <button type="submit" class="btn btn-primary">Create Warehouse</button>
-                    <a href="{% url 'warehouse_list' %}" class="btn btn-secondary">Cancel</a>
-
                 </form>
             </div>
         </div>
@@ -143,5 +183,70 @@
 </div>
 {% endblock content %}
 
-<!-- Specific Page JS goes HERE -->
-{% block javascripts %}{% endblock javascripts %}
+<!-- Specific Page JS -->
+{% block javascripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('warehouseForm');
+    const totalCapacityInput = document.getElementById('id_total_capacity');
+    const availableSpaceInput = document.getElementById('id_available_space');
+    const utilizationRateDiv = document.getElementById('utilization-rate');
+    const submitBtn = document.getElementById('submitBtn');
+
+    function updateCapacityInfo() {
+        const total = parseFloat(totalCapacityInput.value) || 0;
+        const available = parseFloat(availableSpaceInput.value) || 0;
+        let isValid = true;
+
+        totalCapacityInput.classList.remove('invalid');
+        availableSpaceInput.classList.remove('invalid');
+        document.getElementById('id_total_capacity-error').style.display = 'none';
+        document.getElementById('id_available_space-error').style.display = 'none';
+
+        if (total < 0 || available < 0) {
+            isValid = false;
+            const errorField = total < 0 ? totalCapacityInput : availableSpaceInput;
+            errorField.classList.add('invalid');
+            document.getElementById(`${errorField.id}-error`).textContent = 'Value cannot be negative';
+            document.getElementById(`${errorField.id}-error`).style.display = 'block';
+        } else if (total < available) {
+            isValid = false;
+            totalCapacityInput.classList.add('invalid');
+            availableSpaceInput.classList.add('invalid');
+            document.getElementById('id_total_capacity-error').textContent = 'Must be greater than available space';
+            document.getElementById('id_total_capacity-error').style.display = 'block';
+        }
+
+        const usedSpace = total - available;
+        const utilization = total > 0 ? (usedSpace / total * 100).toFixed(2) : 0;
+        utilizationRateDiv.textContent = `Utilization Rate: ${utilization}%`;
+
+        submitBtn.disabled = !isValid;
+    }
+
+    [totalCapacityInput, availableSpaceInput].forEach(input => {
+        input.addEventListener('input', updateCapacityInfo);
+    });
+
+    document.querySelectorAll('.error-message').forEach(error => {
+        if (error.textContent.trim()) {
+            error.style.display = 'block';
+            const fieldId = error.id.replace('-error', '');
+            document.getElementById(fieldId).classList.add('invalid');
+        }
+    });
+
+    form.addEventListener('submit', function(e) {
+        const total = parseFloat(totalCapacityInput.value) || 0;
+        const available = parseFloat(availableSpaceInput.value) || 0;
+
+        if (total < available || total < 0 || available < 0) {
+            e.preventDefault();
+            updateCapacityInfo();
+        }
+    });
+
+    updateCapacityInfo();
+});
+</script>
+{% endblock javascripts %}

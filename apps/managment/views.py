@@ -10,10 +10,12 @@ from .models import Warehouse,Product,Farmer
 from django.db.models import Q
 from .forms import WarehouseForm, ProductForm
 from django.utils import timezone
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied,ValidationError
 from apps.authentication.models import CustomUser
 from django.core.paginator import Paginator
 from django.http import JsonResponse
+from django.contrib import messages
+from django.db import transaction
 
 
 @login_required
@@ -119,27 +121,70 @@ def edit_warehouse(request, slug):
     context = {'form': form, 'warehouse': warehouse}
     return render(request, 'managment/edit_warehouse.html', context)
 
+
 @login_required
 def create_warehouse(request):
-    def is_within_limit(user):
-        subscription_plan = getattr(user, 'subscription_plan', 'free')  # Default to 'free' if not set
-        return user.owned_warehouses.count() < user.warehouse_limit
+    """
+    Handle the creation of a new warehouse for authenticated users.
 
-    if not is_within_limit(request.user):
-        raise PermissionDenied("You have reached the maximum number of warehouses allowed by your subscription plan.")
+    Args:
+        request: HTTP request object containing metadata and form data
+
+    Returns:
+        HttpResponse: Rendered form page on GET/invalid POST, redirect on success
+
+    Raises:
+        PermissionDenied: If user exceeds warehouse creation limit
+    """
+
+    def get_warehouse_limit(user):
+        """Determine user's warehouse limit based on subscription plan."""
+        subscription_limits = {
+            'free': 1,
+            'basic': 3,
+            'pro': 5,
+            'premium': 10
+        }
+        return subscription_limits.get(getattr(user, 'subscription_plan', 'free'), 1)
+
+    # Check warehouse limit
+    current_count = request.user.owned_warehouses.count()
+    warehouse_limit = get_warehouse_limit(request.user)
+
+    if current_count >= warehouse_limit:
+        messages.error(
+            request,
+            f"You've reached the maximum of {warehouse_limit} warehouses "
+            f"for your {getattr(request.user, 'subscription_plan', 'free')} plan."
+        )
+        raise PermissionDenied
 
     if request.method == 'POST':
         form = WarehouseForm(request.POST, user=request.user)
         if form.is_valid():
-            warehouse = form.save(commit=False)
-            warehouse.ownership = request.user  # Set the ownership to the current user
-            warehouse.save()
-            form.save_m2m()  # Save ManyToMany relationships (e.g., users)
-            return redirect('warehouse_list')  # Redirect to the warehouse list page
+            try:
+                with transaction.atomic():
+                    warehouse = form.save(commit=False)
+                    warehouse.ownership = request.user
+                    warehouse.save()
+                    form.save_m2m()  # Save ManyToMany relationships
+                messages.success(request, f"Warehouse '{warehouse.name}' created successfully!")
+                return redirect('warehouse_list')
+            except ValidationError as e:
+                messages.error(request, str(e))
+            except Exception as e:
+                messages.error(request, "An unexpected error occurred. Please try again.")
+        else:
+            messages.error(request, "Please correct the errors below.")
     else:
         form = WarehouseForm(user=request.user)
 
-    context = {'form': form}
+    context = {
+        'form': form,
+        'form_action': 'Create',
+        'warehouse_limit': warehouse_limit,
+        'current_count': current_count,
+    }
     return render(request, 'managment/create_warehouse.html', context)
 
 @login_required  # Ensure the user is authenticated

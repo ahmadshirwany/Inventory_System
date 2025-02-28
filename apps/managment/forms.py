@@ -6,6 +6,8 @@ from django import forms
 from .models import Warehouse,Product,get_product_metadata
 from apps.authentication.models import CustomUser
 from django.utils import timezone
+from django.conf import settings
+from django.core.exceptions import ValidationError
 
 @login_required
 def update_password(request):
@@ -31,6 +33,7 @@ class WarehouseForm(forms.ModelForm):
         required=False,
         widget=forms.SelectMultiple(attrs={'class': 'form-control'})
     )
+
     class Meta:
         model = Warehouse
         fields = [
@@ -51,23 +54,42 @@ class WarehouseForm(forms.ModelForm):
             'zone_layout': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'users': forms.SelectMultiple(attrs={'class': 'form-control'}),
         }
+        help_texts = {
+            'name': 'Name of the warehouse',
+            'type': 'Type of warehouse',
+            'location': 'Geographical location of the warehouse',
+            'total_capacity': 'Total storage capacity in square meters',
+            'available_space': 'Available storage space in square meters',
+            'zone_layout': 'Description or diagram of the warehouse zone layout',
+            'users': 'Users associated with this warehouse',
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        if user:
+            self.fields['users'].queryset = (
+                user.users_manageable.all()
+                if hasattr(user, 'users_manageable')
+                else CustomUser.objects.none()
+            )
+            # Store the creator for the pre_save signal
+            self.instance.creator = user
+
     def clean(self):
-        cleaned_data = super().clean()  # Call parent clean() method
+        cleaned_data = super().clean()
         total_capacity = cleaned_data.get('total_capacity')
         available_space = cleaned_data.get('available_space')
 
         if total_capacity is not None and available_space is not None:
+            if total_capacity < 0 or available_space < 0:
+                raise ValidationError("Capacity values cannot be negative")
             if total_capacity < available_space:
-                self.add_error('total_capacity', "Total capacity must be greater than available space")
-                self.add_error('available_space', "Available space cannot exceed total capacity")
-    def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user', None)  # Get the current user
-        super(WarehouseForm, self).__init__(*args, **kwargs)
-        if user:
-            # Restrict users to those that the current user can manage (if needed)
-            self.fields['users'].queryset = user.users_manageable.all() if hasattr(user, 'users_manageable') else user.__class__.objects.none()
-
-
+                raise ValidationError({
+                    'total_capacity': "Total capacity must be greater than available space",
+                    'available_space': "Available space cannot exceed total capacity"
+                })
+        return cleaned_data
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
