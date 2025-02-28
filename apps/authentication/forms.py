@@ -91,5 +91,19 @@ class ProfilePictureForm(forms.ModelForm):
         model = CustomUser
         fields = ['profile_picture']
         widgets = {
-            'profile_picture': forms.FileInput(attrs={'class': 'form-control-file'})
+            'profile_picture': forms.FileInput(attrs={
+                'class': 'form-control-file',
+                'accept': 'image/*'  # Restrict to image files
+            })
         }
+
+    def clean_profile_picture(self):
+        picture = self.cleaned_data.get('profile_picture')
+        if picture:
+            # Add file size validation (e.g., max 5MB)
+            if picture.size > 5 * 1024 * 1024:
+                raise forms.ValidationError("Image file too large (max 5MB)")
+            # Add content type validation
+            if not picture.content_type.startswith('image/'):
+                raise forms.ValidationError("File must be an image")
+        return picture

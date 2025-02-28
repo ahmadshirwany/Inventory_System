@@ -15,7 +15,7 @@ urlpatterns = [
     path("create-user/", create_user, name="create_user"),
     path("user-list/", user_list, name="user-list"),
     path("edit-user/<int:user_id>/", edit_user, name="edit_user"),
-    path('user-profile/', user_profile, name='update_password'),
+    path('user-profile/', user_profile, name='user_profile'),
     path('update-profile-picture/', update_profile_picture, name='update_profile_picture'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
