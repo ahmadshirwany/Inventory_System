@@ -152,7 +152,7 @@ class Product(models.Model):
         help_text="Name of the product",
         db_index=True
     )
-    origin = models.CharField(max_length=255, help_text="Country or region of origin")
+    origin = models.CharField(max_length=255,null=True, blank=True, help_text="Country or region of origin")
     lot_number = models.CharField(max_length=100, help_text="Lot number for batch identification")
     harvest_date = models.DateField(null=True, blank=True, help_text="Date of harvest")
     entry_date = models.DateField(default=now, help_text="Date when the product entered the warehouse", db_index=True)
@@ -232,29 +232,38 @@ class Product(models.Model):
             product_data = metadata[self.product_name]
 
             # Auto-populate fields if not set, handling ranges and special characters
-            if self.storage_temperature is None:
+            if self.storage_temperature is not None:
                 temp_str = product_data["storage_temperature"]
                 temp_values = [float(x) for x in temp_str.split("-") if x.strip()]
                 self.storage_temperature = sum(temp_values) / len(temp_values) if temp_values else None
 
-            if self.humidity_rate is None:
+            if self.humidity_rate is not None:
                 humidity_str = product_data["humidity_rate"]
                 # Handle "<" or ">" by taking the numeric part
                 humidity_cleaned = ''.join(c for c in humidity_str if c.isdigit() or c == '-' or c == '.')
                 humidity_values = [float(x) for x in humidity_cleaned.split("-") if x.strip()]
                 self.humidity_rate = sum(humidity_values) / len(humidity_values) if humidity_values else float(humidity_cleaned)
 
-            if self.co2 is None and product_data["co2"] is not None:
-                co2_str = product_data["co2"]
-                self.co2 = float(co2_str.replace("<", "").replace(">", "").strip())
+            if self.co2 is None and product_data['CO2 (%)'] is not None:
+                co2_str = product_data['CO2 (%)']
+                try:
+                    self.co2 = float(co2_str.replace("<", "").replace(">", "").strip())
+                except Exception as e:
+                    self.co2 = None
 
-            if self.o2 is None and product_data["o2"] is not None:
-                o2_str = product_data["o2"]
-                self.o2 = float(o2_str.replace("<", "").replace(">", "").strip())
+            if self.o2 is None and product_data['O2 (%)'] is not None:
+                try:
+                    o2_str = product_data['O2 (%)']
+                    self.o2 = float(o2_str.replace("<", "").replace(">", "").strip())
+                except Exception as e:
+                    self.o2 = None
 
-            if self.n2 is None and product_data["n2"] is not None and product_data["n2"] != "Balance":
-                n2_str = product_data["n2"]
-                self.n2 = float(n2_str.replace("<", "").replace(">", "").strip())
+            if self.n2 is not None and product_data["n2"] is not None and product_data["n2"] != "Balance":
+                try:
+                    n2_str = product_data["n2"]
+                    self.n2 = float(n2_str.replace("<", "").replace(">", "").strip())
+                except Exception as e:
+                    self.n2 = None
 
             if not self.ethylene_management:
                 self.ethylene_management = product_data["ethylene_management"]

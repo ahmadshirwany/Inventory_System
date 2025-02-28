@@ -6,11 +6,14 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.template import loader
 from django.urls import reverse
 from django.contrib.auth.forms import PasswordChangeForm
-from .models import Warehouse,Product
+from .models import Warehouse,Product,Farmer
 from django.db.models import Q
-from .forms import WarehouseForm
+from .forms import WarehouseForm, ProductForm
+from django.utils import timezone
 from django.core.exceptions import PermissionDenied
 from apps.authentication.models import CustomUser
+from django.core.paginator import Paginator
+from django.http import JsonResponse
 
 
 @login_required
@@ -94,41 +97,7 @@ def pages(request):
 
 
 # views.py
-@login_required
-def warehouse_detail(request, slug):
-    # Get the warehouse by slug
-    warehouse = get_object_or_404(Warehouse, slug=slug)
 
-    # Get filter parameters from GET request
-    sku = request.GET.get('sku', '')
-    product_name = request.GET.get('product_name', '')
-    product_type = request.GET.get('product_type', '')
-    status = request.GET.get('status', '')
-
-    # Filter products for this warehouse
-    products = Product.objects.filter(warehouse=warehouse)
-    if sku:
-        products = products.filter(sku__icontains=sku)
-    if product_name:
-        products = products.filter(product_name__icontains=product_name)
-    if product_type:
-        products = products.filter(product_type=product_type)
-    if status:
-        products = products.filter(status=status)
-
-    # Prepare context
-    filters = {
-        'sku': sku,
-        'product_name': product_name,
-        'product_type': product_type,
-        'status': status,
-    }
-    context = {
-        'warehouse': warehouse,
-        'products': products,
-        'filters': filters,
-    }
-    return render(request, 'managment/products.html', context)
 
 @login_required
 def edit_warehouse(request, slug):
@@ -210,3 +179,64 @@ def warehouse_list(request):
         }  # Pass the search query back to the template
     }
     return render(request, 'managment/warehouse_list.html', context)
+
+@login_required
+def warehouse_detail(request, slug):
+    warehouse = get_object_or_404(Warehouse, slug=slug)
+    if request.user != warehouse.ownership and request.user not in warehouse.users.all() and not request.user.is_superuser:
+        return render(request, '403.html', status=403)
+
+    # Handle product listing
+    sku = request.GET.get('sku', '')
+    product_name_filter = request.GET.get('product_name', '')
+    product_type = request.GET.get('product_type', '')
+    status = request.GET.get('status', '')
+
+    products = Product.objects.filter(warehouse=warehouse)
+    if sku:
+        products = products.filter(sku__icontains=sku)
+    if product_name_filter:
+        products = products.filter(product_name__icontains=product_name_filter)
+    if product_type:
+        products = products.filter(product_type=product_type)
+    if status:
+        products = products.filter(status=status)
+
+    paginator = Paginator(products, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    filters = {
+        'sku': sku,
+        'product_name': product_name_filter,
+        'product_type': product_type,
+        'status': status,
+    }
+
+    # Handle add product form
+    if request.method == 'POST' and 'add_product' in request.POST:
+        form = ProductForm(request.POST)
+        if form.is_valid():
+            product = form.save(commit=False)
+            product.warehouse = warehouse
+            product.save()
+            return JsonResponse({'success': True})
+        else:
+            # Return errors as JSON
+            errors = {}
+            for field, error_list in form.errors.items():
+                errors[field] = [str(error) for error in error_list]
+            return JsonResponse({'errors': errors}, status=400)
+    else:
+        form = ProductForm(initial={'entry_date': timezone.now().date()})
+
+    farmers = Farmer.objects.all()
+    context = {
+        'warehouse': warehouse,
+        'page_obj': page_obj,
+        'filters': filters,
+        'form': form,
+        'farmers': farmers,
+        'today': timezone.now().date(),
+    }
+    return render(request, 'managment/products.html', context)

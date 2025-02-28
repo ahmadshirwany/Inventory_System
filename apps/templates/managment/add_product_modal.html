@@ -1,0 +1,78 @@
+<div class="modal-header">
+    <h5 class="modal-title" id="addProductModalLabel">Add New Product to {{ warehouse.name }}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body">
+    <form method="POST" id="productWizardForm" action="{% url 'add_product' warehouse.slug %}">
+        {% csrf_token %}
+        <div class="wizard-steps">
+            <div class="step active" data-step="1">Basic Info</div>
+            <div class="step" data-step="2">Quantities</div>
+            <div class="step" data-step="3">Details</div>
+        </div>
+
+        <!-- Step 1: Basic Info -->
+        <div class="form-step active" data-step="1">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    {{ form.sku.label_tag }}
+                    {{ form.sku }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    {{ form.product_name.label_tag }}
+                    {{ form.product_name }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    {{ form.product_type.label_tag }}
+                    {{ form.product_type }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Quantities -->
+        <div class="form-step" data-step="2">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    {{ form.weight_quantity.label_tag }}
+                    {{ form.weight_quantity }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    {{ form.quantity_in_stock.label_tag }}
+                    {{ form.quantity_in_stock }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    {{ form.unit_price.label_tag }}
+                    {{ form.unit_price }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Details -->
+        <div class="form-step" data-step="3">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    {{ form.harvest_date.label_tag }}
+                    {{ form.harvest_date }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    {{ form.entry_date.label_tag }}
+                    {{ form.entry_date }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    {{ form.farmer.label_tag }}
+                    {{ form.farmer }}
+                </div>
+                <div class="col-md-12 mb-3">
+                    {{ form.notes_comments.label_tag }}
+                    {{ form.notes_comments }}
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+<div class="modal-footer">
+    <button type="button" class="btn btn-secondary" id="prevBtn" disabled>Previous</button>
+    <button type="button" class="btn btn-primary" id="nextBtn">Next</button>
+    <button type="submit" class="btn btn-success" id="submitBtn" form="productWizardForm" style="display: none;">Submit</button>
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>

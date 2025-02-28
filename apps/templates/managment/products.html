@@ -1,7 +1,6 @@
 {% extends "layouts/base.html" %}
 {% block title %} Products in {{ warehouse.name }} {% endblock %}
 
-<!-- Specific Page CSS goes HERE -->
 {% block stylesheets %}
     <style>
         .filter-dropdown {
@@ -14,17 +13,54 @@
             margin-bottom: 10px;
         }
         .collapse.show {
-            display: block; /* Ensure proper display for Bootstrap collapse */
+            display: block;
         }
         .table-hover tr:hover {
             cursor: pointer;
         }
         .table-responsive {
-            overflow-x: auto; /* Enable horizontal scrolling */
+            overflow-x: auto;
         }
         .table th, .table td {
-            white-space: nowrap; /* Prevent text wrapping */
-            padding: 8px; /* Adjust padding for readability */
+            white-space: nowrap;
+            padding: 8px;
+        }
+        .pagination {
+            margin-top: 20px;
+            justify-content: center;
+        }
+        .header-buttons {
+            float: right;
+            margin-top: -40px;
+        }
+        .modal-xl {
+            max-width: 90%;
+        }
+        .wizard-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .step {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            background: #f0f0f0;
+            margin: 0 5px;
+        }
+        .step.active {
+            background: #007bff;
+            color: white;
+        }
+        .form-step {
+            display: none;
+        }
+        .form-step.active {
+            display: block;
+        }
+        .error-messages {
+            display: none;
+            margin-bottom: 20px;
         }
     </style>
 {% endblock stylesheets %}
@@ -35,15 +71,19 @@
             <div class="card card-plain">
                 <div class="card-header card-header-primary">
                     <h4 class="card-title mt-0">Products in {{ warehouse.name }}</h4>
+                    <div class="header-buttons">
+                        <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                            <i class="fa fa-plus"></i> Add New Product
+                        </button>
+                    </div>
                     <p class="card-category">Inventory details for {{ warehouse.location }} ({{ warehouse.type }})</p>
                 </div>
                 <div class="card-body">
-                    <!-- Filter Dropdown Button -->
+                    <!-- Filter Section -->
                     <button class="btn btn-secondary mb-3" type="button" data-toggle="collapse" data-target="#filterPanel" aria-expanded="false" aria-controls="filterPanel">
                         <i class="fa fa-filter"></i> Filters
                     </button>
 
-                    <!-- Collapsible Filter Panel -->
                     <div class="collapse" id="filterPanel">
                         <form method="GET" action="{% url 'warehouse_detail' warehouse.slug %}" class="mb-3 filter-dropdown">
                             <div class="filter-row">
@@ -76,10 +116,10 @@
                         </form>
                     </div>
 
-                    <!-- Table -->
+                    <!-- Product Table -->
                     <div class="table-responsive">
-                        {% if products %}
-                            <table class="table table-hover">
+                        {% if page_obj %}
+                            <table class="table table-hover" id="productsTable">
                                 <thead>
                                     <th>SKU</th>
                                     <th>Product Name</th>
@@ -114,7 +154,7 @@
                                     <th>Actions</th>
                                 </thead>
                                 <tbody>
-                                    {% for product in products %}
+                                    {% for product in page_obj %}
                                     <tr onclick="window.location.href='{% url 'product_detail' product.sku %}'">
                                         <td>{{ product.sku }}</td>
                                         <td>{{ product.product_name }}</td>
@@ -155,6 +195,43 @@
                                     {% endfor %}
                                 </tbody>
                             </table>
+
+                            <!-- Pagination -->
+                            <nav aria-label="Page navigation">
+                                <ul class="pagination">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Previous</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link">Previous</span>
+                                        </li>
+                                    {% endif %}
+
+                                    {% for num in page_obj.paginator.page_range %}
+                                        {% if page_obj.number == num %}
+                                            <li class="page-item active">
+                                                <span class="page-link">{{ num }}</span>
+                                            </li>
+                                        {% elif num > page_obj.number|add:-3 and num < page_obj.number|add:3 %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Next</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link">Next</span>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
                         {% else %}
                             <p class="text-center text-muted">No products found in {{ warehouse.name }} matching your criteria.</p>
                         {% endif %}
@@ -164,18 +241,241 @@
         </div>
     </div>
 
+    <!-- Add Product Modal -->
+    <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addProductModalLabel">Add New Product to {{ warehouse.name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger error-messages" id="formErrors"></div>
+                    <form method="POST" id="productWizardForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="add_product" value="1">
+                        <div class="wizard-steps">
+                            <div class="step active" data-step="1">Basic Info</div>
+                            <div class="step" data-step="2">Quantities</div>
+                            <div class="step" data-step="3">Details</div>
+                        </div>
+
+                        <!-- Step 1: Basic Info -->
+                        <div class="form-step active" data-step="1">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    {{ form.sku.label_tag }}
+                                    {{ form.sku }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.product_name.label_tag }}
+                                    {{ form.product_name }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.product_type.label_tag }}
+                                    {{ form.product_type }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Quantities -->
+                        <div class="form-step" data-step="2">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    {{ form.weight_quantity.label_tag }}
+                                    {{ form.weight_quantity }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.quantity_in_stock.label_tag }}
+                                    {{ form.quantity_in_stock }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.unit_price.label_tag }}
+                                    {{ form.unit_price }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Details -->
+                        <div class="form-step" data-step="3">
+                            <div class="row">
+                                <div class="col-md-3 mb-3">
+                                    {{ form.harvest_date.label_tag }}
+                                    {{ form.harvest_date }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    {{ form.entry_date.label_tag }}
+                                    {{ form.entry_date }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    {{ form.lot_number.label_tag }}
+                                    {{ form.lot_number }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    {{ form.farmer.label_tag }}
+                                    {{ form.farmer }}
+                                </div>
+                                <div class="col-md-12 mb-3">
+                                    {{ form.notes_comments.label_tag }}
+                                    {{ form.notes_comments }}
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="prevBtn" disabled>Previous</button>
+                    <button type="button" class="btn btn-primary" id="nextBtn">Next</button>
+                    <button type="button" class="btn btn-success" id="submitBtn" style="display: none;">Submit</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         function clearFilters() {
-            document.querySelectorAll('input[name], select[name]').forEach(function(input) {
-                input.value = '';
-            });
-            document.querySelector('form').submit();
+            window.location.href = "{% url 'warehouse_detail' warehouse.slug %}";
         }
+
+        // Function to get CSRF token from cookie
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const steps = document.querySelectorAll('.step');
+            const formSteps = document.querySelectorAll('.form-step');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const submitBtn = document.getElementById('submitBtn');
+            const form = document.getElementById('productWizardForm');
+            const errorDiv = document.getElementById('formErrors');
+            let currentStep = 1;
+            const totalSteps = 3;
+            const csrfToken = getCookie('csrftoken'); // Get CSRF token from cookie
+
+            function updateSteps() {
+                steps.forEach(step => step.classList.remove('active'));
+                steps[currentStep - 1].classList.add('active');
+                formSteps.forEach(step => step.classList.remove('active'));
+                formSteps[currentStep - 1].classList.add('active');
+
+                prevBtn.disabled = currentStep === 1;
+                nextBtn.style.display = currentStep === totalSteps ? 'none' : 'inline-block';
+                submitBtn.style.display = currentStep === totalSteps ? 'inline-block' : 'none';
+                errorDiv.style.display = 'none'; // Hide errors when switching steps
+            }
+
+            prevBtn.addEventListener('click', function() {
+                if (currentStep > 1) {
+                    currentStep--;
+                    updateSteps();
+                }
+            });
+
+            nextBtn.addEventListener('click', function() {
+                if (currentStep < totalSteps) {
+                    const currentInputs = formSteps[currentStep - 1].querySelectorAll('input[required], select[required]');
+                    let isValid = true;
+                    currentInputs.forEach(input => {
+                        if (!input.value) {
+                            isValid = false;
+                            input.classList.add('is-invalid');
+                        } else {
+                            input.classList.remove('is-invalid');
+                        }
+                    });
+
+                    if (isValid) {
+                        currentStep++;
+                        updateSteps();
+                    }
+                }
+            });
+
+            document.getElementById('id_product_name').addEventListener('change', function() {
+                fetch(`/get_product_metadata/?product_name=${this.value}`, {
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Metadata fetch failed');
+                    return response.json();
+                })
+                .then(data => {
+                    if (data) {
+                        document.getElementById('id_product_type').value = data.product_type || '';
+                        document.getElementById('id_notes_comments').value = data.notes_comments || '';
+                    }
+                })
+                .catch(error => console.error('Metadata error:', error));
+            });
+
+            submitBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const formData = new FormData(form);
+                fetch("{% url 'warehouse_detail' warehouse.slug %}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    },
+                    credentials: 'same-origin' // Ensure cookies are sent
+                })
+                .then(response => {
+                    if (response.ok) {
+                        location.reload(); // Success: Refresh the page
+                    } else {
+                        return response.json().then(data => {
+                            // Handle server-side validation errors
+                            let errorMessages = '';
+                            if (data.errors) {
+                                for (const [field, errors] of Object.entries(data.errors)) {
+                                    errors.forEach(error => {
+                                        errorMessages += `<p>${field}: ${error}</p>`;
+                                    });
+                                }
+                            } else {
+                                errorMessages = `<p>Server error: ${response.status} - ${response.statusText}</p>`;
+                            }
+                            errorDiv.innerHTML = errorMessages;
+                            errorDiv.style.display = 'block';
+                        });
+                    }
+                })
+                .catch(error => {
+                    // Enhanced network error handling
+                    console.error('Fetch error:', error);
+                    let errorMessage = '<p>Network error occurred. ';
+                    if (!navigator.onLine) {
+                        errorMessage += 'You appear to be offline. Please check your internet connection.';
+                    } else {
+                        errorMessage += 'Please check your network or try again later.';
+                    }
+                    errorMessage += '</p>';
+                    errorDiv.innerHTML = errorMessage;
+                    errorDiv.style.display = 'block';
+                });
+            });
+
+            updateSteps();
+        });
     </script>
 {% endblock content %}
 
-<!-- Specific Page JS goes HERE -->
 {% block javascripts %}
-    <!-- Ensure Bootstrap's collapse functionality is included -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 {% endblock javascripts %}

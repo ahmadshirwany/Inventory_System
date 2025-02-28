@@ -3,8 +3,9 @@ from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django import forms
-from .models import Warehouse
+from .models import Warehouse,Product,get_product_metadata
 from apps.authentication.models import CustomUser
+from django.utils import timezone
 
 @login_required
 def update_password(request):
@@ -65,3 +66,120 @@ class WarehouseForm(forms.ModelForm):
         if user:
             # Restrict users to those that the current user can manage (if needed)
             self.fields['users'].queryset = user.users_manageable.all() if hasattr(user, 'users_manageable') else user.__class__.objects.none()
+
+
+class ProductForm(forms.ModelForm):
+    class Meta:
+        model = Product
+        exclude = ['warehouse', 'total_value', 'weight_quantity_kg', 'status', 'exit_date',
+                   'manufacturing_date', 'expiration_date', 'supplier_code', 'variety_or_species',
+                   'packaging_condition', 'quality_standards', 'storage_temperature', 'humidity_rate',
+                   'co2', 'o2', 'n2', 'ethylene_management', 'nutritional_info', 'regulatory_codes']
+        # Note: 'lot_number' is no longer excluded, so it’s included by default
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Customize widgets for better UX
+        self.fields['sku'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Enter unique SKU',
+            'required': True
+        })
+        self.fields['product_name'].widget.attrs.update({
+            'class': 'form-control',
+            'required': True
+        })
+        self.fields['product_type'].widget.attrs.update({
+            'class': 'form-control',
+            'required': True
+        })
+        self.fields['weight_quantity'].widget.attrs.update({
+            'class': 'form-control',
+            'step': '0.01',
+            'min': '0',
+            'placeholder': 'Enter weight (default units)',
+            'required': True
+        })
+        self.fields['quantity_in_stock'].widget.attrs.update({
+            'class': 'form-control',
+            'min': '0',
+            'placeholder': 'Enter stock quantity',
+            'required': True
+        })
+        self.fields['unit_price'].widget.attrs.update({
+            'class': 'form-control',
+            'step': '0.01',
+            'min': '0',
+            'placeholder': 'Enter price per unit',
+            'required': True
+        })
+        self.fields['harvest_date'].widget = forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'form-control'
+        })
+        self.fields['entry_date'].widget = forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'form-control',
+            'value': timezone.now().date().isoformat(),
+            'required': True
+        })
+        self.fields['lot_number'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Enter lot number (optional)'
+        })
+        self.fields['farmer'].widget.attrs.update({
+            'class': 'form-control'
+        })
+        self.fields['notes_comments'].widget.attrs.update({
+            'class': 'form-control',
+            'rows': '3',
+            'placeholder': 'Add any additional notes'
+        })
+
+        # Make some fields optional
+        self.fields['harvest_date'].required = False
+        self.fields['lot_number'].required = False
+        self.fields['farmer'].required = False
+        self.fields['notes_comments'].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        product_name = cleaned_data.get('product_name')
+
+        # Populate metadata-based fields if not provided
+        if product_name:
+            metadata = get_product_metadata()
+            product_data = metadata.get(product_name, {})
+
+            if not cleaned_data.get('notes_comments') and product_data.get('notes_comments'):
+                cleaned_data['notes_comments'] = product_data['notes_comments']
+            if not cleaned_data.get('product_type') and product_data.get('product_type'):
+                cleaned_data['product_type'] = product_data['product_type']
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+
+        # Auto-calculate weight_quantity_kg
+        if self.cleaned_data.get('weight_quantity'):
+            instance.weight_quantity_kg = self.cleaned_data['weight_quantity'] / 1000
+
+        # Set default status
+        instance.status = 'In Stock'
+
+        # Calculate total_value
+        if self.cleaned_data.get('unit_price') and self.cleaned_data.get('quantity_in_stock'):
+            instance.total_value = self.cleaned_data['unit_price'] * self.cleaned_data['quantity_in_stock']
+
+        # Populate metadata-based fields
+        metadata = get_product_metadata()
+        product_data = metadata.get(self.cleaned_data['product_name'], {})
+        for field in ['storage_temperature', 'humidity_rate', 'co2', 'o2', 'n2', 'ethylene_management']:
+            if field in product_data and getattr(instance, field) is None:
+                setattr(instance, field, product_data[field])
+
+        if commit:
+            instance.save()
+        return instance
