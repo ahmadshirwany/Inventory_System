@@ -16,6 +16,7 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.contrib import messages
 from django.db import transaction
+import json
 
 
 @login_required
@@ -187,32 +188,86 @@ def create_warehouse(request):
     }
     return render(request, 'managment/create_warehouse.html', context)
 
-@login_required  # Ensure the user is authenticated
+
 def warehouse_list(request):
+    """
+    Display and manage warehouse list with filtering, editing, and user addition via modals.
+
+    Args:
+        request: HTTP request object
+
+    Returns:
+        HttpResponse: Rendered page, form HTML, or JSON response
+    """
+    # Handle POST requests
+    if request.method == 'POST':
+        if 'slug' in request.POST:  # Edit warehouse
+            warehouse = Warehouse.objects.get(slug=request.POST['slug'])
+            if not request.user.is_superuser and warehouse.ownership != request.user and request.user not in warehouse.users.all():
+                return JsonResponse({'error': 'You do not have permission to edit this warehouse.'}, status=403)
+
+            form = WarehouseForm(request.POST, instance=warehouse, user=request.user)
+            if form.is_valid():
+                form.save()
+                return JsonResponse({'success': f'Warehouse "{warehouse.name}" updated successfully'})
+            else:
+                return HttpResponse(
+                    render(request, 'managment/warehouse_form_partial.html', {'form': form}).content,
+                    content_type='text/html',
+                    status=400
+                )
+        elif 'username' in request.POST:  # Add user
+            if request.user.is_superuser or request.user.can_create_user(request.user.owned_users.count()):
+                user = CustomUser(
+                    username=request.POST['username'],
+                    owner=request.user if not request.user.is_superuser else None,
+                    subscription_plan='user',  # Default for new users
+                    warehouse_limit=0,  # New users can't own warehouses by default
+                    user_limit=0  # New users can't own other users by default
+                )
+                user.set_password(request.POST.get('password', 'default_password'))  # Set a default or require password
+                user.save()
+                return JsonResponse({'success': f'User "{user.username}" created successfully'})
+            else:
+                return JsonResponse({'error': 'You have reached your user creation limit.'}, status=403)
+
+    # Handle GET requests
     name_query = request.GET.get('name', '').strip()
     location_query = request.GET.get('location', '').strip()
     owner_query = request.GET.get('owner', '').strip()
     users_query = request.GET.get('users', '').strip()
+
     if request.user.is_superuser:
         queryset = Warehouse.objects.all()
     else:
-        queryset = (Warehouse.objects.filter(users=request.user) | Warehouse.objects.filter(ownership=request.user)).distinct()
+        queryset = (Warehouse.objects.filter(users=request.user) |
+                    Warehouse.objects.filter(ownership=request.user)).distinct()
+
     query = Q()
     if name_query:
         query &= Q(name__icontains=name_query)
     if location_query:
         query &= Q(location__icontains=location_query)
     if owner_query:
-        query &= Q(users__username__icontains=owner_query)
+        query &= Q(ownership__username__icontains=owner_query)
+    if users_query:
+        query &= Q(users__username__icontains=users_query)
     if query:
         queryset = queryset.filter(query).distinct()
+
     if not request.user.is_superuser and not queryset.exists():
         return render(
             request,
             "home/page-403.html",
-            {"message": "Access Denied: You do not have Acess to any of the warehouses."},
+            {"message": "Access Denied: You do not have access to any warehouses."},
             status=403
         )
+
+    # Handle AJAX for edit form
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 'slug' in request.GET:
+        warehouse = Warehouse.objects.get(slug=request.GET['slug'])
+        form = WarehouseForm(instance=warehouse, user=request.user)
+        return render(request, 'managment/warehouse_form_partial.html', {'form': form})
 
     context = {
         'warehouses': queryset,
@@ -221,7 +276,10 @@ def warehouse_list(request):
             'location': location_query,
             'owner': owner_query,
             'users': users_query,
-        }  # Pass the search query back to the template
+        },
+        'total_count': queryset.count(),
+        'user_limit': request.user.user_limit,
+        'current_user_count': request.user.owned_users.count() if not request.user.is_superuser else CustomUser.objects.count(),
     }
     return render(request, 'managment/warehouse_list.html', context)
 

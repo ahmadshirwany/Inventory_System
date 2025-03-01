@@ -29,9 +29,12 @@ def update_password(request):
 
 class WarehouseForm(forms.ModelForm):
     users = forms.ModelMultipleChoiceField(
-        queryset=CustomUser.objects.all(),
+        queryset=CustomUser.objects.none(),
         required=False,
-        widget=forms.SelectMultiple(attrs={'class': 'form-control'})
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-control select2-users',  # Add class for Select2
+            'multiple': 'multiple',  # Ensure multiple selection
+        })
     )
 
     class Meta:
@@ -52,7 +55,7 @@ class WarehouseForm(forms.ModelForm):
             'total_capacity': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'available_space': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'zone_layout': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-            'users': forms.SelectMultiple(attrs={'class': 'form-control'}),
+            # 'users' is defined above with SelectMultiple
         }
         help_texts = {
             'name': 'Name of the warehouse',
@@ -61,19 +64,17 @@ class WarehouseForm(forms.ModelForm):
             'total_capacity': 'Total storage capacity in square meters',
             'available_space': 'Available storage space in square meters',
             'zone_layout': 'Description or diagram of the warehouse zone layout',
-            'users': 'Users associated with this warehouse',
+            'users': 'Select users associated with this warehouse',
         }
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         if user:
-            self.fields['users'].queryset = (
-                user.users_manageable.all()
-                if hasattr(user, 'users_manageable')
-                else CustomUser.objects.none()
-            )
-            # Store the creator for the pre_save signal
+            if user.is_superuser:
+                self.fields['users'].queryset = CustomUser.objects.all()
+            else:
+                self.fields['users'].queryset = CustomUser.objects.filter(owner=user)
             self.instance.creator = user
 
     def clean(self):

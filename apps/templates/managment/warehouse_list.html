@@ -1,7 +1,9 @@
 {% extends "layouts/base.html" %}
 {% block title %} Warehouses {% endblock %}
-<!-- Specific Page CSS goes HERE  -->
+
+<!-- Specific Page CSS -->
 {% block stylesheets %}
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <style>
         .filter-dropdown {
             margin-bottom: 15px;
@@ -13,55 +15,128 @@
             margin-bottom: 10px;
         }
         .collapse.show {
-            display: block; /* Ensure proper display for Bootstrap collapse */
+            display: block;
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .table-hover tr:hover {
+            cursor: pointer;
+            background-color: #f5f5f5;
+        }
+        .modal-lg {
+            max-width: 800px;
+        }
+        .modal-body .form-group {
+            margin-bottom: 15px;
+        }
+        .modal-body .form-control.invalid {
+            border-color: #dc3545;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        .capacity-info {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        .alert {
+            margin-top: 10px;
+        }
+        .select2-users {
+            width: 100%;
+        }
+        .select2-container--default .select2-selection--multiple {
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            min-height: 38px;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 2px 5px;
+            margin: 2px;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+            color: white;
+            margin-right: 5px;
+        }
+        /* Custom positioning for Select2 dropdown */
+        .select2-container--open .select2-dropdown {
+            z-index: 1056; /* Higher than modal's default z-index (1050) */
+            width: 100% !important; /* Match the input width */
+        }
+        .select2-container--default .select2-dropdown--below {
+            top: 100%; /* Position below the input */
+            margin-top: 5px; /* Small offset */
+        }
+        .select2-container--default .select2-dropdown--above {
+            bottom: 100%; /* Position above the input */
+            margin-bottom: 5px;
+        }
+        /* Ensure dropdown stays within modal */
+        .modal-body {
+            position: relative;
+            overflow-y: auto; /* Allow scrolling if content overflows */
+            max-height: 70vh; /* Limit modal height */
         }
     </style>
 {% endblock stylesheets %}
+
 {% block content %}
     <div class="row">
         <div class="col-md-12">
             <div class="card card-plain">
                 <div class="card-header card-header-primary">
-                    <h4 class="card-title mt-0">Warehouses</h4>
-                    <p class="card-category">List of all warehouses</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="card-title mt-0">Warehouses</h4>
+                            <p class="card-category">List of all warehouses (Total: {{ total_count }})</p>
+                        </div>
+                        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                            Add User
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
                     <!-- Filter Dropdown Button -->
-                    <button class="btn btn-secondary mb-3" type="button" data-toggle="collapse" data-target="#filterPanel" aria-expanded="false" aria-controls="filterPanel">
+                    <button class="btn btn-secondary mb-3" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#filterPanel" aria-expanded="false" aria-controls="filterPanel">
                         <i class="fa fa-filter"></i> Filters
                     </button>
 
                     <!-- Collapsible Filter Panel -->
                     <div class="collapse" id="filterPanel">
-                        <form method="GET" action="{% url 'warehouse_list' %}" class="mb-3 filter-dropdown">
+                        <form method="GET" action="{% url 'warehouse_list' %}" class="mb-3 filter-dropdown" id="filterForm">
                             <div class="filter-row">
                                 <label>Name:</label>
-                                <input type="text" class="form-control" name="name" placeholder="Filter by Name" value="{{ filters.name }}">
+                                <input type="text" class="form-control" name="name" placeholder="Filter by Name"
+                                       value="{{ filters.name }}">
                             </div>
                             <div class="filter-row">
                                 <label>Location:</label>
-                                <input type="text" class="form-control" name="location" placeholder="Filter by Location" value="{{ filters.location }}">
+                                <input type="text" class="form-control" name="location" placeholder="Filter by Location"
+                                       value="{{ filters.location }}">
                             </div>
                             <div class="filter-row">
                                 <label>Owner:</label>
-                                <input type="text" class="form-control" name="owner" placeholder="Filter by Owner" value="{{ filters.owner }}">
+                                <input type="text" class="form-control" name="owner" placeholder="Filter by Owner"
+                                       value="{{ filters.owner }}">
                             </div>
                             <div class="filter-row">
                                 <label>Users:</label>
-                                <input type="text" class="form-control" name="users" placeholder="Filter by Users" value="{{ filters.users }}">
+                                <input type="text" class="form-control" name="users" placeholder="Filter by Users"
+                                       value="{{ filters.users }}">
                             </div>
-{#                            <div class="filter-row">#}
-{#                                <label>Total Capacity (sqm):</label>#}
-{#                                <input type="number" class="form-control" name="min_capacity" placeholder="Min Capacity" value="{{ filters.min_capacity }}">#}
-{#                                <input type="number" class="form-control" name="max_capacity" placeholder="Max Capacity" value="{{ filters.max_capacity }}">#}
-{#                            </div>#}
-{#                            <div class="filter-row">#}
-{#                                <label>Utilization Rate (%):</label>#}
-{#                                <input type="number" class="form-control" name="min_utilization" placeholder="Min Utilization" value="{{ filters.min_utilization }}">#}
-{#                                <input type="number" class="form-control" name="max_utilization" placeholder="Max Utilization" value="{{ filters.max_utilization }}">#}
-{#                            </div>#}
                             <button type="submit" class="btn btn-primary">Apply Filters</button>
-                            <button type="button" class="btn btn-secondary clear-filters-btn" onclick="clearFilters()">Clear Filters</button>
+                            <button type="button" class="btn btn-secondary clear-filters-btn" onclick="clearFilters()">
+                                Clear Filters
+                            </button>
                         </form>
                     </div>
 
@@ -69,19 +144,22 @@
                     <div class="table-responsive">
                         {% if warehouses %}
                             <table class="table table-hover">
-                                <thead class="">
-                                    <th>Name</th>
-                                    <th>Type</th>
-                                    <th>Location</th>
-                                    <th>Owner</th>
-                                    <th>Total Capacity (sqm)</th>
-                                    <th>Available Space (sqm)</th>
-                                    <th>Utilization Rate (%)</th>
-                                    <th>Users</th>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Type</th>
+                                        <th>Location</th>
+                                        <th>Owner</th>
+                                        <th>Total Capacity (sqm)</th>
+                                        <th>Available Space (sqm)</th>
+                                        <th>Utilization Rate (%)</th>
+                                        <th>Users</th>
+                                        <th>Actions</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
                                     {% for warehouse in warehouses %}
-                                    <tr onclick="window.location.href='{% url 'warehouse_detail' warehouse.slug %}'">
+                                    <tr data-slug="{{ warehouse.slug }}" onclick="window.location.href='{% url 'warehouse_detail' warehouse.slug %}'">
                                         <td>{{ warehouse.name }}</td>
                                         <td>{{ warehouse.type }}</td>
                                         <td>{{ warehouse.location }}</td>
@@ -98,10 +176,12 @@
                                                 None
                                             {% endif %}
                                         </td>
-                                        <td style="text-align: center;">
-                                            <a href="{% url 'edit_warehouse' warehouse.slug %}" class="btn btn-sm btn-primary" onclick="event.stopPropagation();">
+                                        <td>
+                                            <button class="btn btn-sm btn-primary edit-warehouse"
+                                                    data-slug="{{ warehouse.slug }}"
+                                                    onclick="event.stopPropagation(); openEditModal(this)">
                                                 Edit
-                                            </a>
+                                            </button>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -115,17 +195,322 @@
             </div>
         </div>
     </div>
-    <script>
-        function clearFilters() {
-            document.querySelectorAll('input[name]').forEach(function(input) {
-                input.value = '';
-            });
-            document.querySelector('form').submit();
-        }
-    </script>
+
+    <!-- Edit Warehouse Modal -->
+    <div class="modal fade" id="editWarehouseModal" tabindex="-1" aria-labelledby="editWarehouseModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editWarehouseModalLabel">Edit Warehouse</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editWarehouseForm" method="POST" action="{% url 'warehouse_list' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="slug" id="warehouseSlug">
+                        <div id="editFormContent">
+                            <!-- Form fields loaded here via JS -->
+                        </div>
+                        <div id="editFormMessages"></div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-primary" id="saveWarehouseBtn">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add User Modal -->
+    <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addUserModalLabel">Add New User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addUserForm" method="POST" action="{% url 'warehouse_list' %}">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="username">Username</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                            <div class="error-message" id="username-error"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                            <div class="error-message" id="password-error"></div>
+                        </div>
+                        <div id="addUserMessages"></div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-primary" id="saveUserBtn">Add User</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock content %}
-<!-- Specific Page JS goes HERE  -->
+
+<!-- Specific Page JS -->
 {% block javascripts %}
-    <!-- Ensure Bootstrap's collapse functionality is included -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const filterForm = document.getElementById('filterForm');
+        const editModal = new bootstrap.Modal(document.getElementById('editWarehouseModal'));
+        const editForm = document.getElementById('editWarehouseForm');
+        const editFormContent = document.getElementById('editFormContent');
+        const editFormMessages = document.getElementById('editFormMessages');
+        const warehouseSlugInput = document.getElementById('warehouseSlug');
+        const addUserModal = new bootstrap.Modal(document.getElementById('addUserModal'));
+        const addUserForm = document.getElementById('addUserForm');
+        const addUserMessages = document.getElementById('addUserMessages');
+
+        // Clear filters function
+        function clearFilters() {
+            document.querySelectorAll('input[name]').forEach(input => input.value = '');
+            filterForm.submit();
+        }
+
+        // Client-side filter preview
+        const applyFilters = debounce(function() {
+            const nameFilter = document.querySelector('[name="name"]').value.toLowerCase();
+            const locationFilter = document.querySelector('[name="location"]').value.toLowerCase();
+            const ownerFilter = document.querySelector('[name="owner"]').value.toLowerCase();
+            const usersFilter = document.querySelector('[name="users"]').value.toLowerCase();
+
+            document.querySelectorAll('tbody tr').forEach(row => {
+                const name = row.cells[0].textContent.toLowerCase();
+                const location = row.cells[2].textContent.toLowerCase();
+                const owner = row.cells[3].textContent.toLowerCase();
+                const users = row.cells[7].textContent.toLowerCase();
+
+                const matches = name.includes(nameFilter) &&
+                              location.includes(locationFilter) &&
+                              owner.includes(ownerFilter) &&
+                              users.includes(usersFilter);
+                row.style.display = matches ? '' : 'none';
+            });
+        }, 300);
+
+        filterForm.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', applyFilters);
+        });
+
+        // Open edit modal and fetch form
+        window.openEditModal = function(button) {
+            const slug = button.getAttribute('data-slug');
+            warehouseSlugInput.value = slug;
+            fetch(`{% url 'warehouse_list' %}?slug=${slug}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                editFormContent.innerHTML = html;
+                editFormMessages.innerHTML = '';
+                editModal.show();
+                initializeEditForm();
+            })
+            .catch(error => {
+                console.error('Error loading form:', error);
+                editFormMessages.innerHTML = '<div class="alert alert-danger">Failed to load edit form.</div>';
+            });
+        };
+
+        // Handle edit form submission
+        editForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(editForm);
+
+            fetch(editForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json().then(data => ({data, status: response.status}));
+                } else {
+                    return response.text().then(html => ({html, status: response.status}));
+                }
+            })
+            .then(result => {
+                if (result.status === 200) {
+                    editFormMessages.innerHTML = `<div class="alert alert-success">${result.data.success}</div>`;
+                    setTimeout(() => {
+                        editModal.hide();
+                        window.location.reload();
+                    }, 1500);
+                } else if (result.status === 400) {
+                    editFormContent.innerHTML = result.html;
+                    initializeEditForm();
+                    editFormMessages.innerHTML = '<div class="alert alert-danger">Please correct the errors below.</div>';
+                } else {
+                    editFormMessages.innerHTML = `<div class="alert alert-danger">${result.data.error || 'An error occurred'}</div>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error submitting form:', error);
+                editFormMessages.innerHTML = '<div class="alert alert-danger">Failed to save changes.</div>';
+            });
+        });
+
+        // Handle add user form submission
+        addUserForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(addUserForm);
+
+            fetch(addUserForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addUserMessages.innerHTML = `<div class="alert alert-success">${data.success}</div>`;
+                    setTimeout(() => {
+                        addUserModal.hide();
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    addUserMessages.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error adding user:', error);
+                addUserMessages.innerHTML = '<div class="alert alert-danger">Failed to add user.</div>';
+            });
+        });
+
+        // Initialize edit form with validation and Select2
+        function initializeEditForm() {
+            const totalCapacityInput = document.getElementById('id_total_capacity');
+            const availableSpaceInput = document.getElementById('id_available_space');
+            const saveBtn = document.getElementById('saveWarehouseBtn');
+            const usersSelect = document.getElementById('id_users');
+            const utilizationRateDiv = editFormContent.querySelector('.capacity-info') ||
+                document.createElement('div');
+
+            if (!utilizationRateDiv.classList.contains('capacity-info')) {
+                utilizationRateDiv.classList.add('capacity-info');
+                availableSpaceInput.parentNode.appendChild(utilizationRateDiv);
+            }
+
+            // Initialize Select2 with custom positioning
+            $(usersSelect).select2({
+                placeholder: "Select users",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#editWarehouseModal'),
+                dropdownAutoWidth: true,
+                position: 'below', // Default to below, can be 'above' or 'auto'
+                matcher: function(params, data) {
+                    if ($.trim(params.term) === '') {
+                        return data;
+                    }
+                    if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
+                        return data;
+                    }
+                    return null;
+                }
+            });
+
+            // Handle dropdown positioning dynamically
+            $(usersSelect).on('select2:open', function() {
+                const modalBody = document.querySelector('#editWarehouseModal .modal-body');
+                const selectRect = usersSelect.getBoundingClientRect();
+                const modalRect = modalBody.getBoundingClientRect();
+                const dropdown = document.querySelector('.select2-dropdown');
+
+                // Check if there's enough space below
+                const spaceBelow = modalRect.bottom - selectRect.bottom;
+                const dropdownHeight = 200; // Approximate height, adjust as needed
+                if (spaceBelow < dropdownHeight && selectRect.top - modalRect.top > dropdownHeight) {
+                    dropdown.classList.remove('select2-dropdown--below');
+                    dropdown.classList.add('select2-dropdown--above');
+                } else {
+                    dropdown.classList.remove('select2-dropdown--above');
+                    dropdown.classList.add('select2-dropdown--below');
+                }
+            });
+
+            function updateCapacityInfo() {
+                const total = parseFloat(totalCapacityInput.value) || 0;
+                const available = parseFloat(availableSpaceInput.value) || 0;
+                let isValid = true;
+
+                totalCapacityInput.classList.remove('invalid');
+                availableSpaceInput.classList.remove('invalid');
+                const totalError = document.getElementById('id_total_capacity-error') ||
+                    createErrorDiv('id_total_capacity');
+                const availableError = document.getElementById('id_available_space-error') ||
+                    createErrorDiv('id_available_space');
+                totalError.style.display = 'none';
+                availableError.style.display = 'none';
+
+                if (total < 0 || available < 0) {
+                    isValid = false;
+                    const errorField = total < 0 ? totalCapacityInput : availableSpaceInput;
+                    errorField.classList.add('invalid');
+                    const errorDiv = total < 0 ? totalError : availableError;
+                    errorDiv.textContent = 'Value cannot be negative';
+                    errorDiv.style.display = 'block';
+                } else if (total < available) {
+                    isValid = false;
+                    totalCapacityInput.classList.add('invalid');
+                    availableSpaceInput.classList.add('invalid');
+                    totalError.textContent = 'Must be greater than available space';
+                    totalError.style.display = 'block';
+                }
+
+                const usedSpace = total - available;
+                const utilization = total > 0 ? (usedSpace / total * 100).toFixed(2) : 0;
+                utilizationRateDiv.textContent = `Utilization Rate: ${utilization}%`;
+
+                saveBtn.disabled = !isValid;
+            }
+
+            [totalCapacityInput, availableSpaceInput].forEach(input => {
+                input.addEventListener('input', updateCapacityInfo);
+            });
+
+            updateCapacityInfo();
+        }
+
+        // Helper to create error div
+        function createErrorDiv(fieldId) {
+            const div = document.createElement('div');
+            div.className = 'error-message';
+            div.id = `${fieldId}-error`;
+            const field = document.getElementById(fieldId);
+            field.parentNode.appendChild(div);
+            return div;
+        }
+
+        // Debounce function
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+    });
+    </script>
 {% endblock javascripts %}
