@@ -98,9 +98,6 @@
                             <h4 class="card-title mt-0">Warehouses</h4>
                             <p class="card-category">List of all warehouses (Total: {{ total_count }})</p>
                         </div>
-                        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                            Add User
-                        </button>
                     </div>
                 </div>
                 <div class="card-body">
@@ -368,35 +365,6 @@
             });
         });
 
-        // Handle add user form submission
-        addUserForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(addUserForm);
-
-            fetch(addUserForm.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    addUserMessages.innerHTML = `<div class="alert alert-success">${data.success}</div>`;
-                    setTimeout(() => {
-                        addUserModal.hide();
-                        window.location.reload();
-                    }, 1500);
-                } else {
-                    addUserMessages.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
-                }
-            })
-            .catch(error => {
-                console.error('Error adding user:', error);
-                addUserMessages.innerHTML = '<div class="alert alert-danger">Failed to add user.</div>';
-            });
-        });
 
         // Initialize edit form with validation and Select2
         function initializeEditForm() {

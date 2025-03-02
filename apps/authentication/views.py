@@ -154,7 +154,11 @@ def user_list(request):
                 status=403
             )
         else:
-            pass
+            queryset = CustomUser.objects.all().filter(owner=request.user)
+            context = {
+                'users': queryset,
+                'is_owner': request.user.groups.filter(name='owner').exists(),
+            }
     else:
         queryset = CustomUser.objects.all()
         context = {
