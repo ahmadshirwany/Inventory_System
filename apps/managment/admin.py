@@ -136,6 +136,7 @@ class ProductAdmin(admin.ModelAdmin):
     # Fields to display in the list view
     list_display = (
         'sku',
+        'barcode',
         'product_name',
         'product_type',
         'origin',
@@ -159,6 +160,7 @@ class ProductAdmin(admin.ModelAdmin):
     # Fields to search
     search_fields = (
         'sku',
+        'barcode',
         'product_name',
         'lot_number',
         'supplier_code',
@@ -176,7 +178,7 @@ class ProductAdmin(admin.ModelAdmin):
 
     # Fields to display in the detail view (form)
     fields = (
-        ('sku', 'product_name'),
+        ('sku', 'barcode', 'product_name'),
         ('product_type', 'variety_or_species'),
         ('origin', 'supplier_code'),
         ('lot_number', 'warehouse'),

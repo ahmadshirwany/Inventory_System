@@ -17,7 +17,7 @@ from django.http import JsonResponse
 from django.contrib import messages
 from django.db import transaction
 import json
-
+from .models import get_product_metadata
 
 @login_required
 def update_password(request):
@@ -283,63 +283,71 @@ def warehouse_list(request):
     }
     return render(request, 'managment/warehouse_list.html', context)
 
+
+def get_product_metadata_view(request):
+    product_name = request.GET.get('product_name')
+    if not product_name:
+        return JsonResponse({'error': 'Product name is required'}, status=400)
+
+    metadata = get_product_metadata()
+    if product_name in metadata:
+        return JsonResponse(metadata[product_name])
+    return JsonResponse({'error': 'Product not found'}, status=404)
+
 @login_required
 def warehouse_detail(request, slug):
     warehouse = get_object_or_404(Warehouse, slug=slug)
-    if request.user != warehouse.ownership and request.user not in warehouse.users.all() and not request.user.is_superuser:
-        return render(request, '403.html', status=403)
-
-    # Handle product listing
-    sku = request.GET.get('sku', '')
-    product_name_filter = request.GET.get('product_name', '')
-    product_type = request.GET.get('product_type', '')
-    status = request.GET.get('status', '')
-
     products = Product.objects.filter(warehouse=warehouse)
-    if sku:
-        products = products.filter(sku__icontains=sku)
-    if product_name_filter:
-        products = products.filter(product_name__icontains=product_name_filter)
-    if product_type:
-        products = products.filter(product_type=product_type)
-    if status:
-        products = products.filter(status=status)
-
+    filters = {
+        'sku': request.GET.get('sku', ''),
+        'barcode': request.GET.get('barcode', ''),
+        'product_name': request.GET.get('product_name', ''),
+        'product_type': request.GET.get('product_type', ''),
+        'status': request.GET.get('status', ''),
+    }
+    if filters['sku']:
+        products = products.filter(sku__icontains=filters['sku'])
+    if filters['barcode']:
+        products = products.filter(barcode__icontains=filters['barcode'])
+    if filters['product_name']:
+        products = products.filter(product_name__icontains=filters['product_name'])
+    if filters['product_type']:
+        products = products.filter(product_type=filters['product_type'])
+    if filters['status']:
+        products = products.filter(status=filters['status'])
     paginator = Paginator(products, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    filters = {
-        'sku': sku,
-        'product_name': product_name_filter,
-        'product_type': product_type,
-        'status': status,
-    }
-
-    # Handle add product form
-    if request.method == 'POST' and 'add_product' in request.POST:
+    if request.method == 'POST':
+        # Handle form submission from the frontend
         form = ProductForm(request.POST)
-        if form.is_valid():
-            product = form.save(commit=False)
-            product.warehouse = warehouse
-            product.save()
-            return JsonResponse({'success': True})
-        else:
-            # Return errors as JSON
-            errors = {}
-            for field, error_list in form.errors.items():
-                errors[field] = [str(error) for error in error_list]
-            return JsonResponse({'errors': errors}, status=400)
-    else:
-        form = ProductForm(initial={'entry_date': timezone.now().date()})
+        if request.method == 'POST':
+            form = ProductForm(request.POST)
+            if 'add_product' in request.POST:
+                if form.is_valid():
+                    product = form.save(commit=False)
+                    product.warehouse = warehouse
+                    try:
+                        product.full_clean()
+                        product.save()
+                        return JsonResponse({'success': True, 'message': 'Product added successfully'}, status=201)
+                    except ValidationError as e:
+                        return JsonResponse({'success': False, 'errors': e.message_dict}, status=400)
+                else:
+                    return JsonResponse({'success': False, 'errors': form.errors}, status=400)
 
-    farmers = Farmer.objects.all()
-    context = {
+    # For GET requests, render the products page
+    filters = {
+        'sku': request.GET.get('sku', ''),
+        'barcode': request.GET.get('barcode', ''),
+        'product_name': request.GET.get('product_name', ''),
+        'product_type': request.GET.get('product_type', ''),
+        'status': request.GET.get('status', ''),
+    }
+    return render(request, 'managment/products.html', {
         'warehouse': warehouse,
         'page_obj': page_obj,
+        'form': ProductForm(),  # Pass an empty form for the modal
         'filters': filters,
-        'form': form,
-        'farmers': farmers,
-        'today': timezone.now().date(),
-    }
-    return render(request, 'managment/products.html', context)
+    })

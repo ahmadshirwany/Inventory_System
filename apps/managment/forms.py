@@ -91,29 +91,29 @@ class WarehouseForm(forms.ModelForm):
                     'available_space': "Available space cannot exceed total capacity"
                 })
         return cleaned_data
+
+
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
         exclude = ['warehouse', 'total_value', 'weight_quantity_kg', 'status', 'exit_date',
                    'manufacturing_date', 'expiration_date', 'supplier_code', 'variety_or_species',
                    'packaging_condition', 'quality_standards', 'storage_temperature', 'humidity_rate',
-                   'co2', 'o2', 'n2', 'ethylene_management', 'nutritional_info', 'regulatory_codes']
-        # Note: 'lot_number' is no longer excluded, so it’s included by default
+                   'co2', 'o2', 'n2', 'ethylene_management', 'nutritional_info', 'regulatory_codes', 'product_type']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        # Customize widgets for better UX
         self.fields['sku'].widget.attrs.update({
             'class': 'form-control',
             'placeholder': 'Enter unique SKU',
             'required': True
         })
-        self.fields['product_name'].widget.attrs.update({
+        self.fields['barcode'].widget.attrs.update({
             'class': 'form-control',
+            'placeholder': 'Enter unique barcode',
             'required': True
         })
-        self.fields['product_type'].widget.attrs.update({
+        self.fields['product_name'].widget.attrs.update({
             'class': 'form-control',
             'required': True
         })
@@ -159,35 +159,30 @@ class ProductForm(forms.ModelForm):
             'rows': '3',
             'placeholder': 'Add any additional notes'
         })
-
-        # Make some fields optional
         self.fields['harvest_date'].required = False
         self.fields['lot_number'].required = False
         self.fields['farmer'].required = False
         self.fields['notes_comments'].required = False
 
+
     def clean(self):
         cleaned_data = super().clean()
         product_name = cleaned_data.get('product_name')
-
-        # Populate metadata-based fields if not provided
         if product_name:
             metadata = get_product_metadata()
             product_data = metadata.get(product_name, {})
-
             if not cleaned_data.get('notes_comments') and product_data.get('notes_comments'):
                 cleaned_data['notes_comments'] = product_data['notes_comments']
-            if not cleaned_data.get('product_type') and product_data.get('product_type'):
-                cleaned_data['product_type'] = product_data['product_type']
-
         return cleaned_data
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-
+        instance.supplier_code = instance.supplier_code or "N/A"
+        instance.variety_or_species = instance.variety_or_species or "N/A"
+        instance.packaging_condition = instance.packaging_condition or "N/A"
         # Auto-calculate weight_quantity_kg
         if self.cleaned_data.get('weight_quantity'):
-            instance.weight_quantity_kg = self.cleaned_data['weight_quantity'] / 1000
+            instance.weight_quantity_kg = round(self.cleaned_data['weight_quantity'] / 1000, 2)
 
         # Set default status
         instance.status = 'In Stock'
@@ -199,9 +194,50 @@ class ProductForm(forms.ModelForm):
         # Populate metadata-based fields
         metadata = get_product_metadata()
         product_data = metadata.get(self.cleaned_data['product_name'], {})
-        for field in ['storage_temperature', 'humidity_rate', 'co2', 'o2', 'n2', 'ethylene_management']:
-            if field in product_data and getattr(instance, field) is None:
-                setattr(instance, field, product_data[field])
+        instance.product_type = product_data.get('product_type', instance.product_type)
+
+        # Handle date logic based on product_type
+        date_from_form = self.cleaned_data.get('harvest_date')
+        if date_from_form:
+            if instance.product_type == 'Raw':
+                instance.harvest_date = date_from_form
+                instance.manufacturing_date = None
+            elif instance.product_type == 'Processed':
+                instance.manufacturing_date = date_from_form
+                instance.harvest_date = None
+
+        # Populate other metadata-based fields (adjusted for CharField)
+        if instance.storage_temperature is None and product_data.get('storage_temperature'):
+            temp_str = product_data['storage_temperature']
+            temp_values = [float(x) for x in temp_str.split("-") if x.strip()]
+            instance.storage_temperature = f"{sum(temp_values) / len(temp_values):.2f}" if temp_values else None
+
+        if instance.humidity_rate is None and product_data.get('humidity_rate'):
+            humidity_str = product_data['humidity_rate']
+            humidity_cleaned = ''.join(c for c in humidity_str if c.isdigit() or c == '-' or c == '.')
+            humidity_values = [float(x) for x in humidity_cleaned.split("-") if x.strip()]
+            instance.humidity_rate = f"{sum(humidity_values) / len(humidity_values):.2f}" if humidity_values else humidity_cleaned or None
+
+        if instance.co2 is None and product_data.get('CO2 (%)'):
+            try:
+                instance.co2 = f"{float(product_data['CO2 (%)'].replace('<', '').replace('>', '').strip()):.2f}"
+            except Exception:
+                instance.co2 = None
+
+        if instance.o2 is None and product_data.get('O2 (%)'):
+            try:
+                instance.o2 = f"{float(product_data['O2 (%)'].replace('<', '').replace('>', '').strip()):.2f}"
+            except Exception:
+                instance.o2 = None
+
+        if instance.n2 is None and product_data.get('n2') and product_data['n2'] != 'Balance':
+            try:
+                instance.n2 = f"{float(product_data['n2'].replace('<', '').replace('>', '').strip()):.2f}"
+            except Exception:
+                instance.n2 = None
+
+        if not instance.ethylene_management and product_data.get('ethylene_management'):
+            instance.ethylene_management = product_data['ethylene_management']
 
         if commit:
             instance.save()

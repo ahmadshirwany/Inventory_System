@@ -91,6 +91,10 @@
                                 <input type="text" class="form-control" name="sku" placeholder="Filter by SKU" value="{{ filters.sku }}">
                             </div>
                             <div class="filter-row">
+                                <label>Barcode:</label>
+                                <input type="text" class="form-control" name="barcode" placeholder="Filter by Barcode" value="{{ filters.barcode }}">
+                            </div>
+                            <div class="filter-row">
                                 <label>Product Name:</label>
                                 <input type="text" class="form-control" name="product_name" placeholder="Filter by Product Name" value="{{ filters.product_name }}">
                             </div>
@@ -122,6 +126,7 @@
                             <table class="table table-hover" id="productsTable">
                                 <thead>
                                     <th>SKU</th>
+                                    <th>Barcode</th>
                                     <th>Product Name</th>
                                     <th>Type</th>
                                     <th>Origin</th>
@@ -157,6 +162,7 @@
                                     {% for product in page_obj %}
                                     <tr onclick="window.location.href='{% url 'product_detail' product.sku %}'">
                                         <td>{{ product.sku }}</td>
+                                        <td>{{ product.barcode|default:"N/A" }}</td>
                                         <td>{{ product.product_name }}</td>
                                         <td>{{ product.product_type }}</td>
                                         <td>{{ product.origin|default:"N/A" }}</td>
@@ -263,17 +269,17 @@
                         <!-- Step 1: Basic Info -->
                         <div class="form-step active" data-step="1">
                             <div class="row">
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
                                     {{ form.sku.label_tag }}
                                     {{ form.sku }}
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
+                                    {{ form.barcode.label_tag }}
+                                    {{ form.barcode }}
+                                </div>
+                                <div class="col-md-3 mb-3">
                                     {{ form.product_name.label_tag }}
                                     {{ form.product_name }}
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    {{ form.product_type.label_tag }}
-                                    {{ form.product_type }}
                                 </div>
                             </div>
                         </div>
@@ -364,7 +370,7 @@
             const errorDiv = document.getElementById('formErrors');
             let currentStep = 1;
             const totalSteps = 3;
-            const csrfToken = getCookie('csrftoken'); // Get CSRF token from cookie
+            const csrfToken = getCookie('csrftoken');
 
             function updateSteps() {
                 steps.forEach(step => step.classList.remove('active'));
@@ -406,7 +412,7 @@
             });
 
             document.getElementById('id_product_name').addEventListener('change', function() {
-                fetch(`/get_product_metadata/?product_name=${this.value}`, {
+                fetch(`/get_product_metadata/?product_name=${encodeURIComponent(this.value)}`, {
                     headers: {
                         'X-CSRFToken': csrfToken
                     }
@@ -417,7 +423,6 @@
                 })
                 .then(data => {
                     if (data) {
-                        document.getElementById('id_product_type').value = data.product_type || '';
                         document.getElementById('id_notes_comments').value = data.notes_comments || '';
                     }
                 })
@@ -433,41 +438,39 @@
                     headers: {
                         'X-CSRFToken': csrfToken
                     },
-                    credentials: 'same-origin' // Ensure cookies are sent
+                    credentials: 'same-origin'
                 })
                 .then(response => {
                     if (response.ok) {
-                        location.reload(); // Success: Refresh the page
+                        return response.json().then(data => {
+                            if (data.success) {
+                                location.reload(); // Success: Refresh the page
+                            } else {
+                                throw new Error('Unexpected response format');
+                            }
+                        });
                     } else {
                         return response.json().then(data => {
-                            // Handle server-side validation errors
                             let errorMessages = '';
                             if (data.errors) {
                                 for (const [field, errors] of Object.entries(data.errors)) {
-                                    errors.forEach(error => {
-                                        errorMessages += `<p>${field}: ${error}</p>`;
-                                    });
+                                    errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
                                 }
                             } else {
                                 errorMessages = `<p>Server error: ${response.status} - ${response.statusText}</p>`;
                             }
                             errorDiv.innerHTML = errorMessages;
                             errorDiv.style.display = 'block';
+                            throw new Error('Form submission failed');
                         });
                     }
                 })
                 .catch(error => {
-                    // Enhanced network error handling
-                    console.error('Fetch error:', error);
-                    let errorMessage = '<p>Network error occurred. ';
-                    if (!navigator.onLine) {
-                        errorMessage += 'You appear to be offline. Please check your internet connection.';
-                    } else {
-                        errorMessage += 'Please check your network or try again later.';
+                    console.error('Error:', error);
+                    if (!errorDiv.innerHTML) {
+                        errorDiv.innerHTML = '<p>An error occurred while adding the product. Please try again.</p>';
+                        errorDiv.style.display = 'block';
                     }
-                    errorMessage += '</p>';
-                    errorDiv.innerHTML = errorMessage;
-                    errorDiv.style.display = 'block';
                 });
             });
 

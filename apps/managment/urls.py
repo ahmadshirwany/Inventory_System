@@ -18,6 +18,7 @@ urlpatterns = [
     path('warehouses-list/<slug:slug>/product', views.warehouse_detail, name='product_detail'),
     path('warehouses-list/<slug:slug>/product/edit', views.warehouse_detail, name='edit_product'),
     path('warehouses-list/edit/<slug:slug>/', views.edit_warehouse, name='edit_warehouse'),
+    path('get_product_metadata/', views.get_product_metadata_view, name='get_product_metadata'),
     # re_path(r'^.*$', views.pages, name='pages'),
 
 
