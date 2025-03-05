@@ -96,74 +96,113 @@ class WarehouseForm(forms.ModelForm):
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        exclude = ['warehouse', 'total_value', 'weight_quantity_kg', 'status', 'exit_date',
-                   'manufacturing_date', 'expiration_date', 'supplier_code', 'variety_or_species',
-                   'packaging_condition', 'quality_standards', 'storage_temperature', 'humidity_rate',
-                   'co2', 'o2', 'n2', 'ethylene_management', 'nutritional_info', 'regulatory_codes', 'product_type']
+        exclude = [
+            'warehouse', 'total_value', 'weight_quantity_kg', 'status', 'exit_date',
+            'manufacturing_date', 'expiration_date', 'supplier_code', 'variety_or_species',
+            'packaging_condition', 'quality_standards', 'storage_temperature', 'humidity_rate',
+            'co2', 'o2', 'n2', 'ethylene_management', 'nutritional_info', 'regulatory_codes',
+            'product_type', 'lot_number'
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Common attributes for all fields
+        common_attrs = {
+            'class': 'form-control form-control-lg',  # Larger inputs for better visibility
+            'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',  # Softer edges and shadow
+        }
+
+        # SKU
         self.fields['sku'].widget.attrs.update({
-            'class': 'form-control',
-            'placeholder': 'Enter unique SKU',
-            'required': True
+            **common_attrs,
+            'placeholder': 'e.g., SKU-12345',
+            'required': True,
+            'aria-label': 'Stock Keeping Unit',
         })
+
+        # Barcode
         self.fields['barcode'].widget.attrs.update({
-            'class': 'form-control',
-            'placeholder': 'Enter unique barcode',
-            'required': True
+            **common_attrs,
+            'placeholder': 'e.g., 012345678905',
+            'required': True,
+            'aria-label': 'Barcode',
         })
+
+        # Product Name (assuming it's a dropdown due to choices)
         self.fields['product_name'].widget.attrs.update({
-            'class': 'form-control',
-            'required': True
+            'class': 'form-select form-select-lg',  # Use form-select for dropdowns
+            'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+            'required': True,
+            'aria-label': 'Product Name',
         })
+
+        # Weight Quantity
         self.fields['weight_quantity'].widget.attrs.update({
-            'class': 'form-control',
+            **common_attrs,
             'step': '0.01',
             'min': '0',
-            'placeholder': 'Enter weight (default units)',
-            'required': True
+            'placeholder': 'e.g., 500.00 (in default units)',
+            'required': True,
+            'aria-label': 'Weight or Quantity',
         })
+
+        # Quantity in Stock
         self.fields['quantity_in_stock'].widget.attrs.update({
-            'class': 'form-control',
+            **common_attrs,
             'min': '0',
-            'placeholder': 'Enter stock quantity',
-            'required': True
+            'placeholder': 'e.g., 100',
+            'required': True,
+            'aria-label': 'Quantity in Stock',
         })
+
+        # Unit Price
         self.fields['unit_price'].widget.attrs.update({
-            'class': 'form-control',
+            **common_attrs,
             'step': '0.01',
             'min': '0',
-            'placeholder': 'Enter price per unit',
-            'required': True
+            'placeholder': 'e.g., 19.99',
+            'required': True,
+            'aria-label': 'Unit Price',
         })
+
+        # Harvest Date
         self.fields['harvest_date'].widget = forms.DateInput(attrs={
             'type': 'date',
-            'class': 'form-control'
+            **common_attrs,
+            'placeholder': 'Select harvest date',
+            'aria-label': 'Harvest Date',
         })
+
+        # Entry Date
         self.fields['entry_date'].widget = forms.DateInput(attrs={
             'type': 'date',
-            'class': 'form-control',
+            **common_attrs,
             'value': timezone.now().date().isoformat(),
-            'required': True
+            'required': True,
+            'aria-label': 'Entry Date',
         })
-        self.fields['lot_number'].widget.attrs.update({
-            'class': 'form-control',
-            'placeholder': 'Enter lot number (optional)'
-        })
+
+        # Farmer (assuming it's a dropdown ForeignKey)
         self.fields['farmer'].widget.attrs.update({
-            'class': 'form-control'
+            'class': 'form-select form-select-lg',
+            'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+            'aria-label': 'Farmer',
         })
+
+        # Notes/Comments
         self.fields['notes_comments'].widget.attrs.update({
             'class': 'form-control',
-            'rows': '3',
-            'placeholder': 'Add any additional notes'
+            'rows': '4',
+            'style': 'border-radius: 8px; resize: vertical; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+            'placeholder': 'Add any additional notes or comments...',
+            'aria-label': 'Notes or Comments',
         })
+
+        # Set non-required fields
         self.fields['harvest_date'].required = False
-        self.fields['lot_number'].required = False
         self.fields['farmer'].required = False
         self.fields['notes_comments'].required = False
-
 
     def clean(self):
         cleaned_data = super().clean()
@@ -180,23 +219,16 @@ class ProductForm(forms.ModelForm):
         instance.supplier_code = instance.supplier_code or "N/A"
         instance.variety_or_species = instance.variety_or_species or "N/A"
         instance.packaging_condition = instance.packaging_condition or "N/A"
-        # Auto-calculate weight_quantity_kg
         if self.cleaned_data.get('weight_quantity'):
             instance.weight_quantity_kg = round(self.cleaned_data['weight_quantity'] / 1000, 2)
-
-        # Set default status
         instance.status = 'In Stock'
-
-        # Calculate total_value
         if self.cleaned_data.get('unit_price') and self.cleaned_data.get('quantity_in_stock'):
             instance.total_value = self.cleaned_data['unit_price'] * self.cleaned_data['quantity_in_stock']
 
-        # Populate metadata-based fields
         metadata = get_product_metadata()
         product_data = metadata.get(self.cleaned_data['product_name'], {})
         instance.product_type = product_data.get('product_type', instance.product_type)
 
-        # Handle date logic based on product_type
         date_from_form = self.cleaned_data.get('harvest_date')
         if date_from_form:
             if instance.product_type == 'Raw':
@@ -206,7 +238,6 @@ class ProductForm(forms.ModelForm):
                 instance.manufacturing_date = date_from_form
                 instance.harvest_date = None
 
-        # Populate other metadata-based fields (adjusted for CharField)
         if instance.storage_temperature is None and product_data.get('storage_temperature'):
             temp_str = product_data['storage_temperature']
             temp_values = [float(x) for x in temp_str.split("-") if x.strip()]

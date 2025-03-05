@@ -49,7 +49,7 @@
             margin: 0 5px;
         }
         .step.active {
-            background: #007bff;
+            background: #ab47bc;
             color: white;
         }
         .form-step {
@@ -160,7 +160,7 @@
                                 </thead>
                                 <tbody>
                                     {% for product in page_obj %}
-                                    <tr onclick="window.location.href='{% url 'product_detail' product.sku %}'">
+{#                                    <tr onclick="window.location.href='{% url 'product_detail' product.sku %}'">#}
                                         <td>{{ product.sku }}</td>
                                         <td>{{ product.barcode|default:"N/A" }}</td>
                                         <td>{{ product.product_name }}</td>
@@ -269,15 +269,15 @@
                         <!-- Step 1: Basic Info -->
                         <div class="form-step active" data-step="1">
                             <div class="row">
-                                <div class="col-md-3 mb-3">
+                                <div class="col-md-4 mb-3">
                                     {{ form.sku.label_tag }}
                                     {{ form.sku }}
                                 </div>
-                                <div class="col-md-3 mb-3">
+                                <div class="col-md-4 mb-3">
                                     {{ form.barcode.label_tag }}
                                     {{ form.barcode }}
                                 </div>
-                                <div class="col-md-3 mb-3">
+                                <div class="col-md-4 mb-3">
                                     {{ form.product_name.label_tag }}
                                     {{ form.product_name }}
                                 </div>
@@ -305,19 +305,15 @@
                         <!-- Step 3: Details -->
                         <div class="form-step" data-step="3">
                             <div class="row">
-                                <div class="col-md-3 mb-3">
+                                <div class="col-md-4 mb-3">
                                     <label for="{{ form.harvest_date.id_for_label }}">Harvest/Manufacturing Date</label>
                                     {{ form.harvest_date }}
                                 </div>
-                                <div class="col-md-3 mb-3">
+                                <div class="col-md-4 mb-3">
                                     {{ form.entry_date.label_tag }}
                                     {{ form.entry_date }}
                                 </div>
-                                <div class="col-md-3 mb-3">
-                                    {{ form.lot_number.label_tag }}
-                                    {{ form.lot_number }}
-                                </div>
-                                <div class="col-md-3 mb-3">
+                                <div class="col-md-4 mb-3">
                                     {{ form.farmer.label_tag }}
                                     {{ form.farmer }}
                                 </div>

@@ -9,7 +9,7 @@
     "O2 (%)": "-",
     "N2 (%)": "-",
     "Additional Notes": "Powder rich in vitamin C: vacuum packaging.",
-    "Product Type": "PROCESSED"
+    "Product Type": "Processed"
   },
   {
     "Product": "Garlic",
@@ -303,7 +303,7 @@
     "Product": "Petit cola (Garcinia kola)",
     "Ethylene Management": "None",
     "Ideal Temperature (C)": "10-12",
-    "Relative Humidity (%)": "60-65",
+      "Relative Humidity (%)": "60-65",
     "Maximum Storage Duration (days)": 360,
     "CO2 (%)": "-",
     "O2 (%)": "-",
@@ -431,4 +431,5 @@
     "Additional Notes": "Short storage, puree/drying recommended.",
     "Product Type": "RAW"
   }
+
 ]

@@ -7,6 +7,8 @@ from django.dispatch import receiver
 from django.utils.text import slugify
 import json,os
 from dateutil.relativedelta import relativedelta
+import uuid
+from django.utils import timezone
 
 class Warehouse(models.Model):
     name = models.CharField(max_length=255, help_text="Name of the warehouse")
@@ -186,7 +188,11 @@ def refresh_product_metadata():
     """Force reload of the JSON file."""
     global _product_metadata_cache
     _product_metadata_cache = load_product_metadata()
-
+def generate_lot_number():
+    """Generate a unique lot number based on date and UUID."""
+    date_prefix = timezone.now().strftime('%Y%m%d')  # e.g., 20250305
+    unique_suffix = uuid.uuid4().hex[:6].upper()     # 6-character unique hex
+    return f"LOT-{date_prefix}-{unique_suffix}"
 PRODUCT_CHOICES = [(name, name) for name in get_product_metadata().keys()]
 
 class Product(models.Model):
@@ -199,7 +205,13 @@ class Product(models.Model):
         db_index=True
     )
     origin = models.CharField(max_length=255, null=True, blank=True, help_text="Country or region of origin")
-    lot_number = models.CharField(max_length=100, help_text="Lot number for batch identification")
+    lot_number = models.CharField(
+        max_length=100,
+        unique=True,
+        default=generate_lot_number,
+        editable=False,
+        help_text="Auto-generated unique lot number for batch identification"
+    )
     harvest_date = models.DateField(null=True, blank=True, help_text="Date of harvest")
     entry_date = models.DateField(default=now, help_text="Date when the product entered the warehouse", db_index=True)
     manufacturing_date = models.DateField(null=True, blank=True, help_text="Date of manufacturing")
