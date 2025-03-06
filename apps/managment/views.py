@@ -125,18 +125,6 @@ def edit_warehouse(request, slug):
 
 @login_required
 def create_warehouse(request):
-    """
-    Handle the creation of a new warehouse for authenticated users.
-
-    Args:
-        request: HTTP request object containing metadata and form data
-
-    Returns:
-        HttpResponse: Rendered form page on GET/invalid POST, redirect on success
-
-    Raises:
-        PermissionDenied: If user exceeds warehouse creation limit
-    """
 
     def get_warehouse_limit(user):
         """Determine user's warehouse limit based on subscription plan."""
@@ -147,10 +135,16 @@ def create_warehouse(request):
             'premium': 10
         }
         return subscription_limits.get(getattr(user, 'subscription_plan', 'free'), 1)
-
+    if not request.user.is_superuser and not request.user.groups.filter(name='owner').exists():
+        return render(
+            request,
+            "home/page-403.html",
+            {"message": "Access Deniedd: You do not have Acess to edit this warehouse."},
+            status=403
+        )
     # Check warehouse limit
     current_count = request.user.owned_warehouses.count()
-    warehouse_limit = get_warehouse_limit(request.user)
+    warehouse_limit = request.user.warehouse_limit
 
     if current_count >= warehouse_limit:
         messages.error(
@@ -296,6 +290,16 @@ def get_product_metadata_view(request):
 
 @login_required
 def warehouse_detail(request, slug):
+    if not request.user.is_superuser:
+        if not request.user ==  Warehouse.objects.get(slug=slug).ownership and not request.user in Warehouse.objects.get(slug=slug).users.all():
+            return render(
+                request,
+                "home/page-403.html",
+                {
+                    'is_owner': request.user.groups.filter(name='owner').exists(),
+                    "message": "Access Denied: You do not have permission to access this warehouse."},
+                status=403
+            )
     warehouse = get_object_or_404(Warehouse, slug=slug)
     products = Product.objects.filter(warehouse=warehouse)
     filters = {
@@ -336,7 +340,21 @@ def warehouse_detail(request, slug):
                         return JsonResponse({'success': False, 'errors': e.message_dict}, status=400)
                 else:
                     return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+            elif "take_out_product" in request.POST:
+                sku = request.POST.get("sku")
+                quantity_to_take = int(request.POST.get("quantity_to_take", 0))
+                product = get_object_or_404(Product, sku=sku, warehouse=warehouse)
 
+                if quantity_to_take <= 0 or quantity_to_take > product.quantity_in_stock:
+                    return JsonResponse({"success": False, "errors": {"quantity_to_take": ["Invalid quantity"]}})
+
+                product.quantity_in_stock -= quantity_to_take
+                if product.quantity_in_stock == 0:
+                    product.status = "Out of Stock"
+                    product.exit_date = timezone.now().date()  # Optional: Set exit date
+                product.total_value = product.unit_price * product.quantity_in_stock  # Update total value
+                product.save()
+                return JsonResponse({"success": True})
     # For GET requests, render the products page
     filters = {
         'sku': request.GET.get('sku', ''),

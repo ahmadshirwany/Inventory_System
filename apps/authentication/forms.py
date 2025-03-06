@@ -16,7 +16,7 @@ class CustomUserCreationForm(UserCreationForm):
     )
 
     class Meta:
-        model = User
+        model = CustomUser
         fields = ("username", "email", "password1", "password2", "group")
 
     def __init__(self, *args, **kwargs):
@@ -27,9 +27,9 @@ class CustomUserCreationForm(UserCreationForm):
         # Dynamically set group choices based on user permissions
         if user and user.is_authenticated:
             if user.is_superuser:
-                self.fields['group'].choices = [("owner", "Owner"), ("user", "User")]
+                self.fields['group'].choices = [("owner", "Owner"), ("user", "User"),("customer", "Customer")]
             else:
-                self.fields['group'].choices = [("user", "User")]
+                self.fields['group'].choices = [("user", "User"),("customer", "Customer")]
         else:
             # Default to 'user' if no user is provided or the user is not authenticated
             self.fields['group'].choices = [("user", "User")]

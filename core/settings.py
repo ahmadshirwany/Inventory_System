@@ -101,7 +101,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.0/topics/i18n/
-
+LOGIN_URL = '/login/'
+LOGOUT_REDIRECT_URL = '/login/'
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'

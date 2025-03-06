@@ -14,8 +14,19 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.models import Group
 from django.contrib import messages
+from django.views import View
+from django.contrib.auth import logout
 
+class CustomLogoutView(View):
+    def get(self, request):
+        return self.logout_and_redirect(request)
 
+    def post(self, request):
+        return self.logout_and_redirect(request)
+
+    def logout_and_redirect(self, request):
+        logout(request)
+        return redirect('login')
 def login_view(request):
     form = LoginForm(request.POST or None)
 

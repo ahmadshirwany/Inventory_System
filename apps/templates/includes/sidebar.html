@@ -32,11 +32,13 @@
                       <i class="material-icons">list</i> Warehouse List
                     </a>
                   </li>
+                    {% if user.is_superuser or is_owner %}
                   <li class="nav-item">
                     <a class="nav-link" href="/create-warehouse">
                       <i class="material-icons">add</i> Create Warehouse
                     </a>
                   </li>
+                        {% endif %}
                 </ul>
               </div>
             </li>
@@ -119,8 +121,8 @@
         {% else %}
 
           <li class="nav-item active">
-            <a class="nav-link" 
-               target="_blank" rel="noopener noreferrer"  
+            <a class="nav-link"
+               target="_blank" rel="noopener noreferrer"
                href="https://appseed.us/admin-dashboards/django-dashboard-material-pro">
               <i class="material-icons">unarchive</i>
               <p>PRO Version</p>

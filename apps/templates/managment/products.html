@@ -45,11 +45,12 @@
             flex: 1;
             text-align: center;
             padding: 10px;
-            background: #f0f0f0;
+            background: #ab47bc; /* Inactive step color */
             margin: 0 5px;
+            color: white; /* Ensure text is readable */
         }
         .step.active {
-            background: #ab47bc;
+            background: #8e24aa; /* Active step color */
             color: white;
         }
         .form-step {
@@ -160,7 +161,7 @@
                                 </thead>
                                 <tbody>
                                     {% for product in page_obj %}
-{#                                    <tr onclick="window.location.href='{% url 'product_detail' product.sku %}'">#}
+                                    <tr onclick="window.location.href='{% url 'product_detail' product.sku %}'">
                                         <td>{{ product.sku }}</td>
                                         <td>{{ product.barcode|default:"N/A" }}</td>
                                         <td>{{ product.product_name }}</td>
@@ -193,9 +194,14 @@
                                         <td>{{ product.notes_comments|default:"N/A"|truncatewords:10 }}</td>
                                         <td>{{ product.farmer.name|default:"N/A" }}</td>
                                         <td style="text-align: center;">
+                                             {% if user.is_superuser or is_owner %}
                                             <a href="{% url 'edit_product' product.sku %}" class="btn btn-sm btn-primary" onclick="event.stopPropagation();">
                                                 Edit
                                             </a>
+                                            {% endif %}
+                                            <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#takeOutProductModal_{{ product.sku }}" onclick="event.stopPropagation();">
+                                                Take Out
+                                            </button>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -335,6 +341,36 @@
         </div>
     </div>
 
+    <!-- Take Out Product Modals (One per product) -->
+    {% for product in page_obj %}
+    <div class="modal fade" id="takeOutProductModal_{{ product.sku }}" tabindex="-1" aria-labelledby="takeOutProductModalLabel_{{ product.sku }}" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="takeOutProductModalLabel_{{ product.sku }}">Take Out Product: {{ product.product_name }} (SKU: {{ product.sku }})</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger error-messages" id="takeOutErrors_{{ product.sku }}"></div>
+                    <form method="POST" id="takeOutForm_{{ product.sku }}">
+                        {% csrf_token %}
+                        <input type="hidden" name="take_out_product" value="1">
+                        <input type="hidden" name="sku" value="{{ product.sku }}">
+                        <div class="mb-3">
+                            <label for="quantity_to_take_{{ product.sku }}" class="form-label">Quantity to Take Out (Current: {{ product.quantity_in_stock }})</label>
+                            <input type="number" class="form-control" id="quantity_to_take_{{ product.sku }}" name="quantity_to_take" min="1" max="{{ product.quantity_in_stock }}" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-danger" onclick="submitTakeOutForm('{{ product.sku }}')">Take Out</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
     <script>
         function clearFilters() {
             window.location.href = "{% url 'warehouse_detail' warehouse.slug %}";
@@ -472,6 +508,64 @@
 
             updateSteps();
         });
+
+        // Function to handle Take Out form submission
+        function submitTakeOutForm(sku) {
+            const form = document.getElementById(`takeOutForm_${sku}`);
+            const errorDiv = document.getElementById(`takeOutErrors_${sku}`);
+            const quantityInput = document.getElementById(`quantity_to_take_${sku}`);
+            const maxQuantity = parseInt(quantityInput.max);
+            const quantityToTake = parseInt(quantityInput.value);
+            const csrfToken = getCookie('csrftoken');
+
+            if (quantityToTake <= 0 || quantityToTake > maxQuantity) {
+                errorDiv.innerHTML = '<p>Please enter a valid quantity between 1 and ' + maxQuantity + '.</p>';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            const formData = new FormData(form);
+            fetch("{% url 'warehouse_detail' warehouse.slug %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json().then(data => {
+                        if (data.success) {
+                            location.reload(); // Success: Refresh the page
+                        } else {
+                            throw new Error('Unexpected response format');
+                        }
+                    });
+                } else {
+                    return response.json().then(data => {
+                        let errorMessages = '';
+                        if (data.errors) {
+                            for (const [field, errors] of Object.entries(data.errors)) {
+                                errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
+                            }
+                        } else {
+                            errorMessages = `<p>Server error: ${response.status} - ${response.statusText}</p>`;
+                        }
+                        errorDiv.innerHTML = errorMessages;
+                        errorDiv.style.display = 'block';
+                        throw new Error('Form submission failed');
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (!errorDiv.innerHTML) {
+                    errorDiv.innerHTML = '<p>An error occurred while taking out the product. Please try again.</p>';
+                    errorDiv.style.display = 'block';
+                }
+            });
+        }
     </script>
 {% endblock content %}
 
