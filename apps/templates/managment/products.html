@@ -161,7 +161,7 @@
                                 </thead>
                                 <tbody>
                                     {% for product in page_obj %}
-                                    <tr onclick="window.location.href='{% url 'product_detail' product.sku %}'">
+{#                                    <tr onclick="window.location.href='{% url 'product_detail' product.sku %}'">#}
                                         <td>{{ product.sku }}</td>
                                         <td>{{ product.barcode|default:"N/A" }}</td>
                                         <td>{{ product.product_name }}</td>

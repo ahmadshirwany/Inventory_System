@@ -21,18 +21,26 @@ class CustomUserCreationForm(UserCreationForm):
 
     def __init__(self, *args, **kwargs):
         # Pop the 'user' argument from kwargs
-        user = kwargs.pop('user', None)
+        self.request_user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
 
         # Dynamically set group choices based on user permissions
-        if user and user.is_authenticated:
-            if user.is_superuser:
+        if self.request_user and self.request_user.is_authenticated:
+            if self.request_user.is_superuser:
                 self.fields['group'].choices = [("owner", "Owner"), ("user", "User"),("customer", "Customer")]
             else:
                 self.fields['group'].choices = [("user", "User"),("customer", "Customer")]
         else:
             # Default to 'user' if no user is provided or the user is not authenticated
             self.fields['group'].choices = [("user", "User")]
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        if self.request_user:
+            user.owner = self.request_user  # Assign the request user as the owner
+        if commit:
+            user.save()
+        return user
 
 class LoginForm(forms.Form):
     username = forms.CharField(

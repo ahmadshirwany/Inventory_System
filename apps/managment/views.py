@@ -16,7 +16,6 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.contrib import messages
 from django.db import transaction
-import json
 from .models import get_product_metadata
 
 @login_required
@@ -47,14 +46,19 @@ def index(request):
     else:
         queryset = (Warehouse.objects.filter(users=request.user) | Warehouse.objects.filter(ownership=request.user)).distinct()[:4]
     if  request.user.groups.filter(name='owner').exists():
-        users = CustomUser.objects.filter(owner=request.user)
+        users = CustomUser.objects.filter(owner=request.user,groups__name='user')
         for user in users:
             accessible_warehouses  = list(Warehouse.objects.filter(users=user).values_list('name', flat=True))
             user.acess = accessible_warehouses
+        cutomers = CustomUser.objects.filter(owner=request.user,groups__name='customer')
+        for cutomer in cutomers:
+            accessible_warehouses = list(Warehouse.objects.filter(users=cutomer).values_list('name', flat=True))
+            cutomer.acess = accessible_warehouses
         context = {'segment': 'index',
                    'warehouses': queryset,
                    'is_owner': request.user.groups.filter(name='owner').exists(),
-                   'users' : users
+                   'users' : users,
+                   'cutomers':cutomers
                    }
     elif  request.user.is_superuser:
         for user in userqueryset:
@@ -271,6 +275,7 @@ def warehouse_list(request):
             'owner': owner_query,
             'users': users_query,
         },
+        'is_owner': request.user.groups.filter(name='owner').exists(),
         'total_count': queryset.count(),
         'user_limit': request.user.user_limit,
         'current_user_count': request.user.owned_users.count() if not request.user.is_superuser else CustomUser.objects.count(),

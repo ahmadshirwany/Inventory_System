@@ -16,6 +16,7 @@ from django.contrib.auth.models import Group
 from django.contrib import messages
 from django.views import View
 from django.contrib.auth import logout
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 class CustomLogoutView(View):
     def get(self, request):
@@ -161,19 +162,94 @@ def user_list(request):
                 "home/page-403.html",
                 {
                     'is_owner': request.user.groups.filter(name='owner').exists(),
-                    "message": "Access Denied: You do not have any users."},
+                    "message": "Access Denied: You do not have any users."
+                },
                 status=403
             )
         else:
-            queryset = CustomUser.objects.all().filter(owner=request.user)
-            context = {
-                'users': queryset,
-                'is_owner': request.user.groups.filter(name='owner').exists(),
-            }
+            # Owners see only their managed users
+            queryset = CustomUser.objects.filter(owner=request.user)
     else:
+        # Superusers see all users
         queryset = CustomUser.objects.all()
-        context = {
-            'users': queryset, }
+
+    # Handle filtering
+    filters = {}
+    if request.GET.get('username'):
+        queryset = queryset.filter(username__icontains=request.GET['username'])
+        filters['username'] = request.GET['username']
+    if request.GET.get('email'):
+        queryset = queryset.filter(email__icontains=request.GET['email'])
+        filters['email'] = request.GET['email']
+    if request.GET.get('group'):
+        queryset = queryset.filter(groups__name=request.GET['group'])
+        filters['group'] = request.GET['group']
+
+    # Pagination
+    paginator = Paginator(queryset, 10)  # Show 10 users per page
+    page_number = request.GET.get('page')
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        # If page is not an integer, deliver first page
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        # If page is out of range, deliver last page
+        page_obj = paginator.page(paginator.num_pages)
+
+    # Context for owners dropdown in Add User modal
+    if request.user.is_superuser:
+        owners = CustomUser.objects.filter(groups__name='owner')
+    else:
+        owners = CustomUser.objects.filter(id=request.user.id)
+
+    # Get all groups for the filter dropdown
+    all_groups = Group.objects.all()
+
+    # Prepare context
+    context = {
+        'page_obj': page_obj,
+        'filters': filters,
+        'owners': owners,
+        'groups': all_groups,
+        'is_owner': request.user.groups.filter(name='owner').exists(),
+    }
+
+    # Handle POST requests for adding/deleting users
+    if request.method == 'POST':
+        if 'add_user' in request.POST:
+            username = request.POST.get('username')
+            email = request.POST.get('email')
+            warehouse_limit = request.POST.get('warehouse_limit') or None
+            user_limit = request.POST.get('user_limit') or None
+            owner_id = request.POST.get('owner') or None
+
+            try:
+                user = CustomUser.objects.create(
+                    username=username,
+                    email=email,
+                    warehouse_limit=warehouse_limit if warehouse_limit else None,
+                    user_limit=user_limit if user_limit else None,
+                    owner=CustomUser.objects.get(id=owner_id) if owner_id else request.user if not request.user.is_superuser else None
+                )
+                user.set_unusable_password()
+                user.save()
+                return render(request, 'accounts/user_list.html', context)
+            except Exception as e:
+                context['errors'] = {'form': [str(e)]}
+
+        elif 'delete_user' in request.POST:
+            user_id = request.POST.get('user_id')
+            try:
+                user_to_delete = CustomUser.objects.get(id=user_id)
+                if request.user.is_superuser or user_to_delete.owner == request.user:
+                    user_to_delete.delete()
+                return render(request, 'accounts/user_list.html', context)
+            except CustomUser.DoesNotExist:
+                context['errors'] = {'delete': ['User not found']}
+            except Exception as e:
+                context['errors'] = {'delete': [str(e)]}
+
     return render(request, 'accounts/user_list.html', context)
 @login_required
 def edit_user(request):

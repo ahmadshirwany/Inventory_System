@@ -21,7 +21,7 @@
             </a>
             <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdownProfile">
               <!-- Profile Link -->
-              <a class="dropdown-item" href="/page-user.html">Profile</a>
+              <a class="dropdown-item" href={% url 'user_profile' %}>Profile</a>
               <div class="dropdown-divider"></div>
               <!-- Log Out Link -->
               <a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Log out</a>

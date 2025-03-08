@@ -9,6 +9,7 @@ import json,os
 from dateutil.relativedelta import relativedelta
 import uuid
 from django.utils import timezone
+from apps.authentication.models import CustomUser
 
 class Warehouse(models.Model):
     name = models.CharField(max_length=255, help_text="Name of the warehouse")
@@ -70,10 +71,10 @@ def assign_owner(sender, instance, **kwargs):
             instance.ownership = instance.creator
 
 class Farmer(models.Model):
-    farmer_id = models.CharField(max_length=100, unique=True, help_text="Unique ID assigned to the farmer")
+    farmer_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, help_text="Unique ID assigned to the farmer")
     name = models.CharField(max_length=255, help_text="Full name of the farmer")
     contact_number = models.CharField(max_length=20, blank=True, null=True, help_text="Primary contact number of the farmer")
-    email = models.EmailField(max_length=255, blank=True, null=True, help_text="Email address of the farmer")
+    email = models.EmailField(max_length=255, blank=True, null=True, unique=True, help_text="Email address of the farmer")
     address = models.TextField(help_text="Physical address of the farmer")
     farm_name = models.CharField(max_length=255, blank=True, null=True, help_text="Name of the farm")
     farm_location = models.CharField(max_length=255, help_text="Geographical location of the farm")
@@ -82,12 +83,26 @@ class Farmer(models.Model):
     compliance_standards = models.TextField(blank=True, null=True, help_text="Compliance standards followed by the farmer")
     notes = models.TextField(blank=True, null=True, help_text="Additional notes or comments about the farmer")
     registration_date = models.DateField(null=True, blank=True, help_text="Date of Registration")
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="farmer_owner",
+        help_text="Owner of the farmer"
+    )
+
     def __str__(self):
-        return f"{self.name} ({self.farm_name})"
+        return f"{self.name} ({self.farm_name or 'No Farm Name'})"
+
+    def clean(self):
+        if self.total_land_area and self.total_land_area < 0:
+            raise ValidationError("Total land area cannot be negative.")
 
     class Meta:
         verbose_name = "Farmer"
         verbose_name_plural = "Farmers"
+        indexes = [models.Index(fields=['farmer_id', 'name'])]
 
 
 JSON_FILE_PATH = os.path.join(settings.BASE_DIR.parent, 'apps', 'managment', 'products.json')
@@ -220,7 +235,7 @@ class Product(models.Model):
     supplier_code = models.CharField(max_length=100, null=True, blank=True, help_text="Code assigned to the supplier")
     product_type = models.CharField(
         max_length=100,
-        choices=[('RAW', 'RAW'), ('PROCESSED', 'PROCESSED')],
+        choices=[('Raw', 'Raw'), ('Processed', 'Processed')],
         default='RAW',
         help_text="Type of product"
     )
@@ -361,3 +376,78 @@ class Product(models.Model):
             models.UniqueConstraint(fields=['sku', 'warehouse'], name='unique_sku_per_warehouse'),
             models.UniqueConstraint(fields=['barcode', 'warehouse'], name='unique_barcode_per_warehouse'),
         ]
+
+
+class ProductLog(models.Model):
+    # Foreign key to the Product model
+    product = models.ForeignKey(
+        'Product',
+        on_delete=models.CASCADE,
+        related_name='logs',
+        help_text="The product this log entry pertains to"
+    )
+
+    # User who performed the action (assuming Django's default User model)
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="The user who performed the action"
+    )
+
+    # Action type choices
+    ACTION_CHOICES = [
+        ('ADD', 'Product Added'),
+        ('UPDATE', 'Product Updated'),
+        ('REMOVE', 'Product Removed'),
+        ('STOCK_OUT', 'Stock Taken Out'),
+    ]
+    action = models.CharField(
+        max_length=20,
+        choices=ACTION_CHOICES,
+        help_text="The type of action performed on the product"
+    )
+
+    # Timestamp of the action
+    timestamp = models.DateTimeField(
+        default=now,
+        help_text="The date and time when the action occurred",
+        db_index=True
+    )
+
+    # Quantity changes (for stock updates or removals)
+    quantity_changed = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="The quantity added or removed (positive for add, negative for remove)"
+    )
+
+    # Previous and new stock quantities (optional, for reference)
+    previous_quantity = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Quantity in stock before the action"
+    )
+    new_quantity = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Quantity in stock after the action"
+    )
+
+    # Notes or additional details about the action
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Additional details about the action"
+    )
+
+    def __str__(self):
+        return f"{self.action} on {self.product} by {self.user} at {self.timestamp}"
+
+    class Meta:
+        verbose_name = "Product Log"
+        verbose_name_plural = "Product Logs"
+        ordering = ['-timestamp']

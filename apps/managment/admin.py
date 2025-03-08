@@ -1,7 +1,7 @@
-from django.contrib import admin
-from .models import Warehouse, Farmer, Product
+from .models import Warehouse, Farmer
 import datetime
-
+from django.contrib import admin
+from .models import Product, get_product_metadata, refresh_product_metadata
 
 
 @admin.register(Warehouse)
@@ -106,29 +106,49 @@ class WarehouseAdmin(admin.ModelAdmin):
 
 @admin.register(Farmer)
 class FarmerAdmin(admin.ModelAdmin):
-    list_display = (
-        'farmer_id', 'name', 'farm_name', 'farm_location', 'total_land_area'
-    )
-    list_filter = ('certifications', 'compliance_standards')
-    search_fields = ('farmer_id', 'name', 'farm_name', 'farm_location')
+    # Fields to display in the list view
+    list_display = ('farmer_id', 'name', 'farm_name', 'contact_number', 'registration_date', 'owner')
+
+    # Fields to filter by in the sidebar
+    list_filter = ('registration_date', 'owner', 'total_land_area')
+
+    # Fields to search
+    search_fields = ('farmer_id', 'name', 'farm_name', 'email', 'address', 'farm_location')
+
+    # Fields to make read-only (e.g., auto-generated or sensitive fields)
+    readonly_fields = ('farmer_id',)
+
+    # Organize fields in the detail view into fieldsets for better readability
     fieldsets = (
-        ('Farmer Details', {
-            'fields': ('farmer_id', 'name', 'contact_number', 'email', 'address')
+        ('Basic Information', {
+            'fields': ('farmer_id', 'name', 'farm_name', 'owner'),
+        }),
+        ('Contact Details', {
+            'fields': ('contact_number', 'email', 'address'),
         }),
         ('Farm Details', {
-            'fields': ('farm_name', 'farm_location', 'total_land_area')
+            'fields': ('farm_location', 'total_land_area', 'certifications', 'compliance_standards'),
         }),
-        ('Certifications & Compliance', {
-            'fields': ('certifications', 'compliance_standards')
+        ('Additional Information', {
+            'fields': ('registration_date', 'notes'),
         }),
-        ('Additional Notes', {
-            'fields': ('notes',)
-        })
     )
 
+    # Enable ordering by specific fields
+    ordering = ('name', 'registration_date')
 
-from django.contrib import admin
-from .models import Product, get_product_metadata, refresh_product_metadata
+    # Add pagination to the list view (optional, default is 100)
+    list_per_page = 25
+
+    # Customize the list view with a computed column (optional)
+    def get_land_area_display(self, obj):
+        if obj.total_land_area:
+            return f"{obj.total_land_area} hectares"
+        return "Not specified"
+
+    get_land_area_display.short_description = "Land Area"
+
+
 
 
 @admin.register(Product)
