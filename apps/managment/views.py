@@ -6,7 +6,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.template import loader
 from django.urls import reverse
 from django.contrib.auth.forms import PasswordChangeForm
-from .models import Warehouse,Product,Farmer
+from .models import Warehouse,Product
 from django.db.models import Q
 from .forms import WarehouseForm, ProductForm
 from django.utils import timezone
@@ -295,17 +295,22 @@ def get_product_metadata_view(request):
 
 @login_required
 def warehouse_detail(request, slug):
+    # Authorization check
     if not request.user.is_superuser:
-        if not request.user ==  Warehouse.objects.get(slug=slug).ownership and not request.user in Warehouse.objects.get(slug=slug).users.all():
+        warehouse = get_object_or_404(Warehouse, slug=slug)
+        if request.user != warehouse.ownership and request.user not in warehouse.users.all():
             return render(
                 request,
                 "home/page-403.html",
                 {
                     'is_owner': request.user.groups.filter(name='owner').exists(),
-                    "message": "Access Denied: You do not have permission to access this warehouse."},
+                    "message": "Access Denied: You do not have permission to access this warehouse."
+                },
                 status=403
             )
-    warehouse = get_object_or_404(Warehouse, slug=slug)
+    else:
+        warehouse = get_object_or_404(Warehouse, slug=slug)
+
     products = Product.objects.filter(warehouse=warehouse)
     filters = {
         'sku': request.GET.get('sku', ''),
@@ -314,6 +319,8 @@ def warehouse_detail(request, slug):
         'product_type': request.GET.get('product_type', ''),
         'status': request.GET.get('status', ''),
     }
+
+    # Apply filters
     if filters['sku']:
         products = products.filter(sku__icontains=filters['sku'])
     if filters['barcode']:
@@ -324,54 +331,62 @@ def warehouse_detail(request, slug):
         products = products.filter(product_type=filters['product_type'])
     if filters['status']:
         products = products.filter(status=filters['status'])
+
+    # Pagination
     paginator = Paginator(products, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
     if request.method == 'POST':
-        # Handle form submission from the frontend
         form = ProductForm(request.POST)
-        if request.method == 'POST':
-            form = ProductForm(request.POST)
-            if 'add_product' in request.POST:
-                if form.is_valid():
-                    product = form.save(commit=False)
-                    product.warehouse = warehouse
-                    try:
-                        product.full_clean()
-                        product.save()
-                        return JsonResponse({'success': True, 'message': 'Product added successfully'}, status=201)
-                    except ValidationError as e:
-                        return JsonResponse({'success': False, 'errors': e.message_dict}, status=400)
-                else:
-                    return JsonResponse({'success': False, 'errors': form.errors}, status=400)
-            elif "take_out_product" in request.POST:
-                sku = request.POST.get("sku")
-                quantity_to_take = int(request.POST.get("quantity_to_take", 0))
-                product = get_object_or_404(Product, sku=sku, warehouse=warehouse)
 
-                if quantity_to_take <= 0 or quantity_to_take > product.quantity_in_stock:
-                    return JsonResponse({"success": False, "errors": {"quantity_to_take": ["Invalid quantity"]}})
+        if 'add_product' in request.POST:
+            if form.is_valid():
+                product = form.save(commit=False)
+                product.warehouse = warehouse
+                try:
+                    product.full_clean()
+                    product.save()
+                    return JsonResponse({'success': True, 'message': 'Product added successfully'}, status=201)
+                except ValidationError as e:
+                    return JsonResponse({'success': False, 'errors': e.message_dict}, status=400)
+            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
 
-                product.quantity_in_stock -= quantity_to_take
-                if product.quantity_in_stock == 0:
-                    product.status = "Out of Stock"
-                    product.exit_date = timezone.now().date()  # Optional: Set exit date
-                product.total_value = product.unit_price * product.quantity_in_stock  # Update total value
-                product.save()
-                return JsonResponse({"success": True})
+        elif 'edit_product' in request.POST:
+            sku = request.POST.get('sku')
+            product = get_object_or_404(Product, sku=sku, warehouse=warehouse)
+            form = ProductForm(request.POST, instance=product)
+            if form.is_valid():
+                try:
+                    updated_product = form.save(commit=False)
+                    updated_product.full_clean()
+                    updated_product.save()
+                    return JsonResponse({'success': True, 'message': 'Product updated successfully'}, status=200)
+                except ValidationError as e:
+                    return JsonResponse({'success': False, 'errors': e.message_dict}, status=400)
+            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+
+        elif 'take_out_product' in request.POST:
+            sku = request.POST.get('sku')
+            quantity_to_take = int(request.POST.get('quantity_to_take', 0))
+            product = get_object_or_404(Product, sku=sku, warehouse=warehouse)
+
+            if quantity_to_take <= 0 or quantity_to_take > product.quantity_in_stock:
+                return JsonResponse({'success': False, 'errors': {'quantity_to_take': ['Invalid quantity']}}, status=400)
+
+            product.quantity_in_stock -= quantity_to_take
+            if product.quantity_in_stock == 0:
+                product.status = 'Out of Stock'
+                product.exit_date = timezone.now().date()  # Optional: Set exit date
+            product.total_value = product.unit_price * product.quantity_in_stock  # Update total value
+            product.save()
+            return JsonResponse({'success': True, 'message': 'Product taken out successfully'}, status=200)
+
     # For GET requests, render the products page
-    filters = {
-        'sku': request.GET.get('sku', ''),
-        'barcode': request.GET.get('barcode', ''),
-        'product_name': request.GET.get('product_name', ''),
-        'product_type': request.GET.get('product_type', ''),
-        'status': request.GET.get('status', ''),
-    }
     return render(request, 'managment/products.html', {
         'warehouse': warehouse,
         'page_obj': page_obj,
-        'form': ProductForm(),  # Pass an empty form for the modal
+        'form': ProductForm(warehouse=warehouse),  # Pass an empty form for the modal
         'filters': filters,
         'is_owner': request.user.groups.filter(name='owner').exists(),
     })

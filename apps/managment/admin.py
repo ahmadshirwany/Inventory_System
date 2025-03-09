@@ -104,148 +104,94 @@ class WarehouseAdmin(admin.ModelAdmin):
     # Register the custom action
     actions = [update_available_space]
 
-@admin.register(Product)
+
 class ProductAdmin(admin.ModelAdmin):
     # Fields to display in the list view
     list_display = (
-        'sku',
-        'barcode',
-        'product_name',
-        'product_type',
-        'origin',
-        'entry_date',
-        'expiration_date',
-        'quantity_in_stock',
-        'status',
-        'storage_temperature',
-        'humidity_rate',
+        'sku', 'barcode', 'product_name', 'product_type', 'quantity_in_stock',
+        'status', 'entry_date', 'expiration_date', 'warehouse', 'farmer'
     )
 
     # Fields to filter by in the sidebar
     list_filter = (
-        'product_type',
-        'status',
-        'entry_date',
-        'expiration_date',
-        'warehouse',
+        'product_type', 'status', 'warehouse', 'farmer',
+        ('entry_date', admin.DateFieldListFilter),
+        ('expiration_date', admin.DateFieldListFilter),
     )
 
     # Fields to search
-    search_fields = (
-        'sku',
-        'barcode',
-        'product_name',
-        'lot_number',
-        'supplier_code',
-        'origin',
-    )
-
-    # Fields to make editable directly in the list view
-    list_editable = (
-        'quantity_in_stock',
-        'status',
-    )
+    search_fields = ('sku', 'barcode', 'product_name', 'lot_number', 'supplier_code')
 
     # Default ordering
-    ordering = ('-entry_date', 'product_name')
+    ordering = ('-entry_date',)
 
-    # Fields to display in the detail view (form)
-    fields = (
-        ('sku', 'barcode', 'product_name'),
-        ('product_type', 'variety_or_species'),
-        ('origin', 'supplier_code'),
-        ('lot_number', 'warehouse'),
-        ('harvest_date', 'manufacturing_date'),
-        ('entry_date', 'exit_date', 'expiration_date'),
-        ('weight_quantity', 'weight_quantity_kg'),
-        ('quantity_in_stock', 'unit_price', 'total_value'),
-        ('status', 'packaging_condition'),
-        ('storage_temperature', 'humidity_rate'),
-        ('co2', 'o2', 'n2'),
-        ('ethylene_management', 'quality_standards'),
-        ('nutritional_info', 'regulatory_codes'),
-        ('notes_comments', 'farmer'),
+    # Fields to make read-only (e.g., auto-generated or calculated fields)
+    readonly_fields = ('lot_number', 'total_value', 'entry_date')
+
+    # Fieldsets to organize the edit form
+    fieldsets = (
+        ('Identification', {
+            'fields': ('sku', 'barcode', 'lot_number', 'product_name')
+        }),
+        ('Product Details', {
+            'fields': ('product_type', 'variety_or_species', 'origin', 'supplier_code')
+        }),
+        ('Dates', {
+            'fields': ('harvest_date', 'manufacturing_date', 'entry_date', 'expiration_date', 'exit_date')
+        }),
+        ('Quantity and Value', {
+            'fields': ('weight_quantity', 'weight_quantity_kg', 'quantity_in_stock', 'unit_price', 'total_value')
+        }),
+        ('Storage Conditions', {
+            'fields': (
+            'packaging_condition', 'humidity_rate', 'storage_temperature', 'co2', 'o2', 'n2', 'ethylene_management')
+        }),
+        ('Status and Relationships', {
+            'fields': ('status', 'warehouse', 'farmer')
+        }),
+        ('Additional Information', {
+            'fields': ('quality_standards', 'nutritional_info', 'regulatory_codes', 'notes_comments')
+        }),
     )
 
-    # Prepopulate some fields based on metadata
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        if not obj:  # Only prepopulate for new objects
-            metadata = get_product_metadata()
-            product_name_field = form.base_fields['product_name']
-            if product_name_field.initial in metadata:
-                product_data = metadata[product_name_field.initial]
-                form.base_fields['storage_temperature'].initial = self._parse_range_average(product_data['storage_temperature'])
-                form.base_fields['humidity_rate'].initial = self._parse_humidity(product_data['humidity_rate'])
-                form.base_fields['ethylene_management'].initial = product_data['ethylene_management']
-                form.base_fields['notes_comments'].initial = f"{product_data['notes_comments']} Shelf life: {product_data['shelf_life_months']} months."
-                form.base_fields['product_type'].initial = product_data['product_type']
-        return form
+    # Prepopulate fields (if slug or similar is needed, though not applicable here)
+    # prepopulated_fields = {}
 
-    # Helper method to parse temperature range (e.g., "20-25" -> 22.5)
-    def _parse_range_average(self, range_str):
-        try:
-            values = [float(x) for x in range_str.split("-") if x.strip()]
-            return sum(values) / len(values) if values else None
-        except (ValueError, TypeError):
-            return None
-
-    # Helper method to parse humidity (e.g., "<50" -> 50)
-    def _parse_humidity(self, humidity_str):
-        try:
-            cleaned = ''.join(c for c in humidity_str if c.isdigit() or c == '-' or c == '.')
-            values = [float(x) for x in cleaned.split("-") if x.strip()]
-            return sum(values) / len(values) if values else float(cleaned)
-        except (ValueError, TypeError):
-            return None
-
-    # Add custom actions
+    # Actions for bulk operations
     actions = ['mark_as_expired', 'mark_as_out_of_stock']
 
-    @admin.action(description="Mark selected products as expired")
     def mark_as_expired(self, request, queryset):
-        queryset.update(status='Expired', expiration_date=datetime.date.today())
-        self.message_user(request, "Selected products have been marked as expired.")
+        """Mark selected products as expired and set expiration date to today if not set."""
+        today = timezone.now().date()
+        updated = queryset.filter(expiration_date__isnull=True).update(
+            status='Expired',
+            expiration_date=today
+        ) + queryset.exclude(expiration_date__isnull=True).update(status='Expired')
+        self.message_user(request, f"{updated} products marked as expired.")
 
-    @admin.action(description="Mark selected products as out of stock")
+    mark_as_expired.short_description = "Mark selected products as expired"
+
     def mark_as_out_of_stock(self, request, queryset):
-        queryset.update(status='Out of Stock', exit_date=datetime.date.today())
-        self.message_user(request, "Selected products have been marked as out of stock.")
+        """Mark selected products as out of stock and set exit date to today."""
+        today = timezone.now().date()
+        updated = queryset.update(status='Out of Stock', exit_date=today, quantity_in_stock=0)
+        self.message_user(request, f"{updated} products marked as out of stock.")
 
-    # Customize the list view with conditional formatting
+    mark_as_out_of_stock.short_description = "Mark selected products as out of stock"
+
+    # Customize the queryset to improve performance or add logic
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.select_related('warehouse', 'farmer')  # Optimize queries
+        return qs.select_related('warehouse', 'farmer')  # Optimize queries for foreign keys
 
-    # Display storage temperature with units
-    def storage_temperature_display(self, obj):
-        return f"{obj.storage_temperature} °C" if obj.storage_temperature else "N/A"
-    storage_temperature_display.short_description = "Storage Temp."
+    # Optionally, customize form field display (e.g., for large text fields)
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields['notes_comments'].widget.attrs['rows'] = 4
+        form.base_fields['nutritional_info'].widget.attrs['rows'] = 4
+        form.base_fields['quality_standards'].widget.attrs['rows'] = 4
+        return form
 
-    # Display humidity rate with units
-    def humidity_rate_display(self, obj):
-        return f"{obj.humidity_rate} %" if obj.humidity_rate else "N/A"
-    humidity_rate_display.short_description = "Humidity"
 
-    # Override list_display to use custom methods if needed
-    list_display = (
-        'sku',
-        'product_name',
-        'product_type',
-        'origin',
-        'entry_date',
-        'expiration_date',
-        'quantity_in_stock',
-        'status',
-        'storage_temperature_display',
-        'humidity_rate_display',
-    )
-
-    # Read-only fields (optional, e.g., for calculated fields)
-    readonly_fields = ('total_value',)  # total_value is calculated in save()
-
-    # Customize the admin page title and header
-    def get_changeform_initial_data(self, request):
-        initial = super().get_changeform_initial_data(request)
-        initial['entry_date'] = datetime.date.today()
-        return initial
+# Register the model with the admin site
+admin.site.register(Product, ProductAdmin)

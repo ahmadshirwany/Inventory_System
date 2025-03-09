@@ -161,49 +161,49 @@
                                 </thead>
                                 <tbody>
                                     {% for product in page_obj %}
-{#                                    <tr onclick="window.location.href='{% url 'product_detail' product.sku %}'">#}
-                                        <td>{{ product.sku }}</td>
-                                        <td>{{ product.barcode|default:"N/A" }}</td>
-                                        <td>{{ product.product_name }}</td>
-                                        <td>{{ product.product_type }}</td>
-                                        <td>{{ product.origin|default:"N/A" }}</td>
-                                        <td>{{ product.lot_number|default:"N/A" }}</td>
-                                        <td>{{ product.harvest_date|date:"Y-m-d"|default:"N/A" }}</td>
-                                        <td>{{ product.entry_date|date:"Y-m-d" }}</td>
-                                        <td>{{ product.manufacturing_date|date:"Y-m-d"|default:"N/A" }}</td>
-                                        <td>{{ product.expiration_date|date:"Y-m-d"|default:"N/A" }}</td>
-                                        <td>{{ product.exit_date|date:"Y-m-d"|default:"N/A" }}</td>
-                                        <td>{{ product.supplier_code|default:"N/A" }}</td>
-                                        <td>{{ product.variety_or_species|default:"N/A" }}</td>
-                                        <td>{{ product.weight_quantity|default:"N/A" }}</td>
-                                        <td>{{ product.weight_quantity_kg|default:"N/A" }}</td>
-                                        <td>{{ product.quantity_in_stock }}</td>
-                                        <td>{{ product.packaging_condition|default:"N/A" }}</td>
-                                        <td>{{ product.status }}</td>
-                                        <td>{{ product.quality_standards|default:"N/A" }}</td>
-                                        <td>{{ product.storage_temperature|default:"N/A" }}</td>
-                                        <td>{{ product.humidity_rate|default:"N/A" }}</td>
-                                        <td>{{ product.co2|default:"N/A" }}</td>
-                                        <td>{{ product.o2|default:"N/A" }}</td>
-                                        <td>{{ product.n2|default:"N/A" }}</td>
-                                        <td>{{ product.ethylene_management|default:"N/A" }}</td>
-                                        <td>{{ product.unit_price|default:"N/A" }}</td>
-                                        <td>{{ product.total_value|default:"N/A" }}</td>
-                                        <td>{{ product.nutritional_info|default:"N/A"|truncatewords:10 }}</td>
-                                        <td>{{ product.regulatory_codes|default:"N/A" }}</td>
-                                        <td>{{ product.notes_comments|default:"N/A"|truncatewords:10 }}</td>
-                                        <td>{{ product.farmer.name|default:"N/A" }}</td>
-                                        <td style="text-align: center;">
-                                             {% if user.is_superuser or is_owner %}
-                                            <a href="{% url 'edit_product' product.sku %}" class="btn btn-sm btn-primary" onclick="event.stopPropagation();">
-                                                Edit
-                                            </a>
-                                            {% endif %}
-                                            <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#takeOutProductModal_{{ product.sku }}" onclick="event.stopPropagation();">
-                                                Take Out
-                                            </button>
-                                        </td>
-                                    </tr>
+                                        <tr>
+                                            <td>{{ product.sku }}</td>
+                                            <td>{{ product.barcode|default:"N/A" }}</td>
+                                            <td>{{ product.product_name }}</td>
+                                            <td>{{ product.product_type }}</td>
+                                            <td>{{ product.origin|default:"N/A" }}</td>
+                                            <td>{{ product.lot_number|default:"N/A" }}</td>
+                                            <td>{{ product.harvest_date|date:"Y-m-d"|default:"N/A" }}</td>
+                                            <td>{{ product.entry_date|date:"Y-m-d" }}</td>
+                                            <td>{{ product.manufacturing_date|date:"Y-m-d"|default:"N/A" }}</td>
+                                            <td>{{ product.expiration_date|date:"Y-m-d"|default:"N/A" }}</td>
+                                            <td>{{ product.exit_date|date:"Y-m-d"|default:"N/A" }}</td>
+                                            <td>{{ product.supplier_code|default:"N/A" }}</td>
+                                            <td>{{ product.variety_or_species|default:"N/A" }}</td>
+                                            <td>{{ product.weight_quantity|default:"N/A" }}</td>
+                                            <td>{{ product.weight_quantity_kg|default:"N/A" }}</td>
+                                            <td>{{ product.quantity_in_stock }}</td>
+                                            <td>{{ product.packaging_condition|default:"N/A" }}</td>
+                                            <td>{{ product.status }}</td>
+                                            <td>{{ product.quality_standards|default:"N/A" }}</td>
+                                            <td>{{ product.storage_temperature|default:"N/A" }}</td>
+                                            <td>{{ product.humidity_rate|default:"N/A" }}</td>
+                                            <td>{{ product.co2|default:"N/A" }}</td>
+                                            <td>{{ product.o2|default:"N/A" }}</td>
+                                            <td>{{ product.n2|default:"N/A" }}</td>
+                                            <td>{{ product.ethylene_management|default:"N/A" }}</td>
+                                            <td>{{ product.unit_price|default:"N/A" }}</td>
+                                            <td>{{ product.total_value|default:"N/A" }}</td>
+                                            <td>{{ product.nutritional_info|default:"N/A"|truncatewords:10 }}</td>
+                                            <td>{{ product.regulatory_codes|default:"N/A" }}</td>
+                                            <td>{{ product.notes_comments|default:"N/A"|truncatewords:10 }}</td>
+                                            <td>{{ product.farmer.username|default:"N/A" }}</td>
+                                            <td style="text-align: center;">
+                                                {% if user.is_superuser or is_owner %}
+                                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editProductModal" onclick="populateEditModal('{{ product.sku }}', '{{ product.barcode|default:'N/A'|escapejs }}', '{{ product.product_name|escapejs }}', '{{ product.weight_quantity|default:'0' }}', '{{ product.quantity_in_stock }}', '{{ product.unit_price|default:'0' }}', '{{ product.harvest_date|default:''|date:'Y-m-d' }}', '{{ product.entry_date|date:'Y-m-d' }}', '{{ product.farmer.pk|default:'' }}', '{{ product.notes_comments|default:''|escapejs }}')">
+                                                        Edit
+                                                    </button>
+                                                {% endif %}
+                                                <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#takeOutProductModal_{{ product.sku }}" onclick="event.stopPropagation();">
+                                                    Take Out
+                                                </button>
+                                            </td>
+                                        </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
@@ -341,6 +341,99 @@
         </div>
     </div>
 
+    <!-- Edit Product Modal -->
+    <div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editProductModalLabel">Edit Product in {{ warehouse.name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger error-messages" id="editFormErrors"></div>
+                    <form method="POST" id="editProductWizardForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="edit_product" value="1">
+                        <input type="hidden" name="sku" id="edit_sku">
+                        <div class="wizard-steps">
+                            <div class="step active" data-step="1">Basic Info</div>
+                            <div class="step" data-step="2">Quantities</div>
+                            <div class="step" data-step="3">Details</div>
+                        </div>
+
+                        <!-- Step 1: Basic Info -->
+                        <div class="form-step active" data-step="1">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    {{ form.sku.label_tag }}
+                                    <input type="text" class="form-control form-control-lg" id="edit_barcode" name="barcode" required aria-label="Barcode">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.product_name.label_tag }}
+                                    <select class="form-select form-select-lg" id="edit_product_name" name="product_name" required aria-label="Product Name">
+                                        {% for value, label in form.product_name.field.choices %}
+                                            <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Quantities -->
+                        <div class="form-step" data-step="2">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    {{ form.weight_quantity.label_tag }}
+                                    <input type="number" class="form-control form-control-lg" id="edit_weight_quantity" name="weight_quantity" step="0.01" min="0" required aria-label="Weight or Quantity">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.quantity_in_stock.label_tag }}
+                                    <input type="number" class="form-control form-control-lg" id="edit_quantity_in_stock" name="quantity_in_stock" min="0" required aria-label="Quantity in Stock">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.unit_price.label_tag }}
+                                    <input type="number" class="form-control form-control-lg" id="edit_unit_price" name="unit_price" step="0.01" min="0" required aria-label="Unit Price">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Details -->
+                        <div class="form-step" data-step="3">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="edit_harvest_date">Harvest/Manufacturing Date</label>
+                                    <input type="date" class="form-control form-control-lg" id="edit_harvest_date" name="harvest_date" aria-label="Harvest Date">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.entry_date.label_tag }}
+                                    <input type="date" class="form-control form-control-lg" id="edit_entry_date" name="entry_date" required aria-label="Entry Date">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.farmer.label_tag }}
+                                    <select class="form-select form-select-lg" id="edit_farmer" name="farmer" aria-label="Farmer">
+                                        {% for value, label in form.farmer.field.choices %}
+                                            <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-12 mb-3">
+                                    {{ form.notes_comments.label_tag }}
+                                    <textarea class="form-control" id="edit_notes_comments" name="notes_comments" rows="4" aria-label="Notes or Comments"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="editPrevBtn" disabled>Previous</button>
+                    <button type="button" class="btn btn-primary" id="editNextBtn">Next</button>
+                    <button type="button" class="btn btn-success" id="editSubmitBtn" style="display: none;">Update</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Take Out Product Modals (One per product) -->
     {% for product in page_obj %}
     <div class="modal fade" id="takeOutProductModal_{{ product.sku }}" tabindex="-1" aria-labelledby="takeOutProductModalLabel_{{ product.sku }}" aria-hidden="true">
@@ -392,40 +485,68 @@
             return cookieValue;
         }
 
+        // Populate Edit Modal with Product Data
+        function populateEditModal(sku, barcode, product_name, weight_quantity, quantity_in_stock, unit_price, harvest_date, entry_date, farmer_pk, notes_comments) {
+            document.getElementById('edit_sku').value = sku;
+            document.getElementById('edit_barcode').value = barcode !== 'N/A' ? barcode : '';
+
+            // Set product_name dropdown
+            const productNameSelect = document.getElementById('edit_product_name');
+            productNameSelect.value = product_name;
+            if (!productNameSelect.value) {
+                console.warn(`Product name "${product_name}" not found in options`);
+            }
+
+            document.getElementById('edit_weight_quantity').value = weight_quantity !== 'N/A' ? weight_quantity : '';
+            document.getElementById('edit_quantity_in_stock').value = quantity_in_stock;
+            document.getElementById('edit_unit_price').value = unit_price !== 'N/A' ? unit_price : '';
+            document.getElementById('edit_harvest_date').value = harvest_date !== 'N/A' ? harvest_date : '';
+            document.getElementById('edit_entry_date').value = entry_date;
+
+            // Set farmer dropdown
+            const farmerSelect = document.getElementById('edit_farmer');
+            farmerSelect.value = farmer_pk !== '' ? farmer_pk : '';
+
+            document.getElementById('edit_notes_comments').value = notes_comments !== 'N/A' ? notes_comments : '';
+            document.getElementById('editProductModalLabel').innerText = `Edit Product: ${product_name} (SKU: ${sku})`;
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
-            const steps = document.querySelectorAll('.step');
-            const formSteps = document.querySelectorAll('.form-step');
+            const csrfToken = getCookie('csrftoken');
+
+            // Add Product Wizard
+            const addSteps = document.querySelectorAll('#addProductModal .step');
+            const addFormSteps = document.querySelectorAll('#addProductModal .form-step');
             const prevBtn = document.getElementById('prevBtn');
             const nextBtn = document.getElementById('nextBtn');
             const submitBtn = document.getElementById('submitBtn');
-            const form = document.getElementById('productWizardForm');
-            const errorDiv = document.getElementById('formErrors');
-            let currentStep = 1;
-            const totalSteps = 3;
-            const csrfToken = getCookie('csrftoken');
+            const addForm = document.getElementById('productWizardForm');
+            const addErrorDiv = document.getElementById('formErrors');
+            let addCurrentStep = 1;
+            const addTotalSteps = 3;
 
-            function updateSteps() {
-                steps.forEach(step => step.classList.remove('active'));
-                steps[currentStep - 1].classList.add('active');
-                formSteps.forEach(step => step.classList.remove('active'));
-                formSteps[currentStep - 1].classList.add('active');
+            function updateAddSteps() {
+                addSteps.forEach(step => step.classList.remove('active'));
+                addSteps[addCurrentStep - 1].classList.add('active');
+                addFormSteps.forEach(step => step.classList.remove('active'));
+                addFormSteps[addCurrentStep - 1].classList.add('active');
 
-                prevBtn.disabled = currentStep === 1;
-                nextBtn.style.display = currentStep === totalSteps ? 'none' : 'inline-block';
-                submitBtn.style.display = currentStep === totalSteps ? 'inline-block' : 'none';
-                errorDiv.style.display = 'none'; // Hide errors when switching steps
+                prevBtn.disabled = addCurrentStep === 1;
+                nextBtn.style.display = addCurrentStep === addTotalSteps ? 'none' : 'inline-block';
+                submitBtn.style.display = addCurrentStep === addTotalSteps ? 'inline-block' : 'none';
+                addErrorDiv.style.display = 'none';
             }
 
             prevBtn.addEventListener('click', function() {
-                if (currentStep > 1) {
-                    currentStep--;
-                    updateSteps();
+                if (addCurrentStep > 1) {
+                    addCurrentStep--;
+                    updateAddSteps();
                 }
             });
 
             nextBtn.addEventListener('click', function() {
-                if (currentStep < totalSteps) {
-                    const currentInputs = formSteps[currentStep - 1].querySelectorAll('input[required], select[required]');
+                if (addCurrentStep < addTotalSteps) {
+                    const currentInputs = addFormSteps[addCurrentStep - 1].querySelectorAll('input[required], select[required]');
                     let isValid = true;
                     currentInputs.forEach(input => {
                         if (!input.value) {
@@ -437,46 +558,26 @@
                     });
 
                     if (isValid) {
-                        currentStep++;
-                        updateSteps();
+                        addCurrentStep++;
+                        updateAddSteps();
                     }
                 }
             });
 
-            document.getElementById('id_product_name').addEventListener('change', function() {
-                fetch(`/get_product_metadata/?product_name=${encodeURIComponent(this.value)}`, {
-                    headers: {
-                        'X-CSRFToken': csrfToken
-                    }
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error('Metadata fetch failed');
-                    return response.json();
-                })
-                .then(data => {
-                    if (data) {
-                        document.getElementById('id_notes_comments').value = data.notes_comments || '';
-                    }
-                })
-                .catch(error => console.error('Metadata error:', error));
-            });
-
             submitBtn.addEventListener('click', function(e) {
                 e.preventDefault();
-                const formData = new FormData(form);
+                const formData = new FormData(addForm);
                 fetch("{% url 'warehouse_detail' warehouse.slug %}", {
                     method: 'POST',
                     body: formData,
-                    headers: {
-                        'X-CSRFToken': csrfToken
-                    },
+                    headers: { 'X-CSRFToken': csrfToken },
                     credentials: 'same-origin'
                 })
                 .then(response => {
                     if (response.ok) {
                         return response.json().then(data => {
                             if (data.success) {
-                                location.reload(); // Success: Refresh the page
+                                location.reload();
                             } else {
                                 throw new Error('Unexpected response format');
                             }
@@ -491,22 +592,123 @@
                             } else {
                                 errorMessages = `<p>Server error: ${response.status} - ${response.statusText}</p>`;
                             }
-                            errorDiv.innerHTML = errorMessages;
-                            errorDiv.style.display = 'block';
+                            addErrorDiv.innerHTML = errorMessages;
+                            addErrorDiv.style.display = 'block';
                             throw new Error('Form submission failed');
                         });
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    if (!errorDiv.innerHTML) {
-                        errorDiv.innerHTML = '<p>An error occurred while adding the product. Please try again.</p>';
-                        errorDiv.style.display = 'block';
+                    if (!addErrorDiv.innerHTML) {
+                        addErrorDiv.innerHTML = '<p>An error occurred while adding the product. Please try again.</p>';
+                        addErrorDiv.style.display = 'block';
                     }
                 });
             });
 
-            updateSteps();
+            updateAddSteps();
+
+            // Edit Product Wizard
+            const editSteps = document.querySelectorAll('#editProductModal .step');
+            const editFormSteps = document.querySelectorAll('#editProductModal .form-step');
+            const editPrevBtn = document.getElementById('editPrevBtn');
+            const editNextBtn = document.getElementById('editNextBtn');
+            const editSubmitBtn = document.getElementById('editSubmitBtn');
+            const editForm = document.getElementById('editProductWizardForm');
+            const editErrorDiv = document.getElementById('editFormErrors');
+            let editCurrentStep = 1;
+            const editTotalSteps = 3;
+
+            function updateEditSteps() {
+                editSteps.forEach(step => step.classList.remove('active'));
+                editSteps[editCurrentStep - 1].classList.add('active');
+                editFormSteps.forEach(step => step.classList.remove('active'));
+                editFormSteps[editCurrentStep - 1].classList.add('active');
+
+                editPrevBtn.disabled = editCurrentStep === 1;
+                editNextBtn.style.display = editCurrentStep === editTotalSteps ? 'none' : 'inline-block';
+                editSubmitBtn.style.display = editCurrentStep === editTotalSteps ? 'inline-block' : 'none';
+                editErrorDiv.style.display = 'none';
+            }
+
+            editPrevBtn.addEventListener('click', function() {
+                if (editCurrentStep > 1) {
+                    editCurrentStep--;
+                    updateEditSteps();
+                }
+            });
+
+            editNextBtn.addEventListener('click', function() {
+                if (editCurrentStep < editTotalSteps) {
+                    const currentInputs = editFormSteps[editCurrentStep - 1].querySelectorAll('input[required], select[required]');
+                    let isValid = true;
+                    currentInputs.forEach(input => {
+                        if (!input.value) {
+                            isValid = false;
+                            input.classList.add('is-invalid');
+                        } else {
+                            input.classList.remove('is-invalid');
+                        }
+                    });
+
+                    if (isValid) {
+                        editCurrentStep++;
+                        updateEditSteps();
+                    }
+                }
+            });
+
+            editSubmitBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const formData = new FormData(editForm);
+                fetch("{% url 'warehouse_detail' warehouse.slug %}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-CSRFToken': csrfToken },
+                    credentials: 'same-origin'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.json().then(data => {
+                            if (data.success) {
+                                location.reload();
+                            } else {
+                                throw new Error('Unexpected response format');
+                            }
+                        });
+                    } else {
+                        return response.json().then(data => {
+                            let errorMessages = '';
+                            if (data.errors) {
+                                for (const [field, errors] of Object.entries(data.errors)) {
+                                    errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
+                                }
+                            } else {
+                                errorMessages = `<p>Server error: ${response.status} - ${response.statusText}</p>`;
+                            }
+                            editErrorDiv.innerHTML = errorMessages;
+                            editErrorDiv.style.display = 'block';
+                            throw new Error('Form submission failed');
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    if (!editErrorDiv.innerHTML) {
+                        editErrorDiv.innerHTML = '<p>An error occurred while updating the product. Please try again.</p>';
+                        editErrorDiv.style.display = 'block';
+                    }
+                });
+            });
+
+            // Reset edit modal step on close
+            document.getElementById('editProductModal').addEventListener('hidden.bs.modal', function() {
+                editCurrentStep = 1;
+                updateEditSteps();
+            });
+
+            updateEditSteps();
         });
 
         // Function to handle Take Out form submission
@@ -520,7 +722,7 @@
 
             if (quantityToTake <= 0 || quantityToTake > maxQuantity) {
                 errorDiv.innerHTML = '<p>Please enter a valid quantity between 1 and ' + maxQuantity + '.</p>';
-                errorDiv.style.display = 'block';
+                editErrorDiv.style.display = 'block';
                 return;
             }
 
@@ -528,16 +730,14 @@
             fetch("{% url 'warehouse_detail' warehouse.slug %}", {
                 method: 'POST',
                 body: formData,
-                headers: {
-                    'X-CSRFToken': csrfToken
-                },
+                headers: { 'X-CSRFToken': csrfToken },
                 credentials: 'same-origin'
             })
             .then(response => {
                 if (response.ok) {
                     return response.json().then(data => {
                         if (data.success) {
-                            location.reload(); // Success: Refresh the page
+                            location.reload();
                         } else {
                             throw new Error('Unexpected response format');
                         }

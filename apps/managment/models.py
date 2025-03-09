@@ -70,39 +70,39 @@ def assign_owner(sender, instance, **kwargs):
         if hasattr(instance, 'creator') and instance.creator:
             instance.ownership = instance.creator
 
-class Farmer(models.Model):
-    farmer_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, help_text="Unique ID assigned to the farmer")
-    name = models.CharField(max_length=255, help_text="Full name of the farmer")
-    contact_number = models.CharField(max_length=20, blank=True, null=True, help_text="Primary contact number of the farmer")
-    email = models.EmailField(max_length=255, blank=True, null=True, unique=True, help_text="Email address of the farmer")
-    address = models.TextField(help_text="Physical address of the farmer")
-    farm_name = models.CharField(max_length=255, blank=True, null=True, help_text="Name of the farm")
-    farm_location = models.CharField(max_length=255, help_text="Geographical location of the farm")
-    total_land_area = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, help_text="Total area of the farm in hectares")
-    certifications = models.TextField(blank=True, null=True, help_text="List of certifications held by the farmer")
-    compliance_standards = models.TextField(blank=True, null=True, help_text="Compliance standards followed by the farmer")
-    notes = models.TextField(blank=True, null=True, help_text="Additional notes or comments about the farmer")
-    registration_date = models.DateField(null=True, blank=True, help_text="Date of Registration")
-    owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="farmer_owner",
-        help_text="Owner of the farmer"
-    )
-
-    def __str__(self):
-        return f"{self.name} ({self.farm_name or 'No Farm Name'})"
-
-    def clean(self):
-        if self.total_land_area and self.total_land_area < 0:
-            raise ValidationError("Total land area cannot be negative.")
-
-    class Meta:
-        verbose_name = "Farmer"
-        verbose_name_plural = "Farmers"
-        indexes = [models.Index(fields=['farmer_id', 'name'])]
+# class Farmer(models.Model):
+#     farmer_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, help_text="Unique ID assigned to the farmer")
+#     name = models.CharField(max_length=255, help_text="Full name of the farmer")
+#     contact_number = models.CharField(max_length=20, blank=True, null=True, help_text="Primary contact number of the farmer")
+#     email = models.EmailField(max_length=255, blank=True, null=True, unique=True, help_text="Email address of the farmer")
+#     address = models.TextField(help_text="Physical address of the farmer")
+#     farm_name = models.CharField(max_length=255, blank=True, null=True, help_text="Name of the farm")
+#     farm_location = models.CharField(max_length=255, help_text="Geographical location of the farm")
+#     total_land_area = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, help_text="Total area of the farm in hectares")
+#     certifications = models.TextField(blank=True, null=True, help_text="List of certifications held by the farmer")
+#     compliance_standards = models.TextField(blank=True, null=True, help_text="Compliance standards followed by the farmer")
+#     notes = models.TextField(blank=True, null=True, help_text="Additional notes or comments about the farmer")
+#     registration_date = models.DateField(null=True, blank=True, help_text="Date of Registration")
+#     owner = models.ForeignKey(
+#         settings.AUTH_USER_MODEL,
+#         on_delete=models.SET_NULL,
+#         null=True,
+#         blank=True,
+#         related_name="farmer_owner",
+#         help_text="Owner of the farmer"
+#     )
+#
+#     def __str__(self):
+#         return f"{self.name} ({self.farm_name or 'No Farm Name'})"
+#
+#     def clean(self):
+#         if self.total_land_area and self.total_land_area < 0:
+#             raise ValidationError("Total land area cannot be negative.")
+#
+#     class Meta:
+#         verbose_name = "Farmer"
+#         verbose_name_plural = "Farmers"
+#         indexes = [models.Index(fields=['farmer_id', 'name'])]
 
 
 JSON_FILE_PATH = os.path.join(settings.BASE_DIR.parent, 'apps', 'managment', 'products.json')
@@ -282,73 +282,175 @@ class Product(models.Model):
                                         help_text="Regulatory codes applicable to the product")
     notes_comments = models.TextField(blank=True, null=True, help_text="Additional notes or comments about the product")
     farmer = models.ForeignKey(
-        'Farmer',
+        'authentication.CustomUser',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="products",
-        help_text="Farmer who supplied the product"
+        help_text="Farmer who supplied the product",
+        limit_choices_to={'is_farmer': True}
     )
+
+    def populate_from_metadata(self):
+        """Populate fields from product metadata if not already set."""
+        metadata = get_product_metadata()
+        if self.product_name not in metadata:
+            return
+
+        product_data = metadata[self.product_name]
+
+        # Set product_type early if not provided
+
+        self.product_type = product_data.get("product_type", self.product_type)
+
+        # Adjust dates based on product_type
+        if self.product_type == 'Raw' and self.manufacturing_date:
+            self.harvest_date = self.manufacturing_date
+            self.manufacturing_date = None
+        elif self.product_type == 'Processed' and self.harvest_date:
+            self.manufacturing_date = self.harvest_date
+            self.harvest_date = None
+
+        # Populate other fields
+        if self.storage_temperature is None:
+            temp_str = product_data.get("storage_temperature", "")
+            try:
+                temp_values = [float(x) for x in temp_str.split("-") if x.strip()]
+                self.storage_temperature = sum(temp_values) / len(temp_values) if temp_values else None
+            except (ValueError, TypeError):
+                self.storage_temperature = None
+
+        if self.humidity_rate is None:
+            humidity_str = product_data.get("humidity_rate", "")
+            try:
+                humidity_cleaned = ''.join(c for c in humidity_str if c.isdigit() or c == '-' or c == '.')
+                humidity_values = [float(x) for x in humidity_cleaned.split("-") if x.strip()]
+                self.humidity_rate = sum(humidity_values) / len(humidity_values) if humidity_values else None
+            except (ValueError, TypeError):
+                self.humidity_rate = None
+
+        if self.co2 is None and product_data.get('CO2 (%)'):
+            try:
+                self.co2 = float(product_data['CO2 (%)'].replace('<', '').replace('>', '').strip())
+            except (ValueError, TypeError):
+                self.co2 = None
+
+        if self.o2 is None and product_data.get('O2 (%)'):
+            try:
+                self.o2 = float(product_data['O2 (%)'].replace('<', '').replace('>', '').strip())
+            except (ValueError, TypeError):
+                self.o2 = None
+
+        if self.n2 is None and product_data.get('n2') and product_data["n2"] != "Balance":
+            try:
+                self.n2 = float(product_data["n2"].replace('<', '').replace('>', '').strip())
+            except (ValueError, TypeError):
+                self.n2 = None
+
+        if not self.ethylene_management:
+            self.ethylene_management = product_data.get("ethylene_management")
+
+        if not self.notes_comments:
+            self.notes_comments = product_data.get('notes_comments', '')
+
+        if self.manufacturing_date and not self.expiration_date and "Maximum Storage Duration (days)" in product_data:
+            try:
+                max_shelf_life = int(product_data["Maximum Storage Duration (days)"])
+                self.expiration_date = self.manufacturing_date + relativedelta(days=max_shelf_life)
+            except (ValueError, TypeError):
+                pass
 
     def clean(self):
         super().clean()
-        # Skip uniqueness checks if warehouse is None
+        self.populate_from_metadata()
+        # Validate farmer
+        if self.farmer and not self.farmer.is_farmer:
+            raise ValidationError("Selected user must be a farmer (is_farmer must be True).")
+
+        # Validate uniqueness
         if self.warehouse is not None:
             if Product.objects.exclude(pk=self.pk).filter(sku=self.sku, warehouse=self.warehouse).exists():
                 raise ValidationError(f"SKU {self.sku} already exists in warehouse {self.warehouse}.")
             if Product.objects.exclude(pk=self.pk).filter(barcode=self.barcode, warehouse=self.warehouse).exists():
                 raise ValidationError(f"Barcode {self.barcode} already exists in warehouse {self.warehouse}.")
+
+        # Validate product type
+        if self.product_type == 'Raw':
+            if not self.harvest_date:
+                raise ValidationError("Harvest date is required for raw products.")
+            if self.manufacturing_date:
+                raise ValidationError("Manufacturing date should not be set for raw products.")
+        elif self.product_type == 'Processed':
+            if not self.manufacturing_date:
+                raise ValidationError("Manufacturing date is required for processed products.")
+            if self.harvest_date:
+                raise ValidationError("Harvest date should not be set for processed products.")
+        # Product type logic (if applicable)
+        if self.product_type == 'Raw' and not self.harvest_date:
+            raise ValidationError("Harvest date is required for raw products.")
+        if self.product_type == 'Processed' and not self.manufacturing_date:
+            raise ValidationError("Manufacturing date is required for processed products.")
+        if self.product_type == 'Raw' and self.manufacturing_date:
+            raise ValidationError("Manufacturing date should not be set for raw products.")
+        if self.product_type == 'Processed' and self.harvest_date:
+            raise ValidationError("Harvest date should not be set for processed products.")
+
         # Existing validation logic
-        if self.harvest_date and self.manufacturing_date and self.harvest_date > self.manufacturing_date:
-            raise ValidationError("Harvest date cannot be later than manufacturing date.")
-        if self.entry_date and self.exit_date and self.entry_date > self.exit_date:
-            raise ValidationError("Entry date cannot be later than exit date.")
-        if self.expiration_date and self.manufacturing_date and self.expiration_date <= self.manufacturing_date:
-            raise ValidationError("Expiration date must be after manufacturing date.")
+        if self.harvest_date and self.entry_date:
+            if self.harvest_date > self.entry_date:
+                raise ValidationError("Harvest date cannot be later than entry date.")
+        if self.manufacturing_date and self.entry_date:
+            if self.manufacturing_date > self.entry_date:
+                raise ValidationError("Manufacturing date cannot be later than entry date.")
+        if self.entry_date and self.exit_date:
+            if self.entry_date > self.exit_date:
+                raise ValidationError("Entry date cannot be later than exit date.")
+        if self.harvest_date and self.exit_date:
+            if self.harvest_date > self.exit_date:
+                raise ValidationError("Harvest date cannot be later than exit date.")
+        if self.manufacturing_date and self.exit_date:
+            if self.manufacturing_date > self.exit_date:
+                raise ValidationError("Manufacturing date cannot be later than exit date.")
+        if self.expiration_date and self.entry_date:
+            if self.expiration_date <= self.entry_date:  # Fixed: Expiration should be after entry
+                raise ValidationError("Expiration date must be after entry date.")
+        if self.expiration_date and self.manufacturing_date:
+            if self.expiration_date <= self.manufacturing_date:
+                raise ValidationError("Expiration date must be after manufacturing date.")
+        if self.expiration_date and self.harvest_date:
+            if self.expiration_date <= self.harvest_date:
+                raise ValidationError("Expiration date must be after harvest date.")
+        if self.manufacturing_date and self.harvest_date:
+            if self.manufacturing_date <= self.harvest_date:
+                raise ValidationError("Manufacturing date must be after harvest date.")
+
+        # Non-negative constraints
+        if self.quantity_in_stock < 0:
+            raise ValidationError("Quantity in stock cannot be negative.")
+        if self.weight_quantity_kg is not None and self.weight_quantity_kg < 0:
+            raise ValidationError("Weight quantity in kg cannot be negative.")
+        if self.unit_price < 0:
+            raise ValidationError("Unit price cannot be negative.")
+        if self.total_value is not None and self.total_value < 0:  # Add if calculated
+            raise ValidationError("Total value cannot be negative.")
+
+        # Status consistency
+        if self.quantity_in_stock == 0 and self.status not in ['Out of Stock', 'Expired']:
+            raise ValidationError("Status must be 'Out of Stock' or 'Expired' when quantity in stock is 0.")
+        if self.quantity_in_stock > 0 and self.status == 'Out of Stock':
+            raise ValidationError("Status cannot be 'Out of Stock' when quantity in stock is greater than 0.")
+        if self.status == 'Out of Stock' and not self.exit_date:
+            raise ValidationError("Exit date must be set when status is 'Out of Stock'.")
+        if self.status == 'Expired' and not self.expiration_date:
+            raise ValidationError("Expiration date must be set when status is 'Expired'.")
+        if self.expiration_date and self.expiration_date <= timezone.now().date() and self.status != 'Expired':
+            raise ValidationError("Status must be 'Expired' if expiration date is past or present.")
 
     def save(self, *args, **kwargs):
-        metadata = get_product_metadata()
+
+
         if self.weight_quantity and self.weight_quantity_kg is None:
             self.weight_quantity_kg = round(self.weight_quantity / 1000, 2)
-        if self.product_name in metadata:
-            product_data = metadata[self.product_name]
-            if self.storage_temperature is None:
-                temp_str = product_data.get("storage_temperature", "")
-                temp_values = [float(x) for x in temp_str.split("-") if x.strip()]
-                self.storage_temperature = f"{sum(temp_values) / len(temp_values):.2f}" if temp_values else None
-            if self.humidity_rate is None:
-                humidity_str = product_data.get("humidity_rate", "")
-                humidity_cleaned = ''.join(c for c in humidity_str if c.isdigit() or c == '-' or c == '.')
-                humidity_values = [float(x) for x in humidity_cleaned.split("-") if x.strip()]
-                self.humidity_rate = f"{sum(humidity_values) / len(humidity_values):.2f}" if humidity_values else humidity_cleaned or None
-            if self.co2 is None and product_data.get('CO2 (%)') is not None:
-                co2_str = product_data['CO2 (%)']
-                try:
-                    self.co2 = f"{float(co2_str.replace('<', '').replace('>', '').strip()):.2f}"
-                except Exception:
-                    self.co2 = None
-            if self.o2 is None and product_data.get('O2 (%)') is not None:
-                try:
-                    o2_str = product_data['O2 (%)']
-                    self.o2 = f"{float(o2_str.replace('<', '').replace('>', '').strip()):.2f}"
-                except Exception:
-                    self.o2 = None
-            if self.n2 is None and product_data.get('n2') is not None and product_data["n2"] != "Balance":
-                try:
-                    n2_str = product_data["n2"]
-                    self.n2 = f"{float(n2_str.replace('<', '').replace('>', '').strip()):.2f}"
-                except Exception:
-                    self.n2 = None
-            if not self.ethylene_management:
-                self.ethylene_management = product_data.get("ethylene_management")
-            if not self.notes_comments:
-                self.notes_comments = product_data.get('notes_comments', '')
-            if not self.product_type:
-                self.product_type = product_data.get("product_type")
-            if self.manufacturing_date and not self.expiration_date and "Maximum Storage Duration (days)" in product_data:
-                shelf_life_str = product_data["Maximum Storage Duration (days)"]
-                max_shelf_life = int(shelf_life_str)  # Convert days to months
-                self.expiration_date = self.manufacturing_date + relativedelta(days=max_shelf_life)
 
         if self.unit_price and self.quantity_in_stock:
             self.total_value = self.unit_price * self.quantity_in_stock

@@ -104,8 +104,15 @@ class ProductForm(forms.ModelForm):
             'product_type', 'lot_number'
         ]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args,warehouse=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if warehouse is None and self.instance and self.instance.pk and self.instance.warehouse:
+            warehouse = self.instance.warehouse
+        if warehouse and warehouse.ownership:
+            self.fields['farmer'].queryset = CustomUser.objects.filter(
+                is_farmer=True,
+                owner=warehouse.ownership
+            )
 
         # Common attributes for all fields
         common_attrs = {
