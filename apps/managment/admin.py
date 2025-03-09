@@ -1,4 +1,4 @@
-from .models import Warehouse, Farmer
+from .models import Warehouse
 import datetime
 from django.contrib import admin
 from .models import Product, get_product_metadata, refresh_product_metadata
@@ -103,53 +103,6 @@ class WarehouseAdmin(admin.ModelAdmin):
 
     # Register the custom action
     actions = [update_available_space]
-
-@admin.register(Farmer)
-class FarmerAdmin(admin.ModelAdmin):
-    # Fields to display in the list view
-    list_display = ('farmer_id', 'name', 'farm_name', 'contact_number', 'registration_date', 'owner')
-
-    # Fields to filter by in the sidebar
-    list_filter = ('registration_date', 'owner', 'total_land_area')
-
-    # Fields to search
-    search_fields = ('farmer_id', 'name', 'farm_name', 'email', 'address', 'farm_location')
-
-    # Fields to make read-only (e.g., auto-generated or sensitive fields)
-    readonly_fields = ('farmer_id',)
-
-    # Organize fields in the detail view into fieldsets for better readability
-    fieldsets = (
-        ('Basic Information', {
-            'fields': ('farmer_id', 'name', 'farm_name', 'owner'),
-        }),
-        ('Contact Details', {
-            'fields': ('contact_number', 'email', 'address'),
-        }),
-        ('Farm Details', {
-            'fields': ('farm_location', 'total_land_area', 'certifications', 'compliance_standards'),
-        }),
-        ('Additional Information', {
-            'fields': ('registration_date', 'notes'),
-        }),
-    )
-
-    # Enable ordering by specific fields
-    ordering = ('name', 'registration_date')
-
-    # Add pagination to the list view (optional, default is 100)
-    list_per_page = 25
-
-    # Customize the list view with a computed column (optional)
-    def get_land_area_display(self, obj):
-        if obj.total_land_area:
-            return f"{obj.total_land_area} hectares"
-        return "Not specified"
-
-    get_land_area_display.short_description = "Land Area"
-
-
-
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
