@@ -373,4 +373,5 @@ def warehouse_detail(request, slug):
         'page_obj': page_obj,
         'form': ProductForm(),  # Pass an empty form for the modal
         'filters': filters,
+        'is_owner': request.user.groups.filter(name='owner').exists(),
     })

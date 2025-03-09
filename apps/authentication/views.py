@@ -52,49 +52,44 @@ def login_view(request):
 @login_required
 def user_profile(request):
     if request.method == "POST":
-        # Initialize the password change form
-        form = PasswordChangeForm(request.user, request.POST)
+        # Check if this is a password update
+        if 'update_password' in request.POST:
+            form = PasswordChangeForm(request.user, request.POST)
+            if form.is_valid():
+                try:
+                    user = form.save()
+                    update_session_auth_hash(request, user)
+                    messages.success(request, "Your password was successfully updated!")
+                    return redirect("user_profile")
+                except Exception as e:
+                    messages.error(request, f"An error occurred while updating your password: {str(e)}")
+            else:
+                if 'old_password' in form.errors:
+                    messages.error(request, "Please enter your current password correctly.")
+                if 'new_password1' in form.errors or 'new_password2' in form.errors:
+                    messages.error(request, "Please check your new password entries.")
+                if len(form.errors) > 1:
+                    messages.error(request, "Please correct the errors below.")
 
-        if form.is_valid():
+        # Check if this is a profile picture update
+        elif 'profile_picture' in request.FILES:
             try:
-                # Save the new password
-                user = form.save()
-                update_session_auth_hash(request, user)
-                messages.success(request, "Your password was successfully updated!")
-                return redirect("profile")
-            except Exception as e:
-                messages.error(request, f"An error occurred while updating your password: {str(e)}")
-        else:
-            # Handle specific form errors
-            if 'old_password' in form.errors:
-                messages.error(request, "Please enter your current password.")
-            if 'new_password1' in form.errors or 'new_password2' in form.errors:
-                messages.error(request, "Please check your new password entries.")
-            # Display all form errors if there are multiple
-            if len(form.errors) > 1:
-                messages.error(request, "Please correct the errors below.")
-
-        # Handle profile picture upload regardless of password change success
-        try:
-            profile = CustomUser.objects.get_or_create(user=request.user)[0]
-            if 'profile_picture' in request.FILES:
+                profile = CustomUser.objects.get_or_create(user=request.user)[0]
                 profile.profile_picture = request.FILES['profile_picture']
                 profile.save()
                 messages.success(request, "Profile picture updated successfully!")
-        except Exception as e:
-            messages.error(request, f"Error updating profile picture: {str(e)}")
+                return redirect("user_profile")
+            except Exception as e:
+                messages.error(request, f"Error updating profile picture: {str(e)}")
 
-    else:
-        # GET request - just show the form
-        form = PasswordChangeForm(request.user)
+    # For GET requests or when POST fails, show the form
+    form = PasswordChangeForm(request.user)
 
-    # Prepare context for template
     context = {
         "current_user": request.user,
         'is_owner': request.user.groups.filter(name='owner').exists(),
         "form": form,
     }
-
     return render(request, "managment/user_profile.html", context)
 from django.contrib import messages
 @login_required

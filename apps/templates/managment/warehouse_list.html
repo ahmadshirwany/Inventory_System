@@ -151,7 +151,9 @@
                                         <th>Available Space (sqm)</th>
                                         <th>Utilization Rate (%)</th>
                                         <th>Users</th>
+                                        {% if user.is_superuser or is_owner %}
                                         <th>Actions</th>
+                                            {% endif %}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -173,6 +175,7 @@
                                                 None
                                             {% endif %}
                                         </td>
+                                      {% if user.is_superuser or is_owner %}
                                         <td>
                                             <button class="btn btn-sm btn-primary edit-warehouse"
                                                     data-slug="{{ warehouse.slug }}"
@@ -180,6 +183,7 @@
                                                 Edit
                                             </button>
                                         </td>
+                                    {% endif %}
                                     </tr>
                                     {% endfor %}
                                 </tbody>
