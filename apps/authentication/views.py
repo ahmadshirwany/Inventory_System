@@ -2,14 +2,14 @@
 """
 Copyright (c) 2019 - present AppSeed.us
 """
-
+from django.http import JsonResponse
 # Create your views here.
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
 from .forms import LoginForm, SignUpForm
 from django.contrib.auth.decorators import login_required
-from .forms import CustomUserCreationForm
-from .models import CustomUser
+from .forms import CustomUserCreationForm,FarmerCreationForm
+from .models import CustomUser,Farmer
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.models import Group
@@ -52,25 +52,50 @@ def login_view(request):
 @login_required
 def user_profile(request):
     if request.method == "POST":
+        # Initialize the password change form
         form = PasswordChangeForm(request.user, request.POST)
+
         if form.is_valid():
-            user = form.save()
-            update_session_auth_hash(request, user)  # Keep the user logged in after changing the password
-            return redirect("profile")  # Redirect to the profile page after successful password change
-        profile = CustomUser.objects.get_or_create(user=request.user)[0]
-        if 'profile_picture' in request.FILES:
-            profile.profile_picture = request.FILES['profile_picture']
-            profile.save()
+            try:
+                # Save the new password
+                user = form.save()
+                update_session_auth_hash(request, user)
+                messages.success(request, "Your password was successfully updated!")
+                return redirect("profile")
+            except Exception as e:
+                messages.error(request, f"An error occurred while updating your password: {str(e)}")
+        else:
+            # Handle specific form errors
+            if 'old_password' in form.errors:
+                messages.error(request, "Please enter your current password.")
+            if 'new_password1' in form.errors or 'new_password2' in form.errors:
+                messages.error(request, "Please check your new password entries.")
+            # Display all form errors if there are multiple
+            if len(form.errors) > 1:
+                messages.error(request, "Please correct the errors below.")
+
+        # Handle profile picture upload regardless of password change success
+        try:
+            profile = CustomUser.objects.get_or_create(user=request.user)[0]
+            if 'profile_picture' in request.FILES:
+                profile.profile_picture = request.FILES['profile_picture']
+                profile.save()
+                messages.success(request, "Profile picture updated successfully!")
+        except Exception as e:
+            messages.error(request, f"Error updating profile picture: {str(e)}")
+
     else:
+        # GET request - just show the form
         form = PasswordChangeForm(request.user)
 
-    return render(
-        request,
-        "managment/user_profile.html",
-        {"current_user": request.user,
-         'is_owner': request.user.groups.filter(name='owner').exists(),
-         "form": form}
-    )
+    # Prepare context for template
+    context = {
+        "current_user": request.user,
+        'is_owner': request.user.groups.filter(name='owner').exists(),
+        "form": form,
+    }
+
+    return render(request, "managment/user_profile.html", context)
 from django.contrib import messages
 @login_required
 def update_profile_picture(request):
@@ -152,105 +177,140 @@ def register_user(request):
         form = SignUpForm()
 
     return render(request, "accounts/register.html", {"form": form, "msg": msg, "success": success})
+
+
 @login_required
 def user_list(request):
-    # Ensure only superusers or users in the 'owner' group can access this view
-    if not request.user.is_superuser:
-        if not request.user.groups.filter(name='owner').exists():
-            return render(
-                request,
-                "home/page-403.html",
-                {
-                    'is_owner': request.user.groups.filter(name='owner').exists(),
-                    "message": "Access Denied: You do not have any users."
-                },
-                status=403
-            )
-        else:
-            # Owners see only their managed users
-            queryset = CustomUser.objects.filter(owner=request.user)
-    else:
-        # Superusers see all users
-        queryset = CustomUser.objects.all()
-
-    # Handle filtering
-    filters = {}
-    if request.GET.get('username'):
-        queryset = queryset.filter(username__icontains=request.GET['username'])
-        filters['username'] = request.GET['username']
-    if request.GET.get('email'):
-        queryset = queryset.filter(email__icontains=request.GET['email'])
-        filters['email'] = request.GET['email']
-    if request.GET.get('group'):
-        queryset = queryset.filter(groups__name=request.GET['group'])
-        filters['group'] = request.GET['group']
-
-    # Pagination
-    paginator = Paginator(queryset, 10)  # Show 10 users per page
-    page_number = request.GET.get('page')
-    try:
-        page_obj = paginator.page(page_number)
-    except PageNotAnInteger:
-        # If page is not an integer, deliver first page
-        page_obj = paginator.page(1)
-    except EmptyPage:
-        # If page is out of range, deliver last page
-        page_obj = paginator.page(paginator.num_pages)
-
-    # Context for owners dropdown in Add User modal
-    if request.user.is_superuser:
-        owners = CustomUser.objects.filter(groups__name='owner')
-    else:
-        owners = CustomUser.objects.filter(id=request.user.id)
-
-    # Get all groups for the filter dropdown
-    all_groups = Group.objects.all()
-
-    # Prepare context
-    context = {
-        'page_obj': page_obj,
-        'filters': filters,
-        'owners': owners,
-        'groups': all_groups,
-        'is_owner': request.user.groups.filter(name='owner').exists(),
-    }
-
-    # Handle POST requests for adding/deleting users
     if request.method == 'POST':
         if 'add_user' in request.POST:
-            username = request.POST.get('username')
-            email = request.POST.get('email')
-            warehouse_limit = request.POST.get('warehouse_limit') or None
-            user_limit = request.POST.get('user_limit') or None
-            owner_id = request.POST.get('owner') or None
+            form = CustomUserCreationForm(request.POST, user=request.user)
+            if form.is_valid():
+                form.save()
+                return JsonResponse({'success': True})
+            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
 
+        elif 'edit_user' in request.POST:
+            user_id = request.POST.get('user_id')
             try:
-                user = CustomUser.objects.create(
-                    username=username,
-                    email=email,
-                    warehouse_limit=warehouse_limit if warehouse_limit else None,
-                    user_limit=user_limit if user_limit else None,
-                    owner=CustomUser.objects.get(id=owner_id) if owner_id else request.user if not request.user.is_superuser else None
-                )
-                user.set_unusable_password()
+                user = CustomUser.objects.get(id=user_id)
+                user.username = request.POST.get('username')
+                user.email = request.POST.get('email')
+                warehouse_limit = request.POST.get('warehouse_limit')
+                user_limit = request.POST.get('user_limit')
+                owner_id = request.POST.get('owner')
+
+                user.warehouse_limit = warehouse_limit if warehouse_limit else None
+                user.user_limit = user_limit if user_limit else None
+                user.owner = CustomUser.objects.get(id=owner_id) if owner_id else None
+
                 user.save()
-                return render(request, 'accounts/user_list.html', context)
+                return JsonResponse({'success': True})
+            except CustomUser.DoesNotExist:
+                return JsonResponse({'success': False, 'errors': {'user_id': ['User not found']}}, status=404)
             except Exception as e:
-                context['errors'] = {'form': [str(e)]}
+                return JsonResponse({'success': False, 'errors': {'__all__': [str(e)]}}, status=400)
 
         elif 'delete_user' in request.POST:
             user_id = request.POST.get('user_id')
             try:
-                user_to_delete = CustomUser.objects.get(id=user_id)
-                if request.user.is_superuser or user_to_delete.owner == request.user:
-                    user_to_delete.delete()
-                return render(request, 'accounts/user_list.html', context)
+                user = CustomUser.objects.get(id=user_id)
+                user.delete()
+                return JsonResponse({'success': True})
             except CustomUser.DoesNotExist:
-                context['errors'] = {'delete': ['User not found']}
-            except Exception as e:
-                context['errors'] = {'delete': [str(e)]}
+                return JsonResponse({'success': False, 'errors': {'user_id': ['User not found']}}, status=404)
 
+    # GET request handling
+    if request.user.groups.filter(name='owner').exists():
+        users = CustomUser.objects.filter(groups__name__in=['user'])
+        users = users.filter(owner=request.user)
+    else:
+        users = CustomUser.objects.all()
+    # Filtering
+    filters = {}
+    if username := request.GET.get('username'):
+        users = users.filter(username__icontains=username)
+        filters['username'] = username
+    if email := request.GET.get('email'):
+        users = users.filter(email__icontains=email)
+        filters['email'] = email
+    if group := request.GET.get('group'):
+        users = users.filter(groups__name=group)
+        filters['group'] = group
+
+    # Pagination
+    paginator = Paginator(users, 10)  # 10 users per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'filters': filters,
+        'groups': Group.objects.all(),
+        'owners': CustomUser.objects.all(),
+        'is_owner': request.user.groups.filter(name='owner').exists()
+        # You might want to filter this
+    }
     return render(request, 'accounts/user_list.html', context)
+@login_required
+def farmer_list(request):
+    # Handle POST requests (add/delete)
+    is_owner = Farmer.objects.filter(user__owner=request.user).exists()
+    can_add_or_edit = request.user.is_superuser or is_owner
+    if request.method == 'POST':
+        if 'add_farmer' in request.POST:
+            if not can_add_or_edit:
+                return JsonResponse({'error': 'Permission denied: Only owners or superusers can add farmers'},
+                                    status=403)
+            form = FarmerCreationForm(request.POST)
+            if form.is_valid():
+                form.save(request)  # Pass request to set owner
+                return redirect('farmer_list')
+            else:
+                return JsonResponse({'errors': form.errors}, status=400)
+        elif 'delete_farmer' in request.POST:
+            farmer_id = request.POST.get('farmer_id')
+            try:
+                farmer = Farmer.objects.get(id=farmer_id)
+                if request.user.is_superuser or farmer.user.owner == request.user:
+                    farmer.user.delete()  # Delete associated user as well
+                    farmer.delete()
+                    return redirect('farmer_list')
+                else:
+                    return JsonResponse({'error': 'Permission denied'}, status=403)
+            except Farmer.DoesNotExist:
+                return JsonResponse({'error': 'Farmer not found'}, status=404)
+
+    # Handle GET request (display list)
+    if request.user.groups.filter(name='owner').exists():
+        farmers = Farmer.objects.filter(user__owner=request.user)
+    elif request.user.is_superuser:
+        farmers = Farmer.objects.all()
+    elif request.user.groups.filter(name='user').exists():
+        farmers = Farmer.objects.filter(user__owner=request.user.owner)
+
+    # Filtering
+    filters = {}
+    if 'name' in request.GET:
+        filters['name'] = request.GET['name']
+        farmers = farmers.filter(name__icontains=filters['name'])
+    if 'farm_name' in request.GET:
+        filters['farm_name'] = request.GET['farm_name']
+        farmers = farmers.filter(farm_name__icontains=filters['farm_name'])
+    if 'email' in request.GET:
+        filters['email'] = request.GET['email']
+        farmers = farmers.filter(email__icontains=filters['email'])
+
+    # Pagination
+    paginator = Paginator(farmers, 10)  # 10 farmers per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'accounts/farmer_list.html', {
+        'page_obj': page_obj,
+        'filters': filters,
+        'form': FarmerCreationForm(),
+        'is_owner': is_owner
+    })
 @login_required
 def edit_user(request):
     pass

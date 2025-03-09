@@ -115,9 +115,9 @@
                                             {% endif %}
                                         </td>
                                         <td style="text-align: center;">
-                                            <a href="{% url 'edit_user' user.id %}" class="btn btn-sm btn-primary" onclick="event.stopPropagation();">
+                                            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editUserModal_{{ user.id }}" onclick="event.stopPropagation();">
                                                 Edit
-                                            </a>
+                                            </button>
                                             <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteUserModal_{{ user.id }}" onclick="event.stopPropagation();">
                                                 Delete
                                             </button>
@@ -181,7 +181,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert alert-danger error-messages" id="formErrors"></div>
+                    <div class="alert alert-danger error-messages" id="formErrors" style="display: none;"></div>
                     <form method="POST" id="userForm">
                         {% csrf_token %}
                         <input type="hidden" name="add_user" value="1">
@@ -222,7 +222,60 @@
         </div>
     </div>
 
-    <!-- Delete User Modals (One per user) -->
+    <!-- Edit User Modals -->
+    {% for user in page_obj %}
+    <div class="modal fade" id="editUserModal_{{ user.id }}" tabindex="-1" aria-labelledby="editUserModalLabel_{{ user.id }}" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editUserModalLabel_{{ user.id }}">Edit User: {{ user.username }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger error-messages" id="editFormErrors_{{ user.id }}" style="display: none;"></div>
+                    <form method="POST" id="editUserForm_{{ user.id }}">
+                        {% csrf_token %}
+                        <input type="hidden" name="edit_user" value="1">
+                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="edit_username_{{ user.id }}">Username</label>
+                                <input type="text" class="form-control" id="edit_username_{{ user.id }}" name="username" value="{{ user.username }}" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="edit_email_{{ user.id }}">Email</label>
+                                <input type="email" class="form-control" id="edit_email_{{ user.id }}" name="email" value="{{ user.email }}" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="edit_warehouse_limit_{{ user.id }}">Warehouse Limit</label>
+                                <input type="number" class="form-control" id="edit_warehouse_limit_{{ user.id }}" name="warehouse_limit" value="{{ user.warehouse_limit|default:'' }}" placeholder="Unlimited if blank">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="edit_user_limit_{{ user.id }}">User Limit</label>
+                                <input type="number" class="form-control" id="edit_user_limit_{{ user.id }}" name="user_limit" value="{{ user.user_limit|default:'' }}" placeholder="Unlimited if blank">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="edit_owner_{{ user.id }}">Owner</label>
+                                <select class="form-control" id="edit_owner_{{ user.id }}" name="owner">
+                                    <option value="">None</option>
+                                    {% for owner in owners %}
+                                        <option value="{{ owner.id }}" {% if user.owner and user.owner.id == owner.id %}selected{% endif %}>{{ owner.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="submitEditUserForm('{{ user.id }}')">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Delete User Modals -->
     {% for user in page_obj %}
     <div class="modal fade" id="deleteUserModal_{{ user.id }}" tabindex="-1" aria-labelledby="deleteUserModalLabel_{{ user.id }}" aria-hidden="true">
         <div class="modal-dialog">
@@ -303,6 +356,45 @@
             .catch(error => {
                 console.error('Error:', error);
                 errorDiv.innerHTML = '<p>An error occurred while adding the user. Please try again.</p>';
+                errorDiv.style.display = 'block';
+            });
+        }
+
+        function submitEditUserForm(userId) {
+            const form = document.getElementById(`editUserForm_${userId}`);
+            const errorDiv = document.getElementById(`editFormErrors_${userId}`);
+            const csrfToken = getCookie('csrftoken');
+            const formData = new FormData(form);
+
+            fetch("{% url 'user_list' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    return response.json().then(data => {
+                        let errorMessages = '';
+                        if (data.errors) {
+                            for (const [field, errors] of Object.entries(data.errors)) {
+                                errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
+                            }
+                        } else {
+                            errorMessages = `<p>Server error: ${response.status} - ${response.statusText}</p>`;
+                        }
+                        errorDiv.innerHTML = errorMessages;
+                        errorDiv.style.display = 'block';
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                errorDiv.innerHTML = '<p>An error occurred while updating the user. Please try again.</p>';
                 errorDiv.style.display = 'block';
             });
         }

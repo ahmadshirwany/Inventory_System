@@ -4,7 +4,8 @@ Copyright (c) 2019 - present AppSeed.us
 """
 
 from django.urls import path
-from .views import login_view, register_user,create_user,user_list,edit_user,user_profile,update_profile_picture
+from .views import login_view, register_user, create_user, user_list, edit_user, user_profile, update_profile_picture, \
+    farmer_list
 from django.contrib.auth.views import LogoutView
 from django.conf import settings
 from django.conf.urls.static import static
@@ -18,5 +19,6 @@ urlpatterns = [
     path("edit-user/<int:user_id>/", edit_user, name="edit_user"),
     path('user-profile/', user_profile, name='user_profile'),
     path('update-profile-picture/', update_profile_picture, name='update_profile_picture'),
+    path('farmers/', farmer_list, name='farmer_list'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -45,7 +45,7 @@
              {% if user.is_superuser or is_owner %}
             <li class="nav-item">
               <a class="nav-link" href="#" data-toggle="collapse" data-target="#userMenu" aria-expanded="false">
-                <i class="material-icons">content_paste</i>
+                <i class="material-icons">person</i>
                 <p>Users</p>
               </a>
               <div id="userMenu" class="collapse">
@@ -101,7 +101,12 @@
 {#              <p>RTL Support</p>#}
 {#            </a>#}
 {#          </li>#}
-
+             <li class="nav-item {% if 'page-user' in segment %} active {% endif %}">
+             <a class="nav-link" href="{% url 'farmer_list' %}">
+              <i class="material-icons">F</i>
+              <p>Farmers</p>
+            </a>
+           <li class="nav-item">
           <li class="nav-item ">
             <a class="nav-link" href="{% url 'logout' %}" >
               <i class="material-icons">directions_run</i>

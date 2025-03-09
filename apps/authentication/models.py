@@ -1,6 +1,11 @@
-from django.contrib.auth.models import AbstractUser
+import uuid
+
+from django.contrib.auth.models import AbstractUser,Group
 from django.db import models
 import os
+
+from core import settings
+
 
 def user_profile_picture_path(instance, filename):
     # Get the user's ID and create a folder for their profile pictures
@@ -52,6 +57,8 @@ class CustomUser(AbstractUser):
         default='profile_pictures/blank-profile-picture.png',  # Default image
         help_text="Upload a profile picture for the user."
     )
+    is_farmer = models.BooleanField(default=False, help_text="Designates whether this user is a farmer")
+
     def save(self, *args, **kwargs):
         if not self.owner and not self.is_superuser:
             self.owner = None  # Explicitly set owner to NULL
@@ -61,6 +68,10 @@ class CustomUser(AbstractUser):
             # Assign the default image path
             self.profile_picture = 'profile_pictures/blank-profile-picture.png'
         super().save(*args, **kwargs)
+        if self.is_farmer:
+            customer_group, _ = Group.objects.get_or_create(name='customer')
+            self.groups.clear()  # Ensure no other groups are assigned
+            self.groups.add(customer_group)
 
     def can_create_warehouse(self, current_warehouse_count):
         if self.warehouse_limit is None:
@@ -74,3 +85,31 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.username
+
+# Farmer Model
+class Farmer(models.Model):
+    farmer_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, help_text="Unique ID assigned to the farmer")
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='farmer_profile',
+        help_text="Associated user account"
+    )
+    name = models.CharField(max_length=255, help_text="Full name of the farmer")
+    contact_number = models.CharField(max_length=20, blank=True, null=True, help_text="Primary contact number of the farmer")
+    email = models.EmailField(max_length=255, blank=True, null=True, unique=True, help_text="Email address of the farmer")
+    address = models.TextField(help_text="Physical address of the farmer")
+    farm_name = models.CharField(max_length=255, blank=True, null=True, help_text="Name of the farm")
+    farm_location = models.CharField(max_length=255, help_text="Geographical location of the farm")
+    total_land_area = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, help_text="Total area of the farm in hectares")
+    certifications = models.TextField(blank=True, null=True, help_text="List of certifications held by the farmer")
+    compliance_standards = models.TextField(blank=True, null=True, help_text="Compliance standards followed by the farmer")
+    notes = models.TextField(blank=True, null=True, help_text="Additional notes or comments about the farmer")
+    registration_date = models.DateField(null=True, blank=True, help_text="Date of Registration")
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = 'Farmer'
+        verbose_name_plural = 'Farmers'

@@ -2,11 +2,15 @@
 """
 Copyright (c) 2019 - present AppSeed.us
 """
+import datetime
+import uuid
+from datetime import timezone
 
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from .models import CustomUser
+from .models import CustomUser, Farmer
+
 
 class CustomUserCreationForm(UserCreationForm):
     group = forms.ChoiceField(
@@ -29,7 +33,7 @@ class CustomUserCreationForm(UserCreationForm):
             if self.request_user.is_superuser:
                 self.fields['group'].choices = [("owner", "Owner"), ("user", "User"),("customer", "Customer")]
             else:
-                self.fields['group'].choices = [("user", "User"),("customer", "Customer")]
+                self.fields['group'].choices = [("user", "User")]
         else:
             # Default to 'user' if no user is provided or the user is not authenticated
             self.fields['group'].choices = [("user", "User")]
@@ -115,3 +119,75 @@ class ProfilePictureForm(forms.ModelForm):
             if not picture.content_type.startswith('image/'):
                 raise forms.ValidationError("File must be an image")
         return picture
+
+class FarmerCreationForm(forms.ModelForm):
+    # CustomUser fields
+    username = forms.CharField(max_length=150, required=True, help_text="Unique username for the farmer's user account.")
+    email = forms.EmailField(required=False, help_text="Email address for the user (optional).")
+    password1 = forms.CharField(
+        label="Password",
+        widget=forms.PasswordInput,
+        help_text="Enter a password for the farmer's user account."
+    )
+    password2 = forms.CharField(
+        label="Confirm Password",
+        widget=forms.PasswordInput,
+        help_text="Confirm the password."
+    )
+
+    class Meta:
+        model = Farmer
+        fields = (
+            'name', 'contact_number', 'email', 'address',
+            'farm_name', 'farm_location', 'total_land_area',
+            'certifications', 'compliance_standards', 'notes',
+        )
+        widgets = {
+            'address': forms.Textarea(attrs={'rows': 3}),
+            'certifications': forms.Textarea(attrs={'rows': 3}),
+            'compliance_standards': forms.Textarea(attrs={'rows': 3}),
+            'notes': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password1 = cleaned_data.get("password1")
+        password2 = cleaned_data.get("password2")
+
+        # Validate passwords match
+        if password1 and password2 and password1 != password2:
+            raise forms.ValidationError("Passwords do not match.")
+
+        # Ensure username is unique
+        username = cleaned_data.get("username")
+        if CustomUser.objects.filter(username=username).exists():
+            raise forms.ValidationError("This username is already taken.")
+
+        # Use form email if provided, otherwise generate one
+        email = cleaned_data.get("email")
+        if not email:
+            cleaned_data['email'] = f"{username}@example.com"
+
+        return cleaned_data
+
+    def save(self, request, commit=True):
+        # Create the CustomUser instance
+        user = CustomUser(
+            username=self.cleaned_data['username'],
+            email=self.cleaned_data['email'],
+            is_farmer=True,
+            owner=request.user if request.user.is_authenticated else None  # Set owner as request.user
+        )
+        user.set_password(self.cleaned_data['password1'])  # Set the password
+        if commit:
+            user.save()
+
+        # Create the Farmer instance
+        farmer = super().save(commit=False)
+        farmer.user = user
+        farmer.farmer_id = uuid.uuid4()  # Ensure unique farmer_id
+        farmer.registration_date = datetime.datetime.now().date()  # Set registration_date to today
+        if commit:
+            farmer.save()
+
+        return farmer

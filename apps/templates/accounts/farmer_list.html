@@ -1,0 +1,392 @@
+{% extends "layouts/base.html" %}
+{% block title %} Farmers {% endblock %}
+
+{% block stylesheets %}
+    <style>
+        .filter-dropdown {
+            margin-bottom: 15px;
+        }
+        .clear-filters-btn {
+            margin-left: 10px;
+        }
+        .filter-row {
+            margin-bottom: 10px;
+        }
+        .collapse.show {
+            display: block;
+        }
+        .table-hover tr:hover {
+            cursor: pointer;
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .table th, .table td {
+            white-space: nowrap;
+            padding: 8px;
+            vertical-align: middle !important;
+        }
+        .pagination {
+            margin-top: 20px;
+            justify-content: center;
+        }
+        .header-buttons {
+            float: right;
+            margin-top: -40px;
+        }
+    </style>
+{% endblock stylesheets %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card card-plain">
+                <div class="card-header card-header-primary">
+                    <h4 class="card-title mt-0">Farmers</h4>
+                    {% if request.user.is_superuser or is_owner %}
+                        <div class="header-buttons">
+                            <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#addFarmerModal">
+                                <i class="fa fa-plus"></i> Add New Farmer
+                            </button>
+                        </div>
+                    {% endif %}
+                    <p class="card-category">List of all farmers</p>
+                </div>
+                <div class="card-body">
+                    <!-- Filter Section -->
+                    <button class="btn btn-secondary mb-3" type="button" data-toggle="collapse" data-target="#filterPanel" aria-expanded="false" aria-controls="filterPanel">
+                        <i class="fa fa-filter"></i> Filters
+                    </button>
+
+                    <div class="collapse" id="filterPanel">
+                        <form method="GET" action="{% url 'farmer_list' %}" class="mb-3 filter-dropdown">
+                            <div class="filter-row">
+                                <label>Name:</label>
+                                <input type="text" class="form-control" name="name" placeholder="Filter by Name" value="{{ filters.name }}">
+                            </div>
+                            <div class="filter-row">
+                                <label>Farm Name:</label>
+                                <input type="text" class="form-control" name="farm_name" placeholder="Filter by Farm Name" value="{{ filters.farm_name }}">
+                            </div>
+                            <div class="filter-row">
+                                <label>Email:</label>
+                                <input type="text" class="form-control" name="email" placeholder="Filter by Email" value="{{ filters.email }}">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Apply Filters</button>
+                            <button type="button" class="btn btn-secondary clear-filters-btn" onclick="clearFilters()">Clear Filters</button>
+                        </form>
+                    </div>
+
+                    <!-- Farmer Table -->
+                    <div class="table-responsive">
+                        {% if page_obj %}
+                            <table class="table table-hover" id="farmersTable">
+                                <thead>
+                                    <th>Name</th>
+                                    <th>Contact Number</th>
+                                    <th>Email</th>
+                                    <th>Address</th>
+                                    <th>Farm Name</th>
+                                    <th>Farm Location</th>
+                                    <th>Total Land Area</th>
+                                    <th>Registration Date</th>
+                                    <th>Owner</th>
+                                    <th>Username</th>
+                                    {% if request.user.is_superuser or is_owner %}
+                                        <th>Actions</th>
+                                    {% endif %}
+                                </thead>
+                                <tbody>
+                                    {% for farmer in page_obj %}
+                                    <tr>
+                                        <td>{{ farmer.name }}</td>
+                                        <td>{{ farmer.contact_number|default:"N/A" }}</td>
+                                        <td>{{ farmer.email|default:"N/A" }}</td>
+                                        <td>{{ farmer.address|default:"N/A" }}</td>
+                                        <td>{{ farmer.farm_name|default:"N/A" }}</td>
+                                        <td>{{ farmer.farm_location|default:"N/A" }}</td>
+                                        <td>{{ farmer.total_land_area|default:"N/A" }}</td>
+                                        <td>{{ farmer.registration_date|date:"Y-m-d"|default:"N/A" }}</td>
+                                        <td>
+                                            {% if farmer.user.owner %}
+                                                {{ farmer.user.owner.username }}
+                                            {% else %}
+                                                None
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ farmer.user.username }}</td>
+                                        {% if request.user.is_superuser or farmer.user.owner == request.user %}
+                                            <td style="text-align: center;">
+                                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editFarmerModal_{{ farmer.id }}" onclick="event.stopPropagation();">
+                                                    Edit
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteFarmerModal_{{ farmer.id }}" onclick="event.stopPropagation();">
+                                                    Delete
+                                                </button>
+                                            </td>
+                                        {% endif %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+
+                            <!-- Pagination -->
+                            <nav aria-label="Page navigation">
+                                <ul class="pagination">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Previous</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link">Previous</span>
+                                        </li>
+                                    {% endif %}
+
+                                    {% for num in page_obj.paginator.page_range %}
+                                        {% if page_obj.number == num %}
+                                            <li class="page-item active">
+                                                <span class="page-link">{{ num }}</span>
+                                            </li>
+                                        {% elif num > page_obj.number|add:-3 and num < page_obj.number|add:3 %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Next</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link">Next</span>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% else %}
+                            <p class="text-center text-muted">No farmers available.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Farmer Modal -->
+    <div class="modal fade" id="addFarmerModal" tabindex="-1" aria-labelledby="addFarmerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addFarmerModalLabel">Add New Farmer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger error-messages" id="formErrors" style="display: none;"></div>
+                    <form method="POST" id="farmerForm" action="{% url 'farmer_list' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="add_farmer" value="1">
+                        <div class="row">
+                            <!-- User Fields -->
+                            <div class="col-md-4 mb-3">
+                                <label for="id_username">Username</label>
+                                <input type="text" class="form-control" id="id_username" name="username" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="id_email">Email</label>
+                                <input type="email" class="form-control" id="id_email" name="email">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="id_password1">Password</label>
+                                <input type="password" class="form-control" id="id_password1" name="password1" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="id_password2">Confirm Password</label>
+                                <input type="password" class="form-control" id="id_password2" name="password2" required>
+                            </div>
+                            <!-- Farmer Fields -->
+                            <div class="col-md-4 mb-3">
+                                <label for="id_name">Name</label>
+                                <input type="text" class="form-control" id="id_name" name="name" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="id_contact_number">Contact Number</label>
+                                <input type="text" class="form-control" id="id_contact_number" name="contact_number">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="id_address">Address</label>
+                                <textarea class="form-control" id="id_address" name="address"></textarea>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="id_farm_name">Farm Name</label>
+                                <input type="text" class="form-control" id="id_farm_name" name="farm_name">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="id_farm_location">Farm Location</label>
+                                <input type="text" class="form-control" id="id_farm_location" name="farm_location" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="id_total_land_area">Total Land Area (hectares)</label>
+                                <input type="number" step="0.01" class="form-control" id="id_total_land_area" name="total_land_area">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="id_certifications">Certifications</label>
+                                <textarea class="form-control" id="id_certifications" name="certifications"></textarea>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="id_compliance_standards">Compliance Standards</label>
+                                <textarea class="form-control" id="id_compliance_standards" name="compliance_standards"></textarea>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="id_notes">Notes</label>
+                                <textarea class="form-control" id="id_notes" name="notes"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-success" onclick="submitFarmerForm()">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Farmer Modals (Simplified for brevity) -->
+    {% for farmer in page_obj %}
+    <div class="modal fade" id="editFarmerModal_{{ farmer.id }}" tabindex="-1" aria-labelledby="editFarmerModalLabel_{{ farmer.id }}" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editFarmerModalLabel_{{ farmer.id }}">Edit Farmer: {{ farmer.name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Edit functionality to be implemented.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Delete Farmer Modals -->
+    {% for farmer in page_obj %}
+    <div class="modal fade" id="deleteFarmerModal_{{ farmer.id }}" tabindex="-1" aria-labelledby="deleteFarmerModalLabel_{{ farmer.id }}" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteFarmerModalLabel_{{ farmer.id }}">Delete Farmer: {{ farmer.name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this farmer?</p>
+                    <form method="POST" id="deleteFarmerForm_{{ farmer.id }}">
+                        {% csrf_token %}
+                        <input type="hidden" name="delete_farmer" value="1">
+                        <input type="hidden" name="farmer_id" value="{{ farmer.id }}">
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="submitDeleteFarmerForm('{{ farmer.id }}')">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <script>
+        function clearFilters() {
+            window.location.href = "{% url 'farmer_list' %}";
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function submitFarmerForm() {
+            const form = document.getElementById('farmerForm');
+            const errorDiv = document.getElementById('formErrors');
+            const csrfToken = getCookie('csrftoken');
+            const formData = new FormData(form);
+
+            fetch("{% url 'farmer_list' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    return response.json().then(data => {
+                        let errorMessages = '';
+                        if (data.errors) {
+                            for (const [field, errors] of Object.entries(data.errors)) {
+                                errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
+                            }
+                        } else {
+                            errorMessages = `<p>Server error: ${response.status} - ${response.statusText}</p>`;
+                        }
+                        errorDiv.innerHTML = errorMessages;
+                        errorDiv.style.display = 'block';
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                errorDiv.innerHTML = '<p>An error occurred while adding the farmer. Please try again.</p>';
+                errorDiv.style.display = 'block';
+            });
+        }
+
+        function submitDeleteFarmerForm(farmerId) {
+            const form = document.getElementById(`deleteFarmerForm_${farmerId}`);
+            const csrfToken = getCookie('csrftoken');
+            const formData = new FormData(form);
+
+            fetch("{% url 'farmer_list' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Failed to delete farmer. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while deleting the farmer.');
+            });
+        }
+    </script>
+{% endblock content %}
+
+{% block javascripts %}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock javascripts %}
