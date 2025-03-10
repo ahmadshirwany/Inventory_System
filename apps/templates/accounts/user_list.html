@@ -43,11 +43,6 @@
             <div class="card card-plain">
                 <div class="card-header card-header-primary">
                     <h4 class="card-title mt-0">Users</h4>
-                    <div class="header-buttons">
-                        <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                            <i class="fa fa-plus"></i> Add New User
-                        </button>
-                    </div>
                     <p class="card-category">List of all users</p>
                 </div>
                 <div class="card-body">
@@ -98,8 +93,8 @@
                                     <tr>
                                         <td>{{ user.username }}</td>
                                         <td>{{ user.email }}</td>
-                                        <td>{{ user.warehouse_limit|default:"Unlimited" }}</td>
-                                        <td>{{ user.user_limit|default:"Unlimited" }}</td>
+                                        <td>{{ user.warehouse_limit }}</td>
+                                        <td>{{ user.user_limit }}</td>
                                         <td>
                                             {% if user.owner %}
                                                 {{ user.owner.username }}
@@ -167,56 +162,6 @@
                             <p class="text-center text-muted">No users available.</p>
                         {% endif %}
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Add User Modal -->
-    <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addUserModalLabel">Add New User</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-danger error-messages" id="formErrors" style="display: none;"></div>
-                    <form method="POST" id="userForm">
-                        {% csrf_token %}
-                        <input type="hidden" name="add_user" value="1">
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label for="id_username">Username</label>
-                                <input type="text" class="form-control" id="id_username" name="username" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="id_email">Email</label>
-                                <input type="email" class="form-control" id="id_email" name="email" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="id_warehouse_limit">Warehouse Limit</label>
-                                <input type="number" class="form-control" id="id_warehouse_limit" name="warehouse_limit" placeholder="Unlimited if blank">
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="id_user_limit">User Limit</label>
-                                <input type="number" class="form-control" id="id_user_limit" name="user_limit" placeholder="Unlimited if blank">
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="id_owner">Owner</label>
-                                <select class="form-control" id="id_owner" name="owner">
-                                    <option value="">None</option>
-                                    {% for owner in owners %}
-                                        <option value="{{ owner.id }}">{{ owner.username }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-success" onclick="submitUserForm()">Submit</button>
                 </div>
             </div>
         </div>
@@ -319,45 +264,6 @@
                 }
             }
             return cookieValue;
-        }
-
-        function submitUserForm() {
-            const form = document.getElementById('userForm');
-            const errorDiv = document.getElementById('formErrors');
-            const csrfToken = getCookie('csrftoken');
-            const formData = new FormData(form);
-
-            fetch("{% url 'user_list' %}", {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRFToken': csrfToken
-                },
-                credentials: 'same-origin'
-            })
-            .then(response => {
-                if (response.ok) {
-                    location.reload();
-                } else {
-                    return response.json().then(data => {
-                        let errorMessages = '';
-                        if (data.errors) {
-                            for (const [field, errors] of Object.entries(data.errors)) {
-                                errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
-                            }
-                        } else {
-                            errorMessages = `<p>Server error: ${response.status} - ${response.statusText}</p>`;
-                        }
-                        errorDiv.innerHTML = errorMessages;
-                        errorDiv.style.display = 'block';
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                errorDiv.innerHTML = '<p>An error occurred while adding the user. Please try again.</p>';
-                errorDiv.style.display = 'block';
-            });
         }
 
         function submitEditUserForm(userId) {

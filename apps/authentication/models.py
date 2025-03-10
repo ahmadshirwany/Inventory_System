@@ -60,8 +60,6 @@ class CustomUser(AbstractUser):
     def save(self, *args, **kwargs):
         if not self.owner and not self.is_superuser:
             self.owner = None  # Explicitly set owner to NULL
-        if not self.is_superuser:
-            self.warehouse_limit =  3
         if not self.profile_picture:
             # Assign the default image path
             self.profile_picture = 'profile_pictures/blank-profile-picture.png'
@@ -70,6 +68,10 @@ class CustomUser(AbstractUser):
             customer_group, _ = Group.objects.get_or_create(name='customer')
             self.groups.clear()  # Ensure no other groups are assigned
             self.groups.add(customer_group)
+        if self.groups.filter(name='user').exists():
+            self.warehouse_limit = 0
+            self.user_limit = 0
+            super().save(*args, **kwargs)
 
     def can_create_warehouse(self, current_warehouse_count):
         if self.warehouse_limit is None:

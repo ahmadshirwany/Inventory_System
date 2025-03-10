@@ -162,7 +162,7 @@ class ProductAdmin(admin.ModelAdmin):
 
     def mark_as_expired(self, request, queryset):
         """Mark selected products as expired and set expiration date to today if not set."""
-        today = timezone.now().date()
+        today = datetime.datetime.now().date()
         updated = queryset.filter(expiration_date__isnull=True).update(
             status='Expired',
             expiration_date=today
@@ -173,7 +173,7 @@ class ProductAdmin(admin.ModelAdmin):
 
     def mark_as_out_of_stock(self, request, queryset):
         """Mark selected products as out of stock and set exit date to today."""
-        today = timezone.now().date()
+        today = datetime.datetime.now().date()
         updated = queryset.update(status='Out of Stock', exit_date=today, quantity_in_stock=0)
         self.message_user(request, f"{updated} products marked as out of stock.")
 

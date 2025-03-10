@@ -117,6 +117,19 @@ def create_user(request):
                     "message": "Access Denied: You do not have permission to create users."},
                 status=403
             )
+
+    current_count = request.user.owned_users.count()
+    user_limit = request.user.user_limit
+
+    if current_count >= user_limit:
+        return render(
+            request,
+            "home/page-403.html",
+            {"message": "Access Deniedd: You reached your user creation limit.",
+             'is_owner': request.user.groups.filter(name='owner').exists(), },
+            status=403
+        )
+
     msg = None
     success = False
 

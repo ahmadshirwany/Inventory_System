@@ -143,7 +143,8 @@ def create_warehouse(request):
         return render(
             request,
             "home/page-403.html",
-            {"message": "Access Deniedd: You do not have Acess to edit this warehouse."},
+            {"message": "Access Deniedd: You do not have Acess to edit this warehouse.",
+             'is_owner': request.user.groups.filter(name='owner').exists(),},
             status=403
         )
     # Check warehouse limit
@@ -151,12 +152,13 @@ def create_warehouse(request):
     warehouse_limit = request.user.warehouse_limit
 
     if current_count >= warehouse_limit:
-        messages.error(
+        return render(
             request,
-            f"You've reached the maximum of {warehouse_limit} warehouses "
-            f"for your {getattr(request.user, 'subscription_plan', 'free')} plan."
+            "home/page-403.html",
+            {"message": "Access Deniedd: You reached your warehouse creation limit.",
+             'is_owner': request.user.groups.filter(name='owner').exists(),},
+            status=403
         )
-        raise PermissionDenied
 
     if request.method == 'POST':
         form = WarehouseForm(request.POST, user=request.user)
@@ -183,6 +185,7 @@ def create_warehouse(request):
         'form_action': 'Create',
         'warehouse_limit': warehouse_limit,
         'current_count': current_count,
+        'is_owner': request.user.groups.filter(name='owner').exists(),
     }
     return render(request, 'managment/create_warehouse.html', context)
 

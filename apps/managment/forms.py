@@ -70,11 +70,17 @@ class WarehouseForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        if user:
-            if user.is_superuser:
-                self.fields['users'].queryset = CustomUser.objects.all()
-            else:
-                self.fields['users'].queryset = CustomUser.objects.filter(owner=user)
+        # If this is an existing instance (editing a warehouse)
+        if self.instance and self.instance.pk:
+            # Get the warehouse's owner
+            warehouse_owner = self.instance.ownership if hasattr(self.instance, 'ownership') else None
+            if warehouse_owner:
+                # Show only users with the same owner as the warehouse
+                self.fields['users'].queryset = CustomUser.objects.filter(owner=warehouse_owner)
+        # If this is a new instance (creating a warehouse)
+        elif user:
+            # For new warehouses, set creator and limit users to those owned by the current user
+            self.fields['users'].queryset = CustomUser.objects.filter(owner=user)
             self.instance.creator = user
 
     def clean(self):

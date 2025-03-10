@@ -186,7 +186,7 @@ class FarmerCreationForm(forms.ModelForm):
         farmer = super().save(commit=False)
         farmer.user = user
         farmer.farmer_id = uuid.uuid4()  # Ensure unique farmer_id
-        farmer.registration_date = datetime.datetime.now().date()  # Set registration_date to today
+        farmer.registration_date = datetime.datetime.now().date()     # Set registration_date to today
         if commit:
             farmer.save()
 
