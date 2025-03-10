@@ -366,22 +366,104 @@ def warehouse_detail(request, slug):
                     return JsonResponse({'success': False, 'errors': e.message_dict}, status=400)
             return JsonResponse({'success': False, 'errors': form.errors}, status=400)
 
+
+
         elif 'take_out_product' in request.POST:
+
             sku = request.POST.get('sku')
-            quantity_to_take = int(request.POST.get('quantity_to_take', 0))
+
             product = get_object_or_404(Product, sku=sku, warehouse=warehouse)
 
-            if quantity_to_take <= 0 or quantity_to_take > product.quantity_in_stock:
-                return JsonResponse({'success': False, 'errors': {'quantity_to_take': ['Invalid quantity']}}, status=400)
+            # Get take-out values
 
-            product.quantity_in_stock -= quantity_to_take
-            if product.quantity_in_stock == 0:
+            quantity_to_take = request.POST.get('quantity_to_take', '')
+
+            weight_kg_to_take = request.POST.get('weight_kg_to_take', '')
+
+            # Convert to float/int, handling empty strings
+
+            quantity_to_take = int(quantity_to_take) if quantity_to_take else 0
+
+            weight_kg_to_take = float(weight_kg_to_take) if weight_kg_to_take else 0.0
+
+            # At least one value must be provided
+
+            if quantity_to_take <= 0 and weight_kg_to_take <= 0:
+                return JsonResponse({
+
+                    'success': False,
+
+                    'errors': {'__all__': ['Please specify at least one of Quantity or Weight (kg) to take out.']}
+
+                }, status=400)
+
+            # Validate quantity
+
+            if quantity_to_take > product.quantity_in_stock:
+                return JsonResponse({
+
+                    'success': False,
+
+                    'errors': {'quantity_to_take': [f'Cannot take out more than {product.quantity_in_stock} units']}
+
+                }, status=400)
+
+            # Validate weight
+
+            if weight_kg_to_take > (product.weight_quantity_kg or 0):
+                return JsonResponse({
+
+                    'success': False,
+
+                    'errors': {'weight_kg_to_take': [f'Cannot take out more than {product.weight_quantity_kg} kg']}
+
+                }, status=400)
+
+            # Calculate weight per unit if both fields exist
+
+            weight_per_unit = None
+
+            if product.quantity_in_stock > 0 and product.weight_quantity_kg:
+                weight_per_unit = product.weight_quantity_kg / product.quantity_in_stock
+
+            # Update quantity and weight
+
+            if quantity_to_take > 0:
+
+                product.quantity_in_stock -= quantity_to_take
+
+                if weight_per_unit and product.weight_quantity_kg:
+                    proportional_weight = quantity_to_take * weight_per_unit
+
+                    product.weight_quantity_kg -= min(proportional_weight, product.weight_quantity_kg)
+
+            if weight_kg_to_take > 0:
+
+                product.weight_quantity_kg = (product.weight_quantity_kg or 0) - weight_kg_to_take
+
+                if weight_per_unit and product.quantity_in_stock > 0:
+                    proportional_quantity = int(weight_kg_to_take / weight_per_unit)
+
+                    product.quantity_in_stock -= min(proportional_quantity, product.quantity_in_stock)
+
+            # Ensure non-negative values
+
+            product.quantity_in_stock = max(0, product.quantity_in_stock)
+
+            product.weight_quantity_kg = max(0, product.weight_quantity_kg)
+
+            # Update status and total value
+
+            if product.quantity_in_stock == 0 or product.weight_quantity_kg == 0:
                 product.status = 'Out of Stock'
-                product.exit_date = timezone.now().date()  # Optional: Set exit date
-            product.total_value = product.unit_price * product.quantity_in_stock  # Update total value
-            product.save()
-            return JsonResponse({'success': True, 'message': 'Product taken out successfully'}, status=200)
 
+                product.exit_date = timezone.now().date()
+
+            product.total_value = product.unit_price * product.quantity_in_stock
+
+            product.save()
+
+            return JsonResponse({'success': True, 'message': 'Product taken out successfully'}, status=200)
     # For GET requests, render the products page
     return render(request, 'managment/products.html', {
         'warehouse': warehouse,

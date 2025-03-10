@@ -451,8 +451,13 @@
                         <input type="hidden" name="sku" value="{{ product.sku }}">
                         <div class="mb-3">
                             <label for="quantity_to_take_{{ product.sku }}" class="form-label">Quantity to Take Out (Current: {{ product.quantity_in_stock }})</label>
-                            <input type="number" class="form-control" id="quantity_to_take_{{ product.sku }}" name="quantity_to_take" min="1" max="{{ product.quantity_in_stock }}" required>
+                            <input type="number" class="form-control" id="quantity_to_take_{{ product.sku }}" name="quantity_to_take" min="0" max="{{ product.quantity_in_stock }}" placeholder="Enter quantity (optional)">
                         </div>
+                        <div class="mb-3">
+                            <label for="weight_kg_to_take_{{ product.sku }}" class="form-label">Weight (kg) to Take Out (Current: {{ product.weight_quantity_kg|default:"N/A" }})</label>
+                            <input type="number" class="form-control" id="weight_kg_to_take_{{ product.sku }}" name="weight_kg_to_take" min="0" max="{{ product.weight_quantity_kg|default:'0' }}" step="0.01" placeholder="Enter weight in kg (optional)">
+                        </div>
+                        <small class="text-muted">Fill in one or both fields. Taking out quantity will proportionally reduce weight, and vice versa.</small>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -716,13 +721,28 @@
             const form = document.getElementById(`takeOutForm_${sku}`);
             const errorDiv = document.getElementById(`takeOutErrors_${sku}`);
             const quantityInput = document.getElementById(`quantity_to_take_${sku}`);
-            const maxQuantity = parseInt(quantityInput.max);
-            const quantityToTake = parseInt(quantityInput.value);
+            const weightKgInput = document.getElementById(`weight_kg_to_take_${sku}`);
             const csrfToken = getCookie('csrftoken');
 
-            if (quantityToTake <= 0 || quantityToTake > maxQuantity) {
-                errorDiv.innerHTML = '<p>Please enter a valid quantity between 1 and ' + maxQuantity + '.</p>';
-                editErrorDiv.style.display = 'block';
+            const quantityToTake = parseFloat(quantityInput.value) || 0;
+            const weightKgToTake = parseFloat(weightKgInput.value) || 0;
+
+            // Validate at least one value is provided
+            if (quantityToTake <= 0 && weightKgToTake <= 0) {
+                errorDiv.innerHTML = '<p>Please specify at least one of Quantity or Weight (kg) to take out.</p>';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            // Validate against maximums
+            if (quantityToTake > parseInt(quantityInput.max)) {
+                errorDiv.innerHTML = `<p>Quantity cannot exceed ${quantityInput.max}.</p>`;
+                errorDiv.style.display = 'block';
+                return;
+            }
+            if (weightKgToTake > parseFloat(weightKgInput.max)) {
+                errorDiv.innerHTML = `<p>Weight (kg) cannot exceed ${weightKgInput.max}.</p>`;
+                errorDiv.style.display = 'block';
                 return;
             }
 
