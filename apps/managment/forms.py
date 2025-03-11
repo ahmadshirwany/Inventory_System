@@ -103,7 +103,7 @@ class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
         exclude = [
-            'warehouse', 'total_value', 'weight_quantity_kg', 'status', 'exit_date',
+            'warehouse', 'total_value', 'weight_quantity', 'status', 'exit_date',
             'manufacturing_date', 'expiration_date', 'supplier_code', 'variety_or_species',
             'packaging_condition', 'quality_standards', 'storage_temperature', 'humidity_rate',
             'co2', 'o2', 'n2', 'ethylene_management', 'nutritional_info', 'regulatory_codes',
@@ -150,15 +150,20 @@ class ProductForm(forms.ModelForm):
             'aria-label': 'Product Name',
         })
 
-        # Weight Quantity
-        self.fields['weight_quantity'].widget.attrs.update({
-            **common_attrs,
-            'step': '0.01',
-            'min': '0',
-            'placeholder': 'e.g., 500.00 (in default units)',
-            'required': True,
-            'aria-label': 'Weight or Quantity',
-        })
+
+        self.fields['weight_quantity_kg'] = forms.DecimalField(
+            max_digits=100000000000,
+            decimal_places=2,
+            help_text="Weight of the product in kilograms",
+            widget=forms.NumberInput(attrs={
+                **common_attrs,
+                'step': '1',
+                'min': '0',
+                'placeholder': 'e.g., 500 (in kg)',
+                'required': True,
+                'aria-label': 'Weight in Kilograms',
+            })
+        )
 
         # Quantity in Stock
         self.fields['quantity_in_stock'].widget.attrs.update({
@@ -232,9 +237,8 @@ class ProductForm(forms.ModelForm):
         instance.supplier_code = instance.supplier_code or "N/A"
         instance.variety_or_species = instance.variety_or_species or "N/A"
         instance.packaging_condition = instance.packaging_condition or "N/A"
-        if self.cleaned_data.get('weight_quantity'):
-            instance.weight_quantity_kg = round(self.cleaned_data['weight_quantity'] / 1000, 2)
-        instance.status = 'In Stock'
+        if self.cleaned_data.get('weight_quantity_kg'):
+            instance.weight_quantity = self.cleaned_data['weight_quantity_kg'] * 1000
         if self.cleaned_data.get('unit_price') and self.cleaned_data.get('quantity_in_stock'):
             instance.total_value = self.cleaned_data['unit_price'] * self.cleaned_data['quantity_in_stock']
 

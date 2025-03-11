@@ -139,7 +139,7 @@
                                     <th>Exit Date</th>
                                     <th>Supplier Code</th>
                                     <th>Variety/Species</th>
-                                    <th>Weight (Default)</th>
+                                    <th>Weight (g)</th>
                                     <th>Weight (kg)</th>
                                     <th>Quantity in Stock</th>
                                     <th>Packaging Condition</th>
@@ -195,7 +195,7 @@
                                             <td>{{ product.farmer.username|default:"N/A" }}</td>
                                             <td style="text-align: center;">
                                                 {% if user.is_superuser or is_owner %}
-                                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editProductModal" onclick="populateEditModal('{{ product.sku }}', '{{ product.barcode|default:'N/A'|escapejs }}', '{{ product.product_name|escapejs }}', '{{ product.weight_quantity|default:'0' }}', '{{ product.quantity_in_stock }}', '{{ product.unit_price|default:'0' }}', '{{ product.harvest_date|default:''|date:'Y-m-d' }}', '{{ product.entry_date|date:'Y-m-d' }}', '{{ product.farmer.pk|default:'' }}', '{{ product.notes_comments|default:''|escapejs }}')">
+                                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editProductModal" onclick="populateEditModal('{{ product.sku }}', '{{ product.barcode|default:'N/A'|escapejs }}', '{{ product.product_name|escapejs }}', '{{ product.weight_quantity_kg|default:'0' }}', '{{ product.quantity_in_stock }}', '{{ product.unit_price|default:'0' }}', '{{ product.harvest_date|default:''|date:'Y-m-d' }}', '{{ product.entry_date|date:'Y-m-d' }}', '{{ product.farmer.pk|default:'' }}', '{{ product.notes_comments|default:''|escapejs }}')">
                                                         Edit
                                                     </button>
                                                 {% endif %}
@@ -294,8 +294,8 @@
                         <div class="form-step" data-step="2">
                             <div class="row">
                                 <div class="col-md-4 mb-3">
-                                    {{ form.weight_quantity.label_tag }}
-                                    {{ form.weight_quantity }}
+                                    {{ form.weight_quantity_kg.label_tag }}
+                                    {{ form.weight_quantity_kg }}
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     {{ form.quantity_in_stock.label_tag }}
@@ -383,8 +383,8 @@
                         <div class="form-step" data-step="2">
                             <div class="row">
                                 <div class="col-md-4 mb-3">
-                                    {{ form.weight_quantity.label_tag }}
-                                    <input type="number" class="form-control form-control-lg" id="edit_weight_quantity" name="weight_quantity" step="0.01" min="0" required aria-label="Weight or Quantity">
+                                    <label for="edit_weight_quantity_kg">Weight in Kilograms</label>
+                                    <input type="number" class="form-control form-control-lg" id="edit_weight_quantity_kg" name="weight_quantity_kg" step="0.01" min="0" required aria-label="Weight in Kilograms">
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     {{ form.quantity_in_stock.label_tag }}
@@ -491,7 +491,7 @@
         }
 
         // Populate Edit Modal with Product Data
-        function populateEditModal(sku, barcode, product_name, weight_quantity, quantity_in_stock, unit_price, harvest_date, entry_date, farmer_pk, notes_comments) {
+        function populateEditModal(sku, barcode, product_name, weight_quantity_kg, quantity_in_stock, unit_price, harvest_date, entry_date, farmer_pk, notes_comments) {
             document.getElementById('edit_sku').value = sku;
             document.getElementById('edit_barcode').value = barcode !== 'N/A' ? barcode : '';
 
@@ -502,7 +502,7 @@
                 console.warn(`Product name "${product_name}" not found in options`);
             }
 
-            document.getElementById('edit_weight_quantity').value = weight_quantity !== 'N/A' ? weight_quantity : '';
+            document.getElementById('edit_weight_quantity_kg').value = weight_quantity_kg !== 'N/A' ? weight_quantity_kg : '';
             document.getElementById('edit_quantity_in_stock').value = quantity_in_stock;
             document.getElementById('edit_unit_price').value = unit_price !== 'N/A' ? unit_price : '';
             document.getElementById('edit_harvest_date').value = harvest_date !== 'N/A' ? harvest_date : '';

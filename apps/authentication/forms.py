@@ -31,7 +31,7 @@ class CustomUserCreationForm(UserCreationForm):
         # Dynamically set group choices based on user permissions
         if self.request_user and self.request_user.is_authenticated:
             if self.request_user.is_superuser:
-                self.fields['group'].choices = [("owner", "Owner"), ("user", "User"),("customer", "Customer")]
+                self.fields['group'].choices = [("owner", "Owner"), ("user", "User")]
             else:
                 self.fields['group'].choices = [("user", "User")]
         else:

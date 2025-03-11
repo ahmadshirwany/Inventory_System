@@ -117,18 +117,18 @@ def create_user(request):
                     "message": "Access Denied: You do not have permission to create users."},
                 status=403
             )
+    if not request.user.is_superuser:
+        current_count = request.user.owned_users.count()
+        user_limit = request.user.user_limit
 
-    current_count = request.user.owned_users.count()
-    user_limit = request.user.user_limit
-
-    if current_count >= user_limit:
-        return render(
-            request,
-            "home/page-403.html",
-            {"message": "Access Deniedd: You reached your user creation limit.",
-             'is_owner': request.user.groups.filter(name='owner').exists(), },
-            status=403
-        )
+        if current_count >= user_limit:
+            return render(
+                request,
+                "home/page-403.html",
+                {"message": "Access Deniedd: You reached your user creation limit.",
+                 'is_owner': request.user.groups.filter(name='owner').exists(), },
+                status=403
+            )
 
     msg = None
     success = False
@@ -262,7 +262,7 @@ def user_list(request):
 @login_required
 def farmer_list(request):
     # Handle POST requests (add/delete)
-    is_owner = Farmer.objects.filter(user__owner=request.user).exists()
+    is_owner = request.user.groups.filter(name='owner').exists()
     can_add_or_edit = request.user.is_superuser or is_owner
     if request.method == 'POST':
         if 'add_farmer' in request.POST:

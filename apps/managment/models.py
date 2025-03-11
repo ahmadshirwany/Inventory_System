@@ -373,7 +373,15 @@ class Product(models.Model):
                 raise ValidationError(f"SKU {self.sku} already exists in warehouse {self.warehouse}.")
             if Product.objects.exclude(pk=self.pk).filter(barcode=self.barcode, warehouse=self.warehouse).exists():
                 raise ValidationError(f"Barcode {self.barcode} already exists in warehouse {self.warehouse}.")
-
+                # Ensure weight_quantity_kg is set and calculate weight_quantity
+        if self.weight_quantity_kg is not None:
+            if self.weight_quantity_kg < 0:
+                raise ValidationError("Weight quantity in kg cannot be negative.")
+            # Convert kg to grams (assuming default unit is grams)
+            self.weight_quantity = self.weight_quantity_kg * 1000
+        elif self.weight_quantity is not None:
+            # If weight_quantity_kg is not provided but weight_quantity is, calculate backwards
+            self.weight_quantity_kg = self.weight_quantity / 1000
         # Validate product type
         if self.product_type == 'Raw':
             if not self.harvest_date:
@@ -448,14 +456,14 @@ class Product(models.Model):
 
     def save(self, *args, **kwargs):
 
-
-        if self.weight_quantity and self.weight_quantity_kg is None:
-            self.weight_quantity_kg = round(self.weight_quantity / 1000, 2)
+        if self.weight_quantity_kg is not None:
+            self.weight_quantity = self.weight_quantity_kg * 1000
 
         if self.unit_price and self.quantity_in_stock:
             self.total_value = self.unit_price * self.quantity_in_stock
-        if self.weight_quantity_kg is None and self.weight_quantity:
-            self.weight_quantity_kg = self.weight_quantity / 1000
+
+        if self.unit_price and self.quantity_in_stock:
+            self.total_value = self.unit_price * self.quantity_in_stock
 
         super().save(*args, **kwargs)
 

@@ -1,3 +1,6 @@
+import decimal
+from decimal import Decimal
+
 from django.contrib.auth import update_session_auth_hash
 from django.shortcuts import render, redirect, get_object_or_404
 from django import template
@@ -61,14 +64,18 @@ def index(request):
                    'cutomers':cutomers
                    }
     elif  request.user.is_superuser:
-        for user in userqueryset:
-            if request.user.groups.filter(name='owner').exists():
+        users = CustomUser.objects.filter(groups__name='user')
+        for user in users:
                 accessible_warehouses = list(Warehouse.objects.filter(users=user).values_list('name', flat=True))
                 user.acess = accessible_warehouses
+        cutomers = CustomUser.objects.filter( groups__name='customer')
+        for cutomer in cutomers:
+            accessible_warehouses = list(Warehouse.objects.filter(users=cutomer).values_list('name', flat=True))
+            cutomer.acess = accessible_warehouses
         context = {'segment': 'index',
                    'warehouses': queryset,
-
-                   'users': userqueryset
+                   'users': users,
+                   'cutomers': cutomers
                    }
 
     else:
@@ -369,109 +376,68 @@ def warehouse_detail(request, slug):
                     return JsonResponse({'success': False, 'errors': e.message_dict}, status=400)
             return JsonResponse({'success': False, 'errors': form.errors}, status=400)
 
-
-
         elif 'take_out_product' in request.POST:
-
             sku = request.POST.get('sku')
-
             product = get_object_or_404(Product, sku=sku, warehouse=warehouse)
 
             # Get take-out values
-
             quantity_to_take = request.POST.get('quantity_to_take', '')
-
             weight_kg_to_take = request.POST.get('weight_kg_to_take', '')
 
-            # Convert to float/int, handling empty strings
-
+            # Convert to appropriate types, handling empty strings
             quantity_to_take = int(quantity_to_take) if quantity_to_take else 0
-
-            weight_kg_to_take = float(weight_kg_to_take) if weight_kg_to_take else 0.0
+            weight_kg_to_take = decimal.Decimal(weight_kg_to_take) if weight_kg_to_take else decimal.Decimal('0.0')  # Convert to Decimal
 
             # At least one value must be provided
-
             if quantity_to_take <= 0 and weight_kg_to_take <= 0:
                 return JsonResponse({
-
                     'success': False,
-
                     'errors': {'__all__': ['Please specify at least one of Quantity or Weight (kg) to take out.']}
-
                 }, status=400)
 
             # Validate quantity
-
             if quantity_to_take > product.quantity_in_stock:
                 return JsonResponse({
-
                     'success': False,
-
                     'errors': {'quantity_to_take': [f'Cannot take out more than {product.quantity_in_stock} units']}
-
                 }, status=400)
 
             # Validate weight
-
             if weight_kg_to_take > (product.weight_quantity_kg or 0):
                 return JsonResponse({
-
                     'success': False,
-
                     'errors': {'weight_kg_to_take': [f'Cannot take out more than {product.weight_quantity_kg} kg']}
-
                 }, status=400)
 
             # Calculate weight per unit if both fields exist
-
-            weight_per_unit = None
-
-            if product.quantity_in_stock > 0 and product.weight_quantity_kg:
-                weight_per_unit = product.weight_quantity_kg / product.quantity_in_stock
+             # Convert to float for proportional calculations
 
             # Update quantity and weight
-
             if quantity_to_take > 0:
-
                 product.quantity_in_stock -= quantity_to_take
 
-                if weight_per_unit and product.weight_quantity_kg:
-                    proportional_weight = quantity_to_take * weight_per_unit
-
-                    product.weight_quantity_kg -= min(proportional_weight, product.weight_quantity_kg)
-
             if weight_kg_to_take > 0:
-
-                product.weight_quantity_kg = (product.weight_quantity_kg or 0) - weight_kg_to_take
-
-                if weight_per_unit and product.quantity_in_stock > 0:
-                    proportional_quantity = int(weight_kg_to_take / weight_per_unit)
-
-                    product.quantity_in_stock -= min(proportional_quantity, product.quantity_in_stock)
+                product.weight_quantity_kg = (product.weight_quantity_kg or decimal.Decimal('0')) - weight_kg_to_take  # Both are Decimal now
 
             # Ensure non-negative values
-
             product.quantity_in_stock = max(0, product.quantity_in_stock)
-
             product.weight_quantity_kg = max(0, product.weight_quantity_kg)
 
             # Update status and total value
-
             if product.quantity_in_stock == 0 or product.weight_quantity_kg == 0:
                 product.status = 'Out of Stock'
-
                 product.exit_date = timezone.now().date()
 
             product.total_value = product.unit_price * product.quantity_in_stock
-
             product.save()
 
             return JsonResponse({'success': True, 'message': 'Product taken out successfully'}, status=200)
+
     # For GET requests, render the products page
     return render(request, 'managment/products.html', {
         'warehouse': warehouse,
         'page_obj': page_obj,
-        'form': ProductForm(warehouse=warehouse),  # Pass an empty form for the modal
+        'form': ProductForm(warehouse=warehouse),
         'filters': filters,
         'is_owner': request.user.groups.filter(name='owner').exists(),
     })
