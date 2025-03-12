@@ -247,7 +247,7 @@ class Product(models.Model):
                                           help_text="Weight or quantity of the product (in default units)")
     weight_quantity_kg = models.DecimalField(max_digits=100000000000, decimal_places=2, null=True, blank=True,
                                              help_text="Weight of the product in kilograms")
-    quantity_in_stock = models.PositiveIntegerField(help_text="Quantity available in stock")
+    quantity_in_stock = models.PositiveIntegerField(help_text="Quantity available in stock",null=True, blank=True,)
     warehouse = models.ForeignKey(
         'Warehouse',
         on_delete=models.SET_NULL,
@@ -433,8 +433,9 @@ class Product(models.Model):
                 raise ValidationError("Manufacturing date must be after harvest date.")
 
         # Non-negative constraints
-        if self.quantity_in_stock < 0:
-            raise ValidationError("Quantity in stock cannot be negative.")
+        if self.quantity_in_stock:
+            if self.quantity_in_stock < 0:
+                raise ValidationError("Quantity in stock cannot be negative.")
         if self.weight_quantity_kg is not None and self.weight_quantity_kg < 0:
             raise ValidationError("Weight quantity in kg cannot be negative.")
         if self.unit_price < 0:
@@ -443,10 +444,11 @@ class Product(models.Model):
             raise ValidationError("Total value cannot be negative.")
 
         # Status consistency
-        if self.quantity_in_stock == 0 and self.status not in ['Out of Stock', 'Expired']:
-            raise ValidationError("Status must be 'Out of Stock' or 'Expired' when quantity in stock is 0.")
-        if self.quantity_in_stock > 0 and self.status == 'Out of Stock':
-            raise ValidationError("Status cannot be 'Out of Stock' when quantity in stock is greater than 0.")
+        if self.quantity_in_stock:
+            if self.quantity_in_stock == 0 and self.status not in ['Out of Stock', 'Expired']:
+                raise ValidationError("Status must be 'Out of Stock' or 'Expired' when quantity in stock is 0.")
+            if self.quantity_in_stock > 0 and self.status == 'Out of Stock':
+                raise ValidationError("Status cannot be 'Out of Stock' when quantity in stock is greater than 0.")
         if self.status == 'Out of Stock' and not self.exit_date:
             raise ValidationError("Exit date must be set when status is 'Out of Stock'.")
         if self.status == 'Expired' and not self.expiration_date:
