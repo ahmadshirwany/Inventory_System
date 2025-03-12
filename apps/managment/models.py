@@ -459,11 +459,8 @@ class Product(models.Model):
         if self.weight_quantity_kg is not None:
             self.weight_quantity = self.weight_quantity_kg * 1000
 
-        if self.unit_price and self.quantity_in_stock:
-            self.total_value = self.unit_price * self.quantity_in_stock
-
-        if self.unit_price and self.quantity_in_stock:
-            self.total_value = self.unit_price * self.quantity_in_stock
+        if self.unit_price and self.weight_quantity_kg:
+            self.total_value = self.unit_price * self.weight_quantity_kg
 
         super().save(*args, **kwargs)
 

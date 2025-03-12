@@ -305,7 +305,6 @@ def get_product_metadata_view(request):
 
 @login_required
 def warehouse_detail(request, slug):
-    # Authorization check
     if not request.user.is_superuser:
         warehouse = get_object_or_404(Warehouse, slug=slug)
         if request.user != warehouse.ownership and request.user not in warehouse.users.all():
@@ -330,7 +329,6 @@ def warehouse_detail(request, slug):
         'status': request.GET.get('status', ''),
     }
 
-    # Apply filters
     if filters['sku']:
         products = products.filter(sku__icontains=filters['sku'])
     if filters['barcode']:
@@ -342,7 +340,6 @@ def warehouse_detail(request, slug):
     if filters['status']:
         products = products.filter(status=filters['status'])
 
-    # Pagination
     paginator = Paginator(products, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -354,6 +351,10 @@ def warehouse_detail(request, slug):
             if form.is_valid():
                 product = form.save(commit=False)
                 product.warehouse = warehouse
+                weight_quantity_kg = request.POST.get('weight_quantity_kg')
+                if weight_quantity_kg:
+                    product.weight_quantity_kg = decimal.Decimal(weight_quantity_kg)
+                    product.weight_quantity = product.weight_quantity_kg * 1000  # Convert kg to g
                 try:
                     product.full_clean()
                     product.save()
@@ -369,6 +370,10 @@ def warehouse_detail(request, slug):
             if form.is_valid():
                 try:
                     updated_product = form.save(commit=False)
+                    weight_quantity_kg = request.POST.get('weight_quantity_kg')
+                    if weight_quantity_kg:
+                        updated_product.weight_quantity_kg = decimal.Decimal(weight_quantity_kg)
+                        updated_product.weight_quantity = updated_product.weight_quantity_kg * 1000  # Convert kg to g
                     updated_product.full_clean()
                     updated_product.save()
                     return JsonResponse({'success': True, 'message': 'Product updated successfully'}, status=200)
@@ -380,60 +385,59 @@ def warehouse_detail(request, slug):
             sku = request.POST.get('sku')
             product = get_object_or_404(Product, sku=sku, warehouse=warehouse)
 
-            # Get take-out values
             quantity_to_take = request.POST.get('quantity_to_take', '')
             weight_kg_to_take = request.POST.get('weight_kg_to_take', '')
 
-            # Convert to appropriate types, handling empty strings
             quantity_to_take = int(quantity_to_take) if quantity_to_take else 0
-            weight_kg_to_take = decimal.Decimal(weight_kg_to_take) if weight_kg_to_take else decimal.Decimal('0.0')  # Convert to Decimal
+            weight_kg_to_take = decimal.Decimal(weight_kg_to_take) if weight_kg_to_take else decimal.Decimal('0.0')
 
-            # At least one value must be provided
             if quantity_to_take <= 0 and weight_kg_to_take <= 0:
                 return JsonResponse({
                     'success': False,
                     'errors': {'__all__': ['Please specify at least one of Quantity or Weight (kg) to take out.']}
                 }, status=400)
 
-            # Validate quantity
             if quantity_to_take > product.quantity_in_stock:
                 return JsonResponse({
                     'success': False,
                     'errors': {'quantity_to_take': [f'Cannot take out more than {product.quantity_in_stock} units']}
                 }, status=400)
 
-            # Validate weight
             if weight_kg_to_take > (product.weight_quantity_kg or 0):
                 return JsonResponse({
                     'success': False,
                     'errors': {'weight_kg_to_take': [f'Cannot take out more than {product.weight_quantity_kg} kg']}
                 }, status=400)
 
-            # Calculate weight per unit if both fields exist
-             # Convert to float for proportional calculations
+            weight_per_unit = None
+            if product.quantity_in_stock > 0 and product.weight_quantity_kg:
+                weight_per_unit = float(product.weight_quantity_kg) / product.quantity_in_stock
 
-            # Update quantity and weight
             if quantity_to_take > 0:
                 product.quantity_in_stock -= quantity_to_take
+                if weight_per_unit and product.weight_quantity_kg:
+                    proportional_weight = decimal.Decimal(str(quantity_to_take * weight_per_unit))
+                    product.weight_quantity_kg -= min(proportional_weight, product.weight_quantity_kg)
 
             if weight_kg_to_take > 0:
-                product.weight_quantity_kg = (product.weight_quantity_kg or decimal.Decimal('0')) - weight_kg_to_take  # Both are Decimal now
+                product.weight_quantity_kg = (product.weight_quantity_kg or decimal.Decimal('0')) - weight_kg_to_take
+                if weight_per_unit and product.quantity_in_stock > 0:
+                    proportional_quantity = int(float(weight_kg_to_take) / weight_per_unit)
+                    product.quantity_in_stock -= min(proportional_quantity, product.quantity_in_stock)
 
-            # Ensure non-negative values
             product.quantity_in_stock = max(0, product.quantity_in_stock)
             product.weight_quantity_kg = max(0, product.weight_quantity_kg)
 
-            # Update status and total value
             if product.quantity_in_stock == 0 or product.weight_quantity_kg == 0:
                 product.status = 'Out of Stock'
                 product.exit_date = timezone.now().date()
 
             product.total_value = product.unit_price * product.quantity_in_stock
+            product.weight_quantity = product.weight_quantity_kg * 1000  # Convert kg to g
             product.save()
 
             return JsonResponse({'success': True, 'message': 'Product taken out successfully'}, status=200)
 
-    # For GET requests, render the products page
     return render(request, 'managment/products.html', {
         'warehouse': warehouse,
         'page_obj': page_obj,

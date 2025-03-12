@@ -3,66 +3,22 @@
 
 {% block stylesheets %}
     <style>
-        .filter-dropdown {
-            margin-bottom: 15px;
-        }
-        .clear-filters-btn {
-            margin-left: 10px;
-        }
-        .filter-row {
-            margin-bottom: 10px;
-        }
-        .collapse.show {
-            display: block;
-        }
-        .table-hover tr:hover {
-            cursor: pointer;
-        }
-        .table-responsive {
-            overflow-x: auto;
-        }
-        .table th, .table td {
-            white-space: nowrap;
-            padding: 8px;
-        }
-        .pagination {
-            margin-top: 20px;
-            justify-content: center;
-        }
-        .header-buttons {
-            float: right;
-            margin-top: -40px;
-        }
-        .modal-xl {
-            max-width: 90%;
-        }
-        .wizard-steps {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-        .step {
-            flex: 1;
-            text-align: center;
-            padding: 10px;
-            background: #ab47bc; /* Inactive step color */
-            margin: 0 5px;
-            color: white; /* Ensure text is readable */
-        }
-        .step.active {
-            background: #8e24aa; /* Active step color */
-            color: white;
-        }
-        .form-step {
-            display: none;
-        }
-        .form-step.active {
-            display: block;
-        }
-        .error-messages {
-            display: none;
-            margin-bottom: 20px;
-        }
+        .filter-dropdown { margin-bottom: 15px; }
+        .clear-filters-btn { margin-left: 10px; }
+        .filter-row { margin-bottom: 10px; }
+        .collapse.show { display: block; }
+        .table-hover tr:hover { cursor: pointer; }
+        .table-responsive { overflow-x: auto; }
+        .table th, .table td { white-space: nowrap; padding: 8px; }
+        .pagination { margin-top: 20px; justify-content: center; }
+        .header-buttons { float: right; margin-top: -40px; }
+        .modal-xl { max-width: 90%; }
+        .wizard-steps { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .step { flex: 1; text-align: center; padding: 10px; background: #ab47bc; margin: 0 5px; color: white; }
+        .step.active { background: #8e24aa; color: white; }
+        .form-step { display: none; }
+        .form-step.active { display: block; }
+        .error-messages { display: none; margin-bottom: 20px; }
     </style>
 {% endblock stylesheets %}
 
@@ -195,7 +151,7 @@
                                             <td>{{ product.farmer.username|default:"N/A" }}</td>
                                             <td style="text-align: center;">
                                                 {% if user.is_superuser or is_owner %}
-                                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editProductModal" onclick="populateEditModal('{{ product.sku }}', '{{ product.barcode|default:'N/A'|escapejs }}', '{{ product.product_name|escapejs }}', '{{ product.weight_quantity_kg|default:'0' }}', '{{ product.quantity_in_stock }}', '{{ product.unit_price|default:'0' }}', '{{ product.harvest_date|default:''|date:'Y-m-d' }}', '{{ product.entry_date|date:'Y-m-d' }}', '{{ product.farmer.pk|default:'' }}', '{{ product.notes_comments|default:''|escapejs }}')">
+                                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editProductModal" onclick="populateEditModal('{{ product.sku }}', '{{ product.barcode|default:'N/A'|escapejs }}', '{{ product.product_name|escapejs }}', '{{ product.weight_quantity_kg|default:'0' }}', '{{ product.quantity_in_stock }}', '{{ product.unit_price|default:'0' }}', '{{ product.harvest_date|default:''|date:'Y-m-d' }}', '{{ product.entry_date|date:'Y-m-d' }}', '{{ product.farmer.pk|default:'' }}', '{{ product.notes_comments|default:''|escapejs }}', '{{ product.packaging_condition|default:'N/A'|escapejs }}')">
                                                         Edit
                                                     </button>
                                                 {% endif %}
@@ -294,16 +250,23 @@
                         <div class="form-step" data-step="2">
                             <div class="row">
                                 <div class="col-md-4 mb-3">
-                                    {{ form.weight_quantity_kg.label_tag }}
-                                    {{ form.weight_quantity_kg }}
+                                    {{ form.packaging_condition.label_tag }}
+                                    {{ form.packaging_condition }}
+                                </div>
+                                <div class="col-md-4 mb-3" id="weight_per_bag_container">
+                                    <label for="weight_per_bag">Weight per Bag (kg)</label>
+                                    <select class="form-select form-select-lg" id="weight_per_bag_select" name="weight_per_bag" style="display: none;">
+                                        <option value="">Select weight</option>
+                                    </select>
+                                    <input type="number" class="form-control form-control-lg" id="weight_per_bag_input" name="weight_per_bag" step="0.01" min="0" placeholder="Enter weight per bag (kg)" style="display: none;">
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     {{ form.quantity_in_stock.label_tag }}
                                     {{ form.quantity_in_stock }}
                                 </div>
                                 <div class="col-md-4 mb-3">
-                                    {{ form.unit_price.label_tag }}
-                                    {{ form.unit_price }}
+                                    {{ form.weight_quantity_kg.label_tag }}
+                                    {{ form.weight_quantity_kg }}
                                 </div>
                             </div>
                         </div>
@@ -312,7 +275,11 @@
                         <div class="form-step" data-step="3">
                             <div class="row">
                                 <div class="col-md-4 mb-3">
-                                    <label for="{{ form.harvest_date.id_for_label }}">Harvest/Manufacturing Date</label>
+                                    {{ form.unit_price.label_tag }}
+                                    {{ form.unit_price }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.harvest_date.label_tag }}
                                     {{ form.harvest_date }}
                                 </div>
                                 <div class="col-md-4 mb-3">
@@ -383,16 +350,27 @@
                         <div class="form-step" data-step="2">
                             <div class="row">
                                 <div class="col-md-4 mb-3">
-                                    <label for="edit_weight_quantity_kg">Weight in Kilograms</label>
-                                    <input type="number" class="form-control form-control-lg" id="edit_weight_quantity_kg" name="weight_quantity_kg" step="0.01" min="0" required aria-label="Weight in Kilograms">
+                                    {{ form.packaging_condition.label_tag }}
+                                    <select class="form-select form-select-lg" id="edit_packaging_condition" name="packaging_condition" required aria-label="Packaging Condition">
+                                        {% for value, label in form.packaging_condition.field.choices %}
+                                            <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3" id="edit_weight_per_bag_container">
+                                    <label for="edit_weight_per_bag">Weight per Bag (kg)</label>
+                                    <select class="form-select form-select-lg" id="edit_weight_per_bag_select" name="weight_per_bag" style="display: none;">
+                                        <option value="">Select weight</option>
+                                    </select>
+                                    <input type="number" class="form-control form-control-lg" id="edit_weight_per_bag_input" name="weight_per_bag" step="0.01" min="0" placeholder="Enter weight per bag (kg)" style="display: none;">
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     {{ form.quantity_in_stock.label_tag }}
                                     <input type="number" class="form-control form-control-lg" id="edit_quantity_in_stock" name="quantity_in_stock" min="0" required aria-label="Quantity in Stock">
                                 </div>
                                 <div class="col-md-4 mb-3">
-                                    {{ form.unit_price.label_tag }}
-                                    <input type="number" class="form-control form-control-lg" id="edit_unit_price" name="unit_price" step="0.01" min="0" required aria-label="Unit Price">
+                                    {{ form.weight_quantity_kg.label_tag }}
+                                    <input type="number" class="form-control form-control-lg" id="edit_weight_quantity_kg" name="weight_quantity_kg" step="0.01" min="0" readonly aria-label="Weight in Kilograms">
                                 </div>
                             </div>
                         </div>
@@ -401,7 +379,11 @@
                         <div class="form-step" data-step="3">
                             <div class="row">
                                 <div class="col-md-4 mb-3">
-                                    <label for="edit_harvest_date">Harvest/Manufacturing Date</label>
+                                    {{ form.unit_price.label_tag }}
+                                    <input type="number" class="form-control form-control-lg" id="edit_unit_price" name="unit_price" step="0.01" min="0" required aria-label="Unit Price">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.harvest_date.label_tag }}
                                     <input type="date" class="form-control form-control-lg" id="edit_harvest_date" name="harvest_date" aria-label="Harvest Date">
                                 </div>
                                 <div class="col-md-4 mb-3">
@@ -434,7 +416,7 @@
         </div>
     </div>
 
-    <!-- Take Out Product Modals (One per product) -->
+    <!-- Take Out Product Modals -->
     {% for product in page_obj %}
     <div class="modal fade" id="takeOutProductModal_{{ product.sku }}" tabindex="-1" aria-labelledby="takeOutProductModalLabel_{{ product.sku }}" aria-hidden="true">
         <div class="modal-dialog">
@@ -474,7 +456,6 @@
             window.location.href = "{% url 'warehouse_detail' warehouse.slug %}";
         }
 
-        // Function to get CSRF token from cookie
         function getCookie(name) {
             let cookieValue = null;
             if (document.cookie && document.cookie !== '') {
@@ -490,36 +471,115 @@
             return cookieValue;
         }
 
-        // Populate Edit Modal with Product Data
-        function populateEditModal(sku, barcode, product_name, weight_quantity_kg, quantity_in_stock, unit_price, harvest_date, entry_date, farmer_pk, notes_comments) {
+        function populateEditModal(sku, barcode, product_name, weight_quantity_kg, quantity_in_stock, unit_price, harvest_date, entry_date, farmer_pk, notes_comments, packaging_condition) {
             document.getElementById('edit_sku').value = sku;
             document.getElementById('edit_barcode').value = barcode !== 'N/A' ? barcode : '';
-
-            // Set product_name dropdown
-            const productNameSelect = document.getElementById('edit_product_name');
-            productNameSelect.value = product_name;
-            if (!productNameSelect.value) {
-                console.warn(`Product name "${product_name}" not found in options`);
-            }
-
-            document.getElementById('edit_weight_quantity_kg').value = weight_quantity_kg !== 'N/A' ? weight_quantity_kg : '';
+            document.getElementById('edit_product_name').value = product_name;
+            document.getElementById('edit_packaging_condition').value = packaging_condition !== 'N/A' ? packaging_condition : '';
             document.getElementById('edit_quantity_in_stock').value = quantity_in_stock;
+            document.getElementById('edit_weight_quantity_kg').value = weight_quantity_kg !== 'N/A' ? weight_quantity_kg : '';
             document.getElementById('edit_unit_price').value = unit_price !== 'N/A' ? unit_price : '';
             document.getElementById('edit_harvest_date').value = harvest_date !== 'N/A' ? harvest_date : '';
             document.getElementById('edit_entry_date').value = entry_date;
-
-            // Set farmer dropdown
-            const farmerSelect = document.getElementById('edit_farmer');
-            farmerSelect.value = farmer_pk !== '' ? farmer_pk : '';
-
+            document.getElementById('edit_farmer').value = farmer_pk !== '' ? farmer_pk : '';
             document.getElementById('edit_notes_comments').value = notes_comments !== 'N/A' ? notes_comments : '';
             document.getElementById('editProductModalLabel').innerText = `Edit Product: ${product_name} (SKU: ${sku})`;
+
+            updateEditWeightField();
+            const weightPerBag = weight_quantity_kg && quantity_in_stock ? (parseFloat(weight_quantity_kg) / quantity_in_stock).toFixed(2) : '';
+            if (weightPerBag) {
+                const weights = packagingConditions[packaging_condition];
+                if (Array.isArray(weights)) {
+                    document.getElementById('edit_weight_per_bag_select').value = weightPerBag;
+                } else if (weights === null) {
+                    document.getElementById('edit_weight_per_bag_input').value = weightPerBag;
+                } else {
+                    document.getElementById('edit_weight_per_bag_select').value = weights;
+                }
+            }
         }
 
         document.addEventListener('DOMContentLoaded', function() {
             const csrfToken = getCookie('csrftoken');
+            const packagingConditions = {
+                "Bidons hermétiques": null,
+                "Bocaux en verre": null,
+                "Boîtes perforées": null,
+                "Bouteilles hermétiques": null,
+                "Congélation": null,
+                "Conteneurs hermétiques": null,
+                "Endroit frais": null,
+                "Pots hermétiques": null,
+                "Réfrigération": null,
+                "Sacs en filet": [10, 20, 25, 50, 100],
+                "Sacs en jute": [10, 20, 25, 50, 100],
+                "Sacs en polypropylène": [10, 20, 25, 50, 100],
+                "Sacs en toile": [10, 20, 25, 50, 100],
+                "Sacs hermétiques": [10, 20, 25, 50, 100],
+                "Sous vide": null,
+                "Sachet - 100g": 0.1,
+                "Sachet - 250g": 0.25,
+                "Sachet - 500g": 0.5,
+                "Sachet - 1000g": 1
+            };
 
             // Add Product Wizard
+            const packagingSelect = document.getElementById('id_packaging_condition');
+            const weightSelect = document.getElementById('weight_per_bag_select');
+            const weightInput = document.getElementById('weight_per_bag_input');
+            const quantityInput = document.getElementById('id_quantity_in_stock');
+            const totalWeightInput = document.getElementById('id_weight_quantity_kg');
+
+            function updateWeightField() {
+                const selectedCondition = packagingSelect.value;
+                const weights = packagingConditions[selectedCondition];
+                weightSelect.style.display = 'none';
+                weightInput.style.display = 'none';
+                weightSelect.innerHTML = '<option value="">Select weight</option>';
+                weightSelect.removeAttribute('required');
+                weightInput.removeAttribute('required');
+
+                if (Array.isArray(weights)) {
+                    weights.forEach(weight => {
+                        const option = document.createElement('option');
+                        option.value = weight;
+                        option.text = `${weight} kg`;
+                        weightSelect.appendChild(option);
+                    });
+                    weightSelect.style.display = 'block';
+                    weightSelect.setAttribute('required', 'required');
+                } else if (weights === null) {
+                    weightInput.style.display = 'block';
+                    weightInput.setAttribute('required', 'required');
+                } else {
+                    const option = document.createElement('option');
+                    option.value = weights;
+                    option.text = `${weights} kg`;
+                    option.selected = true;
+                    weightSelect.appendChild(option);
+                    weightSelect.style.display = 'block';
+                    weightSelect.setAttribute('required', 'required');
+                }
+                updateTotalWeight();
+            }
+
+            function updateTotalWeight() {
+                const weightPerBag = weightSelect.style.display === 'block' ? weightSelect.value : weightInput.value;
+                const quantity = quantityInput.value;
+                if (weightPerBag && quantity) {
+                    const totalWeightKg = parseFloat(weightPerBag) * parseInt(quantity);
+                    totalWeightInput.value = totalWeightKg.toFixed(2);
+                } else {
+                    totalWeightInput.value = '';
+                }
+            }
+
+            packagingSelect.addEventListener('change', updateWeightField);
+            weightSelect.addEventListener('change', updateTotalWeight);
+            weightInput.addEventListener('input', updateTotalWeight);
+            quantityInput.addEventListener('input', updateTotalWeight);
+            updateWeightField();
+
             const addSteps = document.querySelectorAll('#addProductModal .step');
             const addFormSteps = document.querySelectorAll('#addProductModal .form-step');
             const prevBtn = document.getElementById('prevBtn');
@@ -535,7 +595,6 @@
                 addSteps[addCurrentStep - 1].classList.add('active');
                 addFormSteps.forEach(step => step.classList.remove('active'));
                 addFormSteps[addCurrentStep - 1].classList.add('active');
-
                 prevBtn.disabled = addCurrentStep === 1;
                 nextBtn.style.display = addCurrentStep === addTotalSteps ? 'none' : 'inline-block';
                 submitBtn.style.display = addCurrentStep === addTotalSteps ? 'inline-block' : 'none';
@@ -561,7 +620,6 @@
                             input.classList.remove('is-invalid');
                         }
                     });
-
                     if (isValid) {
                         addCurrentStep++;
                         updateAddSteps();
@@ -615,6 +673,61 @@
             updateAddSteps();
 
             // Edit Product Wizard
+            const editPackagingSelect = document.getElementById('edit_packaging_condition');
+            const editWeightSelect = document.getElementById('edit_weight_per_bag_select');
+            const editWeightInput = document.getElementById('edit_weight_per_bag_input');
+            const editQuantityInput = document.getElementById('edit_quantity_in_stock');
+            const editTotalWeightInput = document.getElementById('edit_weight_quantity_kg');
+
+            function updateEditWeightField() {
+                const selectedCondition = editPackagingSelect.value;
+                const weights = packagingConditions[selectedCondition];
+                editWeightSelect.style.display = 'none';
+                editWeightInput.style.display = 'none';
+                editWeightSelect.innerHTML = '<option value="">Select weight</option>';
+                editWeightSelect.removeAttribute('required');
+                editWeightInput.removeAttribute('required');
+
+                if (Array.isArray(weights)) {
+                    weights.forEach(weight => {
+                        const option = document.createElement('option');
+                        option.value = weight;
+                        option.text = `${weight} kg`;
+                        editWeightSelect.appendChild(option);
+                    });
+                    editWeightSelect.style.display = 'block';
+                    editWeightSelect.setAttribute('required', 'required');
+                } else if (weights === null) {
+                    editWeightInput.style.display = 'block';
+                    editWeightInput.setAttribute('required', 'required');
+                } else {
+                    const option = document.createElement('option');
+                    option.value = weights;
+                    option.text = `${weights} kg`;
+                    option.selected = true;
+                    editWeightSelect.appendChild(option);
+                    editWeightSelect.style.display = 'block';
+                    editWeightSelect.setAttribute('required', 'required');
+                }
+                updateEditTotalWeight();
+            }
+
+            function updateEditTotalWeight() {
+                const weightPerBag = editWeightSelect.style.display === 'block' ? editWeightSelect.value : editWeightInput.value;
+                const quantity = editQuantityInput.value;
+                if (weightPerBag && quantity) {
+                    const totalWeightKg = parseFloat(weightPerBag) * parseInt(quantity);
+                    editTotalWeightInput.value = totalWeightKg.toFixed(2);
+                } else {
+                    editTotalWeightInput.value = '';
+                }
+            }
+
+            editPackagingSelect.addEventListener('change', updateEditWeightField);
+            editWeightSelect.addEventListener('change', updateEditTotalWeight);
+            editWeightInput.addEventListener('input', updateEditTotalWeight);
+            editQuantityInput.addEventListener('input', updateEditTotalWeight);
+
             const editSteps = document.querySelectorAll('#editProductModal .step');
             const editFormSteps = document.querySelectorAll('#editProductModal .form-step');
             const editPrevBtn = document.getElementById('editPrevBtn');
@@ -630,7 +743,6 @@
                 editSteps[editCurrentStep - 1].classList.add('active');
                 editFormSteps.forEach(step => step.classList.remove('active'));
                 editFormSteps[editCurrentStep - 1].classList.add('active');
-
                 editPrevBtn.disabled = editCurrentStep === 1;
                 editNextBtn.style.display = editCurrentStep === editTotalSteps ? 'none' : 'inline-block';
                 editSubmitBtn.style.display = editCurrentStep === editTotalSteps ? 'inline-block' : 'none';
@@ -656,7 +768,6 @@
                             input.classList.remove('is-invalid');
                         }
                     });
-
                     if (isValid) {
                         editCurrentStep++;
                         updateEditSteps();
@@ -707,85 +818,80 @@
                 });
             });
 
-            // Reset edit modal step on close
             document.getElementById('editProductModal').addEventListener('hidden.bs.modal', function() {
                 editCurrentStep = 1;
                 updateEditSteps();
             });
 
             updateEditSteps();
-        });
 
-        // Function to handle Take Out form submission
-        function submitTakeOutForm(sku) {
-            const form = document.getElementById(`takeOutForm_${sku}`);
-            const errorDiv = document.getElementById(`takeOutErrors_${sku}`);
-            const quantityInput = document.getElementById(`quantity_to_take_${sku}`);
-            const weightKgInput = document.getElementById(`weight_kg_to_take_${sku}`);
-            const csrfToken = getCookie('csrftoken');
+            function submitTakeOutForm(sku) {
+                const form = document.getElementById(`takeOutForm_${sku}`);
+                const errorDiv = document.getElementById(`takeOutErrors_${sku}`);
+                const quantityInput = document.getElementById(`quantity_to_take_${sku}`);
+                const weightKgInput = document.getElementById(`weight_kg_to_take_${sku}`);
 
-            const quantityToTake = parseFloat(quantityInput.value) || 0;
-            const weightKgToTake = parseFloat(weightKgInput.value) || 0;
+                const quantityToTake = parseFloat(quantityInput.value) || 0;
+                const weightKgToTake = parseFloat(weightKgInput.value) || 0;
 
-            // Validate at least one value is provided
-            if (quantityToTake <= 0 && weightKgToTake <= 0) {
-                errorDiv.innerHTML = '<p>Please specify at least one of Quantity or Weight (kg) to take out.</p>';
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            // Validate against maximums
-            if (quantityToTake > parseInt(quantityInput.max)) {
-                errorDiv.innerHTML = `<p>Quantity cannot exceed ${quantityInput.max}.</p>`;
-                errorDiv.style.display = 'block';
-                return;
-            }
-            if (weightKgToTake > parseFloat(weightKgInput.max)) {
-                errorDiv.innerHTML = `<p>Weight (kg) cannot exceed ${weightKgInput.max}.</p>`;
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            const formData = new FormData(form);
-            fetch("{% url 'warehouse_detail' warehouse.slug %}", {
-                method: 'POST',
-                body: formData,
-                headers: { 'X-CSRFToken': csrfToken },
-                credentials: 'same-origin'
-            })
-            .then(response => {
-                if (response.ok) {
-                    return response.json().then(data => {
-                        if (data.success) {
-                            location.reload();
-                        } else {
-                            throw new Error('Unexpected response format');
-                        }
-                    });
-                } else {
-                    return response.json().then(data => {
-                        let errorMessages = '';
-                        if (data.errors) {
-                            for (const [field, errors] of Object.entries(data.errors)) {
-                                errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
-                            }
-                        } else {
-                            errorMessages = `<p>Server error: ${response.status} - ${response.statusText}</p>`;
-                        }
-                        errorDiv.innerHTML = errorMessages;
-                        errorDiv.style.display = 'block';
-                        throw new Error('Form submission failed');
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                if (!errorDiv.innerHTML) {
-                    errorDiv.innerHTML = '<p>An error occurred while taking out the product. Please try again.</p>';
+                if (quantityToTake <= 0 && weightKgToTake <= 0) {
+                    errorDiv.innerHTML = '<p>Please specify at least one of Quantity or Weight (kg) to take out.</p>';
                     errorDiv.style.display = 'block';
+                    return;
                 }
-            });
-        }
+
+                if (quantityToTake > parseInt(quantityInput.max)) {
+                    errorDiv.innerHTML = `<p>Quantity cannot exceed ${quantityInput.max}.</p>`;
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+                if (weightKgToTake > parseFloat(weightKgInput.max)) {
+                    errorDiv.innerHTML = `<p>Weight (kg) cannot exceed ${weightKgInput.max}.</p>`;
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+
+                const formData = new FormData(form);
+                fetch("{% url 'warehouse_detail' warehouse.slug %}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-CSRFToken': csrfToken },
+                    credentials: 'same-origin'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.json().then(data => {
+                            if (data.success) {
+                                location.reload();
+                            } else {
+                                throw new Error('Unexpected response format');
+                            }
+                        });
+                    } else {
+                        return response.json().then(data => {
+                            let errorMessages = '';
+                            if (data.errors) {
+                                for (const [field, errors] of Object.entries(data.errors)) {
+                                    errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
+                                }
+                            } else {
+                                errorMessages = `<p>Server error: ${response.status} - ${response.statusText}</p>`;
+                            }
+                            errorDiv.innerHTML = errorMessages;
+                            errorDiv.style.display = 'block';
+                            throw new Error('Form submission failed');
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    if (!errorDiv.innerHTML) {
+                        errorDiv.innerHTML = '<p>An error occurred while taking out the product. Please try again.</p>';
+                        errorDiv.style.display = 'block';
+                    }
+                });
+            }
+        });
     </script>
 {% endblock content %}
 

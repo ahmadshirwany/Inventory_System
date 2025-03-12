@@ -99,18 +99,50 @@ class WarehouseForm(forms.ModelForm):
         return cleaned_data
 
 
+PACKAGING_CONDITIONS = {
+    "Bidons hermétiques": None,
+    "Bocaux en verre": None,
+    "Boîtes perforées": None,
+    "Bouteilles hermétiques": None,
+    "Congélation": None,
+    "Conteneurs hermétiques": None,
+    "Endroit frais": None,
+    "Pots hermétiques": None,
+    "Réfrigération": None,
+    "Sacs en filet": [10, 20, 25, 50, 100],
+    "Sacs en jute": [10, 20, 25, 50, 100],
+    "Sacs en polypropylène": [10, 20, 25, 50, 100],
+    "Sacs en toile": [10, 20, 25, 50, 100],
+    "Sacs hermétiques": [10, 20, 25, 50, 100],
+    "Sous vide": None,
+    "Sachet - 100g": 0.1,
+    "Sachet - 250g": 0.25,
+    "Sachet - 500g": 0.5,
+    "Sachet - 1000g": 1
+}
+
 class ProductForm(forms.ModelForm):
+    packaging_condition = forms.ChoiceField(
+        choices=[(key, key) for key in PACKAGING_CONDITIONS.keys()],
+        widget=forms.Select(attrs={
+            'class': 'form-select form-select-lg',
+            'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+            'required': True,
+            'aria-label': 'Packaging Condition',
+        })
+    )
+
     class Meta:
         model = Product
         exclude = [
             'warehouse', 'total_value', 'weight_quantity', 'status', 'exit_date',
             'manufacturing_date', 'expiration_date', 'supplier_code', 'variety_or_species',
-            'packaging_condition', 'quality_standards', 'storage_temperature', 'humidity_rate',
+            'quality_standards', 'storage_temperature', 'humidity_rate',
             'co2', 'o2', 'n2', 'ethylene_management', 'nutritional_info', 'regulatory_codes',
             'product_type', 'lot_number'
         ]
 
-    def __init__(self, *args,warehouse=None, **kwargs):
+    def __init__(self, *args, warehouse=None, **kwargs):
         super().__init__(*args, **kwargs)
         if warehouse is None and self.instance and self.instance.pk and self.instance.warehouse:
             warehouse = self.instance.warehouse
@@ -120,52 +152,43 @@ class ProductForm(forms.ModelForm):
                 owner=warehouse.ownership
             )
 
-        # Common attributes for all fields
         common_attrs = {
-            'class': 'form-control form-control-lg',  # Larger inputs for better visibility
-            'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',  # Softer edges and shadow
+            'class': 'form-control form-control-lg',
+            'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
         }
 
-        # SKU
         self.fields['sku'].widget.attrs.update({
             **common_attrs,
             'placeholder': 'e.g., SKU-12345',
             'required': True,
             'aria-label': 'Stock Keeping Unit',
         })
-
-        # Barcode
         self.fields['barcode'].widget.attrs.update({
             **common_attrs,
             'placeholder': 'e.g., 012345678905',
             'required': True,
             'aria-label': 'Barcode',
         })
-
-        # Product Name (assuming it's a dropdown due to choices)
         self.fields['product_name'].widget.attrs.update({
-            'class': 'form-select form-select-lg',  # Use form-select for dropdowns
+            'class': 'form-select form-select-lg',
             'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
             'required': True,
             'aria-label': 'Product Name',
         })
-
-
         self.fields['weight_quantity_kg'] = forms.DecimalField(
             max_digits=100000000000,
             decimal_places=2,
-            help_text="Weight of the product in kilograms",
+            help_text="Total weight of the product in kilograms (calculated)",
             widget=forms.NumberInput(attrs={
                 **common_attrs,
-                'step': '1',
+                'step': '0.01',
                 'min': '0',
-                'placeholder': 'e.g., 500 (in kg)',
-                'required': True,
+                'placeholder': 'e.g., 0.50 (in kg)',
+                'required': False,
                 'aria-label': 'Weight in Kilograms',
+                'readonly': 'readonly'
             })
         )
-
-        # Quantity in Stock
         self.fields['quantity_in_stock'].widget.attrs.update({
             **common_attrs,
             'min': '0',
@@ -173,8 +196,6 @@ class ProductForm(forms.ModelForm):
             'required': True,
             'aria-label': 'Quantity in Stock',
         })
-
-        # Unit Price
         self.fields['unit_price'].widget.attrs.update({
             **common_attrs,
             'step': '0.01',
@@ -183,16 +204,12 @@ class ProductForm(forms.ModelForm):
             'required': True,
             'aria-label': 'Unit Price',
         })
-
-        # Harvest Date
         self.fields['harvest_date'].widget = forms.DateInput(attrs={
             'type': 'date',
             **common_attrs,
             'placeholder': 'Select harvest date',
             'aria-label': 'Harvest Date',
         })
-
-        # Entry Date
         self.fields['entry_date'].widget = forms.DateInput(attrs={
             'type': 'date',
             **common_attrs,
@@ -200,15 +217,11 @@ class ProductForm(forms.ModelForm):
             'required': True,
             'aria-label': 'Entry Date',
         })
-
-        # Farmer (assuming it's a dropdown ForeignKey)
         self.fields['farmer'].widget.attrs.update({
             'class': 'form-select form-select-lg',
             'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
             'aria-label': 'Farmer',
         })
-
-        # Notes/Comments
         self.fields['notes_comments'].widget.attrs.update({
             'class': 'form-control',
             'rows': '4',
@@ -217,7 +230,6 @@ class ProductForm(forms.ModelForm):
             'aria-label': 'Notes or Comments',
         })
 
-        # Set non-required fields
         self.fields['harvest_date'].required = False
         self.fields['farmer'].required = False
         self.fields['notes_comments'].required = False
@@ -236,9 +248,11 @@ class ProductForm(forms.ModelForm):
         instance = super().save(commit=False)
         instance.supplier_code = instance.supplier_code or "N/A"
         instance.variety_or_species = instance.variety_or_species or "N/A"
-        instance.packaging_condition = instance.packaging_condition or "N/A"
+        instance.packaging_condition = self.cleaned_data.get('packaging_condition') or "N/A"
+
         if self.cleaned_data.get('weight_quantity_kg'):
-            instance.weight_quantity = self.cleaned_data['weight_quantity_kg'] * 1000
+            instance.weight_quantity = self.cleaned_data['weight_quantity_kg'] * 1000  # Convert kg to g for weight_quantity
+
         if self.cleaned_data.get('unit_price') and self.cleaned_data.get('quantity_in_stock'):
             instance.total_value = self.cleaned_data['unit_price'] * self.cleaned_data['quantity_in_stock']
 
