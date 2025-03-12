@@ -118,7 +118,8 @@ PACKAGING_CONDITIONS = {
     "Sachet - 100g": 0.1,
     "Sachet - 250g": 0.25,
     "Sachet - 500g": 0.5,
-    "Sachet - 1000g": 1
+    "Sachet - 1000g": 1,
+    "Bulk": None  # Added "Bulk" with None
 }
 
 class ProductForm(forms.ModelForm):
@@ -178,22 +179,21 @@ class ProductForm(forms.ModelForm):
         self.fields['weight_quantity_kg'] = forms.DecimalField(
             max_digits=100000000000,
             decimal_places=2,
-            help_text="Total weight of the product in kilograms (calculated)",
+            help_text="Total weight of the product in kilograms (editable for Bulk)",
             widget=forms.NumberInput(attrs={
                 **common_attrs,
                 'step': '0.01',
                 'min': '0',
                 'placeholder': 'e.g., 0.50 (in kg)',
-                'required': False,
+                'required': True,  # Required for all cases
                 'aria-label': 'Weight in Kilograms',
-                'readonly': 'readonly'
             })
         )
         self.fields['quantity_in_stock'].widget.attrs.update({
             **common_attrs,
             'min': '0',
             'placeholder': 'e.g., 100',
-            'required': True,
+            'required': False,  # Made optional for Bulk
             'aria-label': 'Quantity in Stock',
         })
         self.fields['unit_price'].widget.attrs.update({
@@ -237,11 +237,27 @@ class ProductForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         product_name = cleaned_data.get('product_name')
+        packaging_condition = cleaned_data.get('packaging_condition')
+        quantity_in_stock = cleaned_data.get('quantity_in_stock')
+        weight_quantity_kg = cleaned_data.get('weight_quantity_kg')
+
         if product_name:
             metadata = get_product_metadata()
             product_data = metadata.get(product_name, {})
             if not cleaned_data.get('notes_comments') and product_data.get('notes_comments'):
                 cleaned_data['notes_comments'] = product_data['notes_comments']
+
+        if packaging_condition == "Bulk":
+            if quantity_in_stock is not None:
+                cleaned_data['quantity_in_stock'] = None  # Force null for Bulk
+            if not weight_quantity_kg:
+                raise ValidationError("Weight in kilograms is required for Bulk packaging.")
+        else:
+            if quantity_in_stock is None:
+                raise ValidationError("Quantity in stock is required for non-Bulk packaging.")
+            if not weight_quantity_kg:
+                raise ValidationError("Weight in kilograms is required.")
+
         return cleaned_data
 
     def save(self, commit=True):
@@ -255,6 +271,8 @@ class ProductForm(forms.ModelForm):
 
         if self.cleaned_data.get('unit_price') and self.cleaned_data.get('quantity_in_stock'):
             instance.total_value = self.cleaned_data['unit_price'] * self.cleaned_data['quantity_in_stock']
+        elif self.cleaned_data.get('unit_price') and self.cleaned_data.get('packaging_condition') == "Bulk":
+            instance.total_value = self.cleaned_data['unit_price'] * self.cleaned_data['weight_quantity_kg']
 
         metadata = get_product_metadata()
         product_data = metadata.get(self.cleaned_data['product_name'], {})

@@ -1,4 +1,5 @@
 import decimal
+import json
 from decimal import Decimal
 
 from django.contrib.auth import update_session_auth_hash
@@ -340,6 +341,7 @@ def warehouse_detail(request, slug):
     if filters['status']:
         products = products.filter(status=filters['status'])
 
+    products.order_by('entry_date')
     paginator = Paginator(products, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -354,7 +356,7 @@ def warehouse_detail(request, slug):
                 weight_quantity_kg = request.POST.get('weight_quantity_kg')
                 if weight_quantity_kg:
                     product.weight_quantity_kg = decimal.Decimal(weight_quantity_kg)
-                    product.weight_quantity = product.weight_quantity_kg * 1000  # Convert kg to g
+                    product.weight_quantity = product.weight_quantity_kg * 1000
                 try:
                     product.full_clean()
                     product.save()
@@ -438,10 +440,12 @@ def warehouse_detail(request, slug):
 
             return JsonResponse({'success': True, 'message': 'Product taken out successfully'}, status=200)
 
+    metadata = get_product_metadata()
     return render(request, 'managment/products.html', {
         'warehouse': warehouse,
         'page_obj': page_obj,
         'form': ProductForm(warehouse=warehouse),
         'filters': filters,
         'is_owner': request.user.groups.filter(name='owner').exists(),
+        'product_metadata': json.dumps(metadata),
     })

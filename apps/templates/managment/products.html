@@ -260,7 +260,7 @@
                                     </select>
                                     <input type="number" class="form-control form-control-lg" id="weight_per_bag_input" name="weight_per_bag" step="0.01" min="0" placeholder="Enter weight per bag (kg)" style="display: none;">
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-4 mb-3" id="quantity_in_stock_container">
                                     {{ form.quantity_in_stock.label_tag }}
                                     {{ form.quantity_in_stock }}
                                 </div>
@@ -364,9 +364,9 @@
                                     </select>
                                     <input type="number" class="form-control form-control-lg" id="edit_weight_per_bag_input" name="weight_per_bag" step="0.01" min="0" placeholder="Enter weight per bag (kg)" style="display: none;">
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-4 mb-3" id="edit_quantity_in_stock_container">
                                     {{ form.quantity_in_stock.label_tag }}
-                                    <input type="number" class="form-control form-control-lg" id="edit_quantity_in_stock" name="quantity_in_stock" min="0" required aria-label="Quantity in Stock">
+                                    <input type="number" class="form-control form-control-lg" id="edit_quantity_in_stock" name="quantity_in_stock" min="0" aria-label="Quantity in Stock">
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     {{ form.weight_quantity_kg.label_tag }}
@@ -452,6 +452,8 @@
     {% endfor %}
 
     <script>
+        const productMetadata = {{ product_metadata|safe }};
+
         function clearFilters() {
             window.location.href = "{% url 'warehouse_detail' warehouse.slug %}";
         }
@@ -476,8 +478,15 @@
             document.getElementById('edit_barcode').value = barcode !== 'N/A' ? barcode : '';
             document.getElementById('edit_product_name').value = product_name;
             document.getElementById('edit_packaging_condition').value = packaging_condition !== 'N/A' ? packaging_condition : '';
-            document.getElementById('edit_quantity_in_stock').value = quantity_in_stock;
-            document.getElementById('edit_weight_quantity_kg').value = weight_quantity_kg !== 'N/A' ? weight_quantity_kg : '';
+            const quantityInput = document.getElementById('edit_quantity_in_stock');
+            const weightInput = document.getElementById('edit_weight_quantity_kg');
+            if (packaging_condition === "Bulk") {
+                quantityInput.value = '';
+                weightInput.value = weight_quantity_kg !== 'N/A' ? weight_quantity_kg : '';
+            } else {
+                quantityInput.value = quantity_in_stock || '';
+                weightInput.value = weight_quantity_kg !== 'N/A' ? weight_quantity_kg : '';
+            }
             document.getElementById('edit_unit_price').value = unit_price !== 'N/A' ? unit_price : '';
             document.getElementById('edit_harvest_date').value = harvest_date !== 'N/A' ? harvest_date : '';
             document.getElementById('edit_entry_date').value = entry_date;
@@ -487,7 +496,7 @@
 
             updateEditWeightField();
             const weightPerBag = weight_quantity_kg && quantity_in_stock ? (parseFloat(weight_quantity_kg) / quantity_in_stock).toFixed(2) : '';
-            if (weightPerBag) {
+            if (weightPerBag && packaging_condition !== "Bulk") {
                 const weights = packagingConditions[packaging_condition];
                 if (Array.isArray(weights)) {
                     document.getElementById('edit_weight_per_bag_select').value = weightPerBag;
@@ -520,7 +529,8 @@
                 "Sachet - 100g": 0.1,
                 "Sachet - 250g": 0.25,
                 "Sachet - 500g": 0.5,
-                "Sachet - 1000g": 1
+                "Sachet - 1000g": 1,
+                "Bulk": null
             };
 
             // Add Product Wizard
@@ -529,6 +539,10 @@
             const weightInput = document.getElementById('weight_per_bag_input');
             const quantityInput = document.getElementById('id_quantity_in_stock');
             const totalWeightInput = document.getElementById('id_weight_quantity_kg');
+            const productNameSelect = document.getElementById('id_product_name');
+            const notesCommentsTextarea = document.getElementById('id_notes_comments');
+            const weightPerBagContainer = document.getElementById('weight_per_bag_container');
+            const quantityContainer = document.getElementById('quantity_in_stock_container');
 
             function updateWeightField() {
                 const selectedCondition = packagingSelect.value;
@@ -538,8 +552,19 @@
                 weightSelect.innerHTML = '<option value="">Select weight</option>';
                 weightSelect.removeAttribute('required');
                 weightInput.removeAttribute('required');
+                quantityInput.removeAttribute('required');
+                totalWeightInput.setAttribute('readonly', 'readonly');
+                totalWeightInput.value = '';
+                quantityContainer.style.display = 'block';
+                weightPerBagContainer.style.display = 'block';
 
-                if (Array.isArray(weights)) {
+                if (selectedCondition === "Bulk") {
+                    quantityContainer.style.display = 'none';
+                    weightPerBagContainer.style.display = 'none';
+                    totalWeightInput.removeAttribute('readonly');
+                    totalWeightInput.setAttribute('required', 'required');
+                    quantityInput.value = '';
+                } else if (Array.isArray(weights)) {
                     weights.forEach(weight => {
                         const option = document.createElement('option');
                         option.value = weight;
@@ -548,9 +573,13 @@
                     });
                     weightSelect.style.display = 'block';
                     weightSelect.setAttribute('required', 'required');
+                    quantityInput.setAttribute('required', 'required');
+                    updateTotalWeight();
                 } else if (weights === null) {
                     weightInput.style.display = 'block';
                     weightInput.setAttribute('required', 'required');
+                    quantityInput.setAttribute('required', 'required');
+                    updateTotalWeight();
                 } else {
                     const option = document.createElement('option');
                     option.value = weights;
@@ -559,18 +588,30 @@
                     weightSelect.appendChild(option);
                     weightSelect.style.display = 'block';
                     weightSelect.setAttribute('required', 'required');
+                    quantityInput.setAttribute('required', 'required');
+                    updateTotalWeight();
                 }
-                updateTotalWeight();
             }
 
             function updateTotalWeight() {
-                const weightPerBag = weightSelect.style.display === 'block' ? weightSelect.value : weightInput.value;
-                const quantity = quantityInput.value;
-                if (weightPerBag && quantity) {
-                    const totalWeightKg = parseFloat(weightPerBag) * parseInt(quantity);
-                    totalWeightInput.value = totalWeightKg.toFixed(2);
-                } else {
-                    totalWeightInput.value = '';
+                if (packagingSelect.value !== "Bulk") {
+                    const weightPerBag = weightSelect.style.display === 'block' ? weightSelect.value : weightInput.value;
+                    const quantity = quantityInput.value;
+                    if (weightPerBag && quantity) {
+                        const totalWeightKg = parseFloat(weightPerBag) * parseInt(quantity);
+                        totalWeightInput.value = totalWeightKg.toFixed(2);
+                    } else {
+                        totalWeightInput.value = '';
+                    }
+                }
+            }
+
+            function updateNotesComments() {
+                const selectedProduct = productNameSelect.value;
+                const productData = productMetadata[selectedProduct] || {};
+                const additionalNotes = productData['notes_comments'] || '';
+                if (additionalNotes && !notesCommentsTextarea.value) {
+                    notesCommentsTextarea.value = additionalNotes;
                 }
             }
 
@@ -578,6 +619,7 @@
             weightSelect.addEventListener('change', updateTotalWeight);
             weightInput.addEventListener('input', updateTotalWeight);
             quantityInput.addEventListener('input', updateTotalWeight);
+            productNameSelect.addEventListener('change', updateNotesComments);
             updateWeightField();
 
             const addSteps = document.querySelectorAll('#addProductModal .step');
@@ -609,11 +651,12 @@
             });
 
             nextBtn.addEventListener('click', function() {
+                try{
                 if (addCurrentStep < addTotalSteps) {
                     const currentInputs = addFormSteps[addCurrentStep - 1].querySelectorAll('input[required], select[required]');
                     let isValid = true;
                     currentInputs.forEach(input => {
-                        if (!input.value) {
+                        if (!input.value && input.closest('.form-step').style.display !== 'none') {
                             isValid = false;
                             input.classList.add('is-invalid');
                         } else {
@@ -625,6 +668,9 @@
                         updateAddSteps();
                     }
                 }
+                } catch (error) {
+        console.error('Error in nextBtn handler:', error);
+    }
             });
 
             submitBtn.addEventListener('click', function(e) {
@@ -636,37 +682,23 @@
                     headers: { 'X-CSRFToken': csrfToken },
                     credentials: 'same-origin'
                 })
-                .then(response => {
-                    if (response.ok) {
-                        return response.json().then(data => {
-                            if (data.success) {
-                                location.reload();
-                            } else {
-                                throw new Error('Unexpected response format');
-                            }
-                        });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
                     } else {
-                        return response.json().then(data => {
-                            let errorMessages = '';
-                            if (data.errors) {
-                                for (const [field, errors] of Object.entries(data.errors)) {
-                                    errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
-                                }
-                            } else {
-                                errorMessages = `<p>Server error: ${response.status} - ${response.statusText}</p>`;
-                            }
-                            addErrorDiv.innerHTML = errorMessages;
-                            addErrorDiv.style.display = 'block';
-                            throw new Error('Form submission failed');
-                        });
+                        let errorMessages = '';
+                        for (const [field, errors] of Object.entries(data.errors || {})) {
+                            errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
+                        }
+                        addErrorDiv.innerHTML = errorMessages || '<p>An error occurred.</p>';
+                        addErrorDiv.style.display = 'block';
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    if (!addErrorDiv.innerHTML) {
-                        addErrorDiv.innerHTML = '<p>An error occurred while adding the product. Please try again.</p>';
-                        addErrorDiv.style.display = 'block';
-                    }
+                    addErrorDiv.innerHTML = '<p>An error occurred while adding the product.</p>';
+                    addErrorDiv.style.display = 'block';
                 });
             });
 
@@ -678,6 +710,8 @@
             const editWeightInput = document.getElementById('edit_weight_per_bag_input');
             const editQuantityInput = document.getElementById('edit_quantity_in_stock');
             const editTotalWeightInput = document.getElementById('edit_weight_quantity_kg');
+            const editWeightPerBagContainer = document.getElementById('edit_weight_per_bag_container');
+            const editQuantityContainer = document.getElementById('edit_quantity_in_stock_container');
 
             function updateEditWeightField() {
                 const selectedCondition = editPackagingSelect.value;
@@ -687,8 +721,18 @@
                 editWeightSelect.innerHTML = '<option value="">Select weight</option>';
                 editWeightSelect.removeAttribute('required');
                 editWeightInput.removeAttribute('required');
+                editQuantityInput.removeAttribute('required');
+                editTotalWeightInput.setAttribute('readonly', 'readonly');
+                editQuantityContainer.style.display = 'block';
+                editWeightPerBagContainer.style.display = 'block';
 
-                if (Array.isArray(weights)) {
+                if (selectedCondition === "Bulk") {
+                    editQuantityContainer.style.display = 'none';
+                    editWeightPerBagContainer.style.display = 'none';
+                    editTotalWeightInput.removeAttribute('readonly');
+                    editTotalWeightInput.setAttribute('required', 'required');
+                    editQuantityInput.value = '';
+                } else if (Array.isArray(weights)) {
                     weights.forEach(weight => {
                         const option = document.createElement('option');
                         option.value = weight;
@@ -697,9 +741,13 @@
                     });
                     editWeightSelect.style.display = 'block';
                     editWeightSelect.setAttribute('required', 'required');
+                    editQuantityInput.setAttribute('required', 'required');
+                    updateEditTotalWeight();
                 } else if (weights === null) {
                     editWeightInput.style.display = 'block';
                     editWeightInput.setAttribute('required', 'required');
+                    editQuantityInput.setAttribute('required', 'required');
+                    updateEditTotalWeight();
                 } else {
                     const option = document.createElement('option');
                     option.value = weights;
@@ -708,18 +756,21 @@
                     editWeightSelect.appendChild(option);
                     editWeightSelect.style.display = 'block';
                     editWeightSelect.setAttribute('required', 'required');
+                    editQuantityInput.setAttribute('required', 'required');
+                    updateEditTotalWeight();
                 }
-                updateEditTotalWeight();
             }
 
             function updateEditTotalWeight() {
-                const weightPerBag = editWeightSelect.style.display === 'block' ? editWeightSelect.value : editWeightInput.value;
-                const quantity = editQuantityInput.value;
-                if (weightPerBag && quantity) {
-                    const totalWeightKg = parseFloat(weightPerBag) * parseInt(quantity);
-                    editTotalWeightInput.value = totalWeightKg.toFixed(2);
-                } else {
-                    editTotalWeightInput.value = '';
+                if (editPackagingSelect.value !== "Bulk") {
+                    const weightPerBag = editWeightSelect.style.display === 'block' ? editWeightSelect.value : editWeightInput.value;
+                    const quantity = editQuantityInput.value;
+                    if (weightPerBag && quantity) {
+                        const totalWeightKg = parseFloat(weightPerBag) * parseInt(quantity);
+                        editTotalWeightInput.value = totalWeightKg.toFixed(2);
+                    } else {
+                        editTotalWeightInput.value = '';
+                    }
                 }
             }
 
@@ -761,7 +812,7 @@
                     const currentInputs = editFormSteps[editCurrentStep - 1].querySelectorAll('input[required], select[required]');
                     let isValid = true;
                     currentInputs.forEach(input => {
-                        if (!input.value) {
+                        if (!input.value && input.closest('.form-step').style.display !== 'none' && input.style.display !== 'none') {
                             isValid = false;
                             input.classList.add('is-invalid');
                         } else {
@@ -784,37 +835,23 @@
                     headers: { 'X-CSRFToken': csrfToken },
                     credentials: 'same-origin'
                 })
-                .then(response => {
-                    if (response.ok) {
-                        return response.json().then(data => {
-                            if (data.success) {
-                                location.reload();
-                            } else {
-                                throw new Error('Unexpected response format');
-                            }
-                        });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
                     } else {
-                        return response.json().then(data => {
-                            let errorMessages = '';
-                            if (data.errors) {
-                                for (const [field, errors] of Object.entries(data.errors)) {
-                                    errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
-                                }
-                            } else {
-                                errorMessages = `<p>Server error: ${response.status} - ${response.statusText}</p>`;
-                            }
-                            editErrorDiv.innerHTML = errorMessages;
-                            editErrorDiv.style.display = 'block';
-                            throw new Error('Form submission failed');
-                        });
+                        let errorMessages = '';
+                        for (const [field, errors] of Object.entries(data.errors || {})) {
+                            errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
+                        }
+                        editErrorDiv.innerHTML = errorMessages || '<p>An error occurred.</p>';
+                        editErrorDiv.style.display = 'block';
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    if (!editErrorDiv.innerHTML) {
-                        editErrorDiv.innerHTML = '<p>An error occurred while updating the product. Please try again.</p>';
-                        editErrorDiv.style.display = 'block';
-                    }
+                    editErrorDiv.innerHTML = '<p>An error occurred while updating the product.</p>';
+                    editErrorDiv.style.display = 'block';
                 });
             });
 
@@ -858,37 +895,23 @@
                     headers: { 'X-CSRFToken': csrfToken },
                     credentials: 'same-origin'
                 })
-                .then(response => {
-                    if (response.ok) {
-                        return response.json().then(data => {
-                            if (data.success) {
-                                location.reload();
-                            } else {
-                                throw new Error('Unexpected response format');
-                            }
-                        });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
                     } else {
-                        return response.json().then(data => {
-                            let errorMessages = '';
-                            if (data.errors) {
-                                for (const [field, errors] of Object.entries(data.errors)) {
-                                    errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
-                                }
-                            } else {
-                                errorMessages = `<p>Server error: ${response.status} - ${response.statusText}</p>`;
-                            }
-                            errorDiv.innerHTML = errorMessages;
-                            errorDiv.style.display = 'block';
-                            throw new Error('Form submission failed');
-                        });
+                        let errorMessages = '';
+                        for (const [field, errors] of Object.entries(data.errors || {})) {
+                            errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
+                        }
+                        errorDiv.innerHTML = errorMessages || '<p>An error occurred.</p>';
+                        errorDiv.style.display = 'block';
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    if (!errorDiv.innerHTML) {
-                        errorDiv.innerHTML = '<p>An error occurred while taking out the product. Please try again.</p>';
-                        errorDiv.style.display = 'block';
-                    }
+                    errorDiv.innerHTML = '<p>An error occurred while taking out the product.</p>';
+                    errorDiv.style.display = 'block';
                 });
             }
         });
