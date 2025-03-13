@@ -2,14 +2,16 @@
 """
 Copyright (c) 2019 - present AppSeed.us
 """
+import json
+
 from django.http import JsonResponse
 # Create your views here.
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
 from .forms import LoginForm, SignUpForm
 from django.contrib.auth.decorators import login_required
-from .forms import CustomUserCreationForm,FarmerCreationForm
-from .models import CustomUser,Farmer
+from .forms import CustomUserCreationForm,FarmerCreationForm,ClientCreationForm
+from .models import CustomUser,Farmer,Client
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.models import Group
@@ -319,6 +321,65 @@ def farmer_list(request):
         'form': FarmerCreationForm(),
         'is_owner': is_owner
     })
+
+@login_required
+def client_list(request):
+    # Check if user is superuser or owner
+    is_owner = request.user.is_authenticated and not request.user.is_superuser and request.user.owner is None
+
+    # Handle POST requests for adding or deleting clients
+    if request.method == 'POST':
+        if 'add_client' in request.POST:
+            form = ClientCreationForm(request.POST)
+            if form.is_valid():
+                form.save(request)
+                return JsonResponse({'success': True})
+            else:
+                return JsonResponse({'errors': form.errors}, status=400)
+
+        elif 'delete_client' in request.POST:
+            client_id = request.POST.get('client_id')
+            try:
+                client = Client.objects.get(client_id=client_id)
+                if request.user.is_superuser or client.user.owner == request.user:
+                    client.user.delete()  # This will cascade to delete the client
+                    return JsonResponse({'success': True})
+                else:
+                    return JsonResponse({'errors': {'__all__': ['Permission denied']}}, status=403)
+            except Client.DoesNotExist:
+                return JsonResponse({'errors': {'__all__': ['Client not found']}}, status=404)
+
+    # Filter queryset based on user permissions
+    if request.user.is_superuser:
+        clients = Client.objects.all()
+    elif is_owner:
+        clients = Client.objects.filter(user__owner=request.user)
+    else:
+        clients = Client.objects.filter(user=request.user)
+
+    # Apply filters
+    filters = {}
+    for field in ['name', 'email', 'phone']:
+        value = request.GET.get(field)
+        if value:
+            filters[field] = value
+            clients = clients.filter(**{f"{field}__icontains": value})
+
+    # Pagination
+    paginator = Paginator(clients, 10)  # 10 clients per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Form for adding new client (not used directly in template due to modal/AJAX)
+    form = ClientCreationForm()
+
+    context = {
+        'page_obj': page_obj,
+        'filters': filters,
+        'is_owner': is_owner,
+        'form': form,  # Included for reference, though not rendered directly
+    }
+    return render(request, 'accounts/client_list.html', context)
 @login_required
 def edit_user(request):
     pass

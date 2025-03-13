@@ -7,5 +7,8 @@ from django.apps import AppConfig
 
 
 class AuthConfig(AppConfig):
-    name = 'apps.auth'
-    label = 'apps_auth'
+    name = 'apps.authentication'  # Full app name including 'apps' module
+    label = 'authentication'      # Unique label (can stay as is)
+
+    def ready(self):
+        from . import signals     # Imports signals.py from the same directory

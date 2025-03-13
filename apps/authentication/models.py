@@ -56,6 +56,7 @@ class CustomUser(AbstractUser):
         help_text="Upload a profile picture for the user."
     )
     is_farmer = models.BooleanField(default=False, help_text="Designates whether this user is a farmer")
+    is_client = models.BooleanField(default=False, help_text="Designates whether this user is a client")
 
     def save(self, *args, **kwargs):
         if not self.owner and not self.is_superuser:
@@ -64,10 +65,19 @@ class CustomUser(AbstractUser):
             # Assign the default image path
             self.profile_picture = 'profile_pictures/blank-profile-picture.png'
         super().save(*args, **kwargs)
+        # Handle farmer group
         if self.is_farmer:
-            customer_group, _ = Group.objects.get_or_create(name='customer')
-            self.groups.clear()  # Ensure no other groups are assigned
-            self.groups.add(customer_group)
+            farmer_group, _ = Group.objects.get_or_create(name='farmer')  # Updated to 'farmer'
+            self.groups.clear()
+            self.groups.add(farmer_group)
+
+        # Handle client group
+        if self.is_client:
+            client_group, _ = Group.objects.get_or_create(name='client')
+            self.groups.clear()
+            self.groups.add(client_group)
+
+        # Handle 'user' group (not related to farmer or client)
         if self.groups.filter(name='user').exists():
             self.warehouse_limit = 0
             self.user_limit = 0
@@ -113,3 +123,70 @@ class Farmer(models.Model):
     class Meta:
         verbose_name = 'Farmer'
         verbose_name_plural = 'Farmers'
+
+class Client(models.Model):
+    # Fields from the SQL table with translations
+    id_client = models.AutoField(primary_key=True, help_text="Unique auto-incremented ID for the client")
+    name = models.CharField(max_length=255, null=False, blank=False, help_text="User/company name")  # 'nom' -> 'name'
+    USER_TYPE_CHOICES = [
+        ('Producteur', 'Producer'),
+        ('Transformateur', 'Processor'),
+        ('Acheteur Local', 'Local Buyer'),
+        ('Acheteur Régional', 'Regional Buyer'),
+        ('Acheteur International', 'International Buyer'),
+    ]
+    user_type = models.CharField(  # 'type_utilisateur' -> 'user_type'
+        max_length=22,
+        choices=USER_TYPE_CHOICES,
+        null=False,
+        blank=False,
+        help_text="User role in ecosystem"
+    )
+    email = models.EmailField(max_length=255, unique=True, null=False, blank=False, help_text="Contact email")
+    phone = models.CharField(max_length=20, null=False, blank=False, help_text="Direct contact number")  # 'telephone' -> 'phone'
+    address = models.TextField(null=True, blank=True, help_text="Physical address/geolocation")  # 'adresse' -> 'address'
+    country = models.CharField(max_length=100, default='Senegal', help_text="Origin country for international buyers")  # 'pays' -> 'country', 'Sénégal' -> 'Senegal'
+    ACCOUNT_STATUS_CHOICES = [
+        ('Active', 'Active'),
+        ('Inactive', 'Inactive'),
+        ('Suspended', 'Suspended'),
+    ]
+    account_status = models.CharField(  # 'statut_compte' -> 'account_status'
+        max_length=10,
+        choices=ACCOUNT_STATUS_CHOICES,
+        default='Active',  # 'Actif' -> 'Active'
+        help_text="Account status"
+    )
+
+    # Essential fields from Farmer model (already in English, kept as is)
+    client_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, help_text="Unique UUID for the client")
+    user = models.OneToOneField(
+        settings.   AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='client_profile',
+        help_text="Associated user account"
+    )
+    notes = models.TextField(blank=True, null=True, help_text="Additional notes or comments about the client")
+    registration_date = models.DateField(null=True, blank=True, help_text="Date of Registration")
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = 'Client'
+        verbose_name_plural = 'Clients'
+        indexes = [
+            models.Index(fields=['user_type']),  # 'type_utilisateur' -> 'user_type'
+            models.Index(fields=['account_status']),  # 'statut_compte' -> 'account_status'
+        ]
+        db_table = 'client'
+        db_table_comment = 'Central registry for all platform actors'
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Ensure the associated user is marked as a client and assigned to the 'client' group
+        if self.user:
+            client_group, _ = Group.objects.get_or_create(name='client')
+            self.user.groups.clear()
+            self.user.groups.add(client_group)
+            self.user.save()
