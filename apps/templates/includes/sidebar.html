@@ -107,6 +107,12 @@
               <p>Farmers</p>
             </a>
            <li class="nav-item">
+            <li class="nav-item {% if 'page-user' in segment %} active {% endif %}">
+             <a class="nav-link" href="{% url 'client_list' %}">
+              <i class="material-icons">Customers</i>
+              <p>Customers</p>
+            </a>
+           <li class="nav-item">
           <li class="nav-item ">
             <a class="nav-link" href="{% url 'logout' %}" >
               <i class="material-icons">directions_run</i>

@@ -217,7 +217,11 @@ def warehouse_list(request):
 
             form = WarehouseForm(request.POST, instance=warehouse, user=request.user)
             if form.is_valid():
-                form.save()
+                warehouse = form.save(commit=False)
+                warehouse.save()
+
+                # Explicitly save ManyToMany relationships
+                form.save_m2m()
                 return JsonResponse({'success': f'Warehouse "{warehouse.name}" updated successfully'})
             else:
                 return HttpResponse(
@@ -277,9 +281,13 @@ def warehouse_list(request):
         warehouse = Warehouse.objects.get(slug=request.GET['slug'])
         form = WarehouseForm(instance=warehouse, user=request.user)
         return render(request, 'managment/warehouse_form_partial.html', {'form': form})
-
+    warehouses = queryset
+    for warehouse in warehouses:
+        warehouse.filtered_users = warehouse.users.filter(groups__name='user')
+        warehouse.filtered_clients = warehouse.users.filter(groups__name='client')
+        warehouse.filtered_farmers = warehouse.users.filter(groups__name='customer')
     context = {
-        'warehouses': queryset,
+        'warehouses': warehouses,
         'filters': {
             'name': name_query,
             'location': location_query,

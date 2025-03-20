@@ -36,6 +36,22 @@ class WarehouseForm(forms.ModelForm):
             'multiple': 'multiple',  # Ensure multiple selection
         })
     )
+    client = forms.ModelMultipleChoiceField(
+        queryset=CustomUser.objects.none(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-control select2-users',  # Add class for Select2
+            'multiple': 'multiple',  # Ensure multiple selection
+        })
+    )
+    farmer = forms.ModelMultipleChoiceField(
+        queryset=CustomUser.objects.none(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-control select2-users',  # Add class for Select2
+            'multiple': 'multiple',  # Ensure multiple selection
+        })
+    )
 
     class Meta:
         model = Warehouse
@@ -47,6 +63,8 @@ class WarehouseForm(forms.ModelForm):
             'available_space',
             'zone_layout',
             'users',
+            'client',  # Add client
+            'farmer',
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -56,6 +74,9 @@ class WarehouseForm(forms.ModelForm):
             'available_space': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'zone_layout': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             # 'users' is defined above with SelectMultiple
+            'users': forms.SelectMultiple(attrs={'class': 'form-control select2-users', 'multiple': 'multiple'}),
+            'client': forms.SelectMultiple(attrs={'class': 'form-control select2-users', 'multiple': 'multiple'}),
+            'farmer': forms.SelectMultiple(attrs={'class': 'form-control select2-users', 'multiple': 'multiple'}),
         }
         help_texts = {
             'name': 'Name of the warehouse',
@@ -72,15 +93,22 @@ class WarehouseForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # If this is an existing instance (editing a warehouse)
         if self.instance and self.instance.pk:
-            # Get the warehouse's owner
             warehouse_owner = self.instance.ownership if hasattr(self.instance, 'ownership') else None
             if warehouse_owner:
-                # Show only users with the same owner as the warehouse
-                self.fields['users'].queryset = CustomUser.objects.filter(owner=warehouse_owner)
-        # If this is a new instance (creating a warehouse)
+                base_qs = CustomUser.objects.filter(owner=warehouse_owner)
+                self.fields['users'].queryset = base_qs
+                self.fields['client'].queryset = base_qs.filter(is_client=True)
+                self.fields['farmer'].queryset = base_qs.filter(is_farmer=True)
+                # Set initial values from existing warehouse.users
+                current_users = self.instance.users.all()
+                self.fields['users'].initial = current_users
+                self.fields['client'].initial = current_users.filter(is_client=True)
+                self.fields['farmer'].initial = current_users.filter(is_farmer=True)
         elif user:
-            # For new warehouses, set creator and limit users to those owned by the current user
-            self.fields['users'].queryset = CustomUser.objects.filter(owner=user)
+            base_qs = CustomUser.objects.filter(owner=user)
+            self.fields['users'].queryset = base_qs
+            self.fields['client'].queryset = base_qs.filter(is_client=True)
+            self.fields['farmer'].queryset = base_qs.filter(is_farmer=True)
             self.instance.creator = user
 
     def clean(self):
@@ -96,8 +124,20 @@ class WarehouseForm(forms.ModelForm):
                     'total_capacity': "Total capacity must be greater than available space",
                     'available_space': "Available space cannot exceed total capacity"
                 })
+        users = cleaned_data.get('users', [])
+        clients = cleaned_data.get('client', [])
+        farmers = cleaned_data.get('farmer', [])
+        all_users = set(users) | set(clients) | set(farmers)  # Union of all selected users
+        cleaned_data['users'] = list(all_users)
         return cleaned_data
 
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if commit:
+            instance.save()
+            # Save the combined users list to the users field
+            self.instance.users.set(self.cleaned_data['users'])
+        return instance
 
 PACKAGING_CONDITIONS = {
     "Bidons hermétiques": None,
