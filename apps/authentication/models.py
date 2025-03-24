@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractUser,Group
 from django.db import models
 import os
 from core import settings
+from django.core.exceptions import ValidationError
 
 
 def user_profile_picture_path(instance, filename):
@@ -82,6 +83,10 @@ class CustomUser(AbstractUser):
             self.warehouse_limit = 0
             self.user_limit = 0
             super().save(*args, **kwargs)
+
+    def clean(self):
+        if self.is_farmer and self.is_client:
+            raise ValidationError("A user cannot be both farmer and client simultaneously")
 
     def can_create_warehouse(self, current_warehouse_count):
         if self.warehouse_limit is None:

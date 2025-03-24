@@ -108,8 +108,8 @@ class WarehouseAdmin(admin.ModelAdmin):
 class ProductAdmin(admin.ModelAdmin):
     # Fields to display in the list view
     list_display = (
-        'sku', 'barcode', 'product_name', 'product_type', 'quantity_in_stock',
-        'status', 'entry_date', 'expiration_date', 'warehouse', 'farmer'
+        'sku', 'barcode','warehouse', 'product_name', 'product_type', 'quantity_in_stock',
+        'status', 'entry_date', 'expiration_date', 'farmer'
     )
 
     # Fields to filter by in the sidebar

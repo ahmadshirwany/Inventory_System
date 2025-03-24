@@ -159,7 +159,7 @@ def create_warehouse(request):
     current_count = request.user.owned_warehouses.count()
     warehouse_limit = request.user.warehouse_limit
 
-    if current_count >= warehouse_limit:
+    if warehouse_limit is None or current_count >= warehouse_limit:
         return render(
             request,
             "home/page-403.html",

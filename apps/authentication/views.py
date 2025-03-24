@@ -76,7 +76,7 @@ def user_profile(request):
         # Check if this is a profile picture update
         elif 'profile_picture' in request.FILES:
             try:
-                profile = CustomUser.objects.get_or_create(user=request.user)[0]
+                profile = CustomUser.objects.filter(id=request.user.id).first()
                 profile.profile_picture = request.FILES['profile_picture']
                 profile.save()
                 messages.success(request, "Profile picture updated successfully!")
@@ -123,7 +123,7 @@ def create_user(request):
         current_count = request.user.owned_users.count()
         user_limit = request.user.user_limit
 
-        if current_count >= user_limit:
+        if user_limit is None or current_count >= user_limit:
             return render(
                 request,
                 "home/page-403.html",
@@ -325,7 +325,7 @@ def farmer_list(request):
 @login_required
 def client_list(request):
     # Check if user is superuser or owner
-    is_owner = request.user.is_authenticated and not request.user.is_superuser and request.user.owner is None
+    is_owner = request.user.groups.filter(name='owner').exists()
 
     # Handle POST requests for adding or deleting clients
     if request.method == 'POST':
