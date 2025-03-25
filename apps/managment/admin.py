@@ -1,12 +1,9 @@
-from .models import Warehouse
-import datetime
 from django.contrib import admin
-from .models import Product, get_product_metadata, refresh_product_metadata
-
+from .models import Warehouse, Product, ItemRequest, get_product_metadata, refresh_product_metadata
+import datetime
 
 @admin.register(Warehouse)
 class WarehouseAdmin(admin.ModelAdmin):
-    # Fields to display in the list view of the admin interface
     list_display = (
         'name',
         'ownership',
@@ -17,28 +14,20 @@ class WarehouseAdmin(admin.ModelAdmin):
         'utilization_rate',
         'slug',
     )
-
-    # Add filters to the right sidebar in the admin interface
     list_filter = (
         'type',
         'ownership',
         'location',
     )
-
-    # Add search functionality to the admin interface
     search_fields = (
         'name',
         'location',
-        'ownership__username',  # Assuming ownership is a User model with a username field
+        'ownership__username',
         'slug'
     )
-
-    # Specify fields that can be edited directly from the list view
     list_editable = (
         'available_space',
     )
-
-    # Fields to display in the form when editing or creating a warehouse
     fieldsets = (
         ('Warehouse Details', {
             'fields': (
@@ -63,19 +52,15 @@ class WarehouseAdmin(admin.ModelAdmin):
             ),
         }),
     )
-
-    # Read-only fields that cannot be edited directly
     readonly_fields = (
         'utilization_rate',
         'slug'
     )
 
-    # Override the save_model method to ensure proper handling of the subscription plan limit
     def save_model(self, request, obj, form, change):
-        if not change:  # If this is a new warehouse being created
+        if not change:
             user = obj.ownership
             subscription_plan = getattr(user, 'subscription_plan', None)
-
             if subscription_plan == 'basic' and user.owned_warehouses.count() >= 3:
                 self.message_user(request, "Basic plan users can only create up to 3 warehouses.", level='error')
                 return
@@ -85,10 +70,8 @@ class WarehouseAdmin(admin.ModelAdmin):
             elif subscription_plan == 'premium' and user.owned_warehouses.count() >= 10:
                 self.message_user(request, "Premium plan users can only create up to 10 warehouses.", level='error')
                 return
-
         super().save_model(request, obj, form, change)
 
-    # Custom action to update available space for selected warehouses
     def update_available_space(self, request, queryset):
         updated_count = 0
         for warehouse in queryset:
@@ -100,35 +83,23 @@ class WarehouseAdmin(admin.ModelAdmin):
         self.message_user(request, f"Successfully updated available space for {updated_count} warehouses.")
 
     update_available_space.short_description = "Update Available Space and Utilization Rate"
-
-    # Register the custom action
     actions = [update_available_space]
 
 
+@admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    # Fields to display in the list view
     list_display = (
-        'sku', 'barcode','warehouse', 'product_name', 'product_type', 'quantity_in_stock',
+        'sku', 'barcode', 'warehouse', 'product_name', 'product_type', 'quantity_in_stock',
         'status', 'entry_date', 'expiration_date', 'farmer'
     )
-
-    # Fields to filter by in the sidebar
     list_filter = (
         'product_type', 'status', 'warehouse', 'farmer',
         ('entry_date', admin.DateFieldListFilter),
         ('expiration_date', admin.DateFieldListFilter),
     )
-
-    # Fields to search
     search_fields = ('sku', 'barcode', 'product_name', 'lot_number', 'supplier_code')
-
-    # Default ordering
     ordering = ('-entry_date',)
-
-    # Fields to make read-only (e.g., auto-generated or calculated fields)
     readonly_fields = ('lot_number', 'total_value', 'entry_date')
-
-    # Fieldsets to organize the edit form
     fieldsets = (
         ('Identification', {
             'fields': ('sku', 'barcode', 'lot_number', 'product_name')
@@ -144,7 +115,7 @@ class ProductAdmin(admin.ModelAdmin):
         }),
         ('Storage Conditions', {
             'fields': (
-            'packaging_condition', 'humidity_rate', 'storage_temperature', 'co2', 'o2', 'n2', 'ethylene_management')
+                'packaging_condition', 'humidity_rate', 'storage_temperature', 'co2', 'o2', 'n2', 'ethylene_management')
         }),
         ('Status and Relationships', {
             'fields': ('status', 'warehouse', 'farmer')
@@ -153,15 +124,9 @@ class ProductAdmin(admin.ModelAdmin):
             'fields': ('quality_standards', 'nutritional_info', 'regulatory_codes', 'notes_comments')
         }),
     )
-
-    # Prepopulate fields (if slug or similar is needed, though not applicable here)
-    # prepopulated_fields = {}
-
-    # Actions for bulk operations
     actions = ['mark_as_expired', 'mark_as_out_of_stock']
 
     def mark_as_expired(self, request, queryset):
-        """Mark selected products as expired and set expiration date to today if not set."""
         today = datetime.datetime.now().date()
         updated = queryset.filter(expiration_date__isnull=True).update(
             status='Expired',
@@ -172,19 +137,16 @@ class ProductAdmin(admin.ModelAdmin):
     mark_as_expired.short_description = "Mark selected products as expired"
 
     def mark_as_out_of_stock(self, request, queryset):
-        """Mark selected products as out of stock and set exit date to today."""
         today = datetime.datetime.now().date()
         updated = queryset.update(status='Out of Stock', exit_date=today, quantity_in_stock=0)
         self.message_user(request, f"{updated} products marked as out of stock.")
 
     mark_as_out_of_stock.short_description = "Mark selected products as out of stock"
 
-    # Customize the queryset to improve performance or add logic
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.select_related('warehouse', 'farmer')  # Optimize queries for foreign keys
+        return qs.select_related('warehouse', 'farmer')
 
-    # Optionally, customize form field display (e.g., for large text fields)
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
         form.base_fields['notes_comments'].widget.attrs['rows'] = 4
@@ -193,5 +155,86 @@ class ProductAdmin(admin.ModelAdmin):
         return form
 
 
-# Register the model with the admin site
-admin.site.register(Product, ProductAdmin)
+@admin.register(ItemRequest)
+class ItemRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'warehouse', 'client', 'product_name', 'quantity_requested',
+        'weight_requested_kg', 'status', 'request_date', 'approval_date', 'completion_date'
+    )
+    list_filter = (
+        'status',
+        'warehouse',
+        'client',
+        ('request_date', admin.DateFieldListFilter),
+        ('approval_date', admin.DateFieldListFilter),
+        ('completion_date', admin.DateFieldListFilter),
+    )
+    search_fields = (
+        'product_name',
+        'client__username',
+        'warehouse__name'
+    )
+    ordering = ('-request_date',)
+    readonly_fields = (
+        'request_date',
+        'approval_date',
+        'completion_date'
+    )
+    fieldsets = (
+        ('Request Details', {
+            'fields': (
+                'warehouse',
+                'client',
+                'product_name',
+                'quantity_requested',
+                'weight_requested_kg',
+                'status'
+            )
+        }),
+        ('Dates', {
+            'fields': (
+                'request_date',
+                'approval_date',
+                'completion_date'
+            )
+        }),
+        ('Additional Information', {
+            'fields': ('notes',)
+        }),
+    )
+    actions = ['approve_requests', 'reject_requests', 'complete_requests']
+
+    def approve_requests(self, request, queryset):
+        updated = queryset.filter(status='PENDING').update(
+            status='APPROVED',
+            approval_date=datetime.datetime.now()
+        )
+        self.message_user(request, f"{updated} requests approved.")
+
+    approve_requests.short_description = "Approve selected requests"
+
+    def reject_requests(self, request, queryset):
+        updated = queryset.filter(status__in=['PENDING', 'APPROVED']).update(status='REJECTED')
+        self.message_user(request, f"{updated} requests rejected.")
+
+    reject_requests.short_description = "Reject selected requests"
+
+    def complete_requests(self, request, queryset):
+        updated = 0
+        for item_request in queryset.filter(status='APPROVED'):
+            item_request.status = 'COMPLETED'
+            item_request.completion_date = datetime.datetime.now()
+            item_request.save()  # Triggers process_completion() in the model
+            updated += 1
+        self.message_user(request, f"{updated} requests completed.")
+
+    complete_requests.short_description = "Complete selected requests"
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related('warehouse', 'client')
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields['notes'].widget.attrs['rows'] = 4
+        return form

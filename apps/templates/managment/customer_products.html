@@ -8,6 +8,7 @@
         .filter-row { margin-bottom: 10px; }
         .collapse.show { display: block; }
         .table-hover tr:hover { cursor: pointer; }
+        .header-buttons { float: right; margin-top: -40px; }
         .table-responsive { overflow-x: auto; }
         .table th, .table td { white-space: nowrap; padding: 8px; }
         .pagination { margin-top: 20px; justify-content: center; }
@@ -20,9 +21,16 @@
             <div class="card card-plain">
                 <div class="card-header card-header-primary">
                     <h4 class="card-title mt-0">Products in {{ warehouse.name }}</h4>
+                    <div class="header-buttons">
+                         <!-- General Request Item Button -->
+                    <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#requestItemModal">
+                        <i class="fa fa-plus"></i> Request Item
+                    </button>
+                        </div>
                     <p class="card-category">Inventory details for {{ warehouse.location }} ({{ warehouse.type }})</p>
                 </div>
                 <div class="card-body">
+
                     <!-- Filter Section -->
                     <button class="btn btn-secondary mb-3" type="button" data-toggle="collapse" data-target="#filterPanel" aria-expanded="false" aria-controls="filterPanel">
                         <i class="fa fa-filter"></i> Filters
@@ -150,6 +158,53 @@
             </div>
         </div>
     </div>
+
+    <!-- General Request Item Modal -->
+    <div class="modal fade" id="requestItemModal" tabindex="-1" aria-labelledby="requestItemModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="requestItemModalLabel">Request Item</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger error-messages" id="requestErrors" style="display: none;"></div>
+                    <form method="POST" id="requestForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="request_item" value="1">
+                        <div class="mb-3">
+                            <label for="product_name" class="form-label">Select Product</label>
+                            <select class="form-control" id="product_name" name="product_name" onchange="updateRequestLimits()">
+                                <option value="">-- Select a Product --</option>
+                                {% for product_name, totals in available_products.items %}
+                                    <option value="{{ product_name }}" data-quantity="{{ totals.total_quantity }}" data-weight="{{ totals.total_weight_kg }}">
+                                        {{ product_name }} (Qty: {{ totals.total_quantity }}, Weight: {{ totals.total_weight_kg }} kg)
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="quantity_requested" class="form-label">Quantity Requested</label>
+                            <input type="number" class="form-control" id="quantity_requested" name="quantity_requested" min="0" placeholder="Enter quantity (optional)" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label for="weight_requested" class="form-label">Weight Requested (kg)</label>
+                            <input type="number" class="form-control" id="weight_requested" name="weight_requested_kg" min="0" step="0.01" placeholder="Enter weight in kg (optional)" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Additional notes (optional)"></textarea>
+                        </div>
+                        <small class="text-muted">Specify at least one of quantity or weight.</small>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="submitRequestForm()">Submit Request</button>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock content %}
 
 {% block javascripts %}
@@ -157,6 +212,109 @@
     <script>
         function clearFilters() {
             window.location.href = "{% url 'warehouse_detail_customer' warehouse.slug %}";
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function updateRequestLimits() {
+            const select = document.getElementById('product_name');
+            const selectedOption = select.options[select.selectedIndex];
+            const quantityInput = document.getElementById('quantity_requested');
+            const weightInput = document.getElementById('weight_requested');
+
+            if (selectedOption.value === '') {
+                quantityInput.disabled = true;
+                weightInput.disabled = true;
+                quantityInput.value = '';
+                weightInput.value = '';
+                quantityInput.max = 0;
+                weightInput.max = 0;
+            } else {
+                const maxQuantity = parseInt(selectedOption.getAttribute('data-quantity')) || 0;
+                const maxWeight = parseFloat(selectedOption.getAttribute('data-weight')) || 0;
+                quantityInput.disabled = false;
+                weightInput.disabled = false;
+                quantityInput.max = maxQuantity;
+                weightInput.max = maxWeight;
+                quantityInput.placeholder = `Enter quantity (Max: ${maxQuantity})`;
+                weightInput.placeholder = `Enter weight in kg (Max: ${maxWeight})`;
+            }
+        }
+
+        function submitRequestForm() {
+            const form = document.getElementById('requestForm');
+            const errorDiv = document.getElementById('requestErrors');
+            const productSelect = document.getElementById('product_name');
+            const quantityInput = document.getElementById('quantity_requested');
+            const weightInput = document.getElementById('weight_requested');
+            const csrfToken = getCookie('csrftoken');
+
+            const productName = productSelect.value;
+            const quantityRequested = parseInt(quantityInput.value) || 0;
+            const weightRequested = parseFloat(weightInput.value) || 0;
+
+            if (!productName) {
+                errorDiv.innerHTML = '<p>Please select a product.</p>';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (quantityRequested <= 0 && weightRequested <= 0) {
+                errorDiv.innerHTML = '<p>Please specify at least one of Quantity or Weight (kg).</p>';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (quantityRequested > parseInt(quantityInput.max)) {
+                errorDiv.innerHTML = `<p>Quantity cannot exceed ${quantityInput.max}.</p>`;
+                errorDiv.style.display = 'block';
+                return;
+            }
+            if (weightRequested > parseFloat(weightInput.max)) {
+                errorDiv.innerHTML = `<p>Weight (kg) cannot exceed ${weightInput.max}.</p>`;
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            const formData = new FormData(form);
+            fetch("{% url 'warehouse_detail_customer' warehouse.slug %}", {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': csrfToken },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Request submitted successfully!');
+                    location.reload();
+                } else {
+                    let errorMessages = '';
+                    for (const [field, errors] of Object.entries(data.errors || {})) {
+                        errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
+                    }
+                    errorDiv.innerHTML = errorMessages || '<p>An error occurred.</p>';
+                    errorDiv.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                errorDiv.innerHTML = '<p>An error occurred while submitting the request.</p>';
+                errorDiv.style.display = 'block';
+            });
         }
     </script>
 {% endblock javascripts %}

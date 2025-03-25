@@ -28,7 +28,7 @@
             <div class="card card-plain">
                 <div class="card-header card-header-primary">
                     <h4 class="card-title mt-0">Products in {{ warehouse.name }}</h4>
-                    {% if request.user.is_superuser or is_owner %}
+                    {% if request.user.is_superuser or is_owner or is_user%}
                         <div class="header-buttons">
                             <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#addProductModal">
                                 <i class="fa fa-plus"></i> Add New Product
@@ -178,7 +178,7 @@
     </div>
 
     <!-- Add Product Modal -->
-    {% if request.user.is_superuser or is_owner %}
+    {% if request.user.is_superuser or is_owner or is_user %}
     <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">

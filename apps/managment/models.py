@@ -562,179 +562,101 @@ class ProductLog(models.Model):
         verbose_name = "Product Log"
         verbose_name_plural = "Product Logs"
         ordering = ['-timestamp']
-#
-#
-# class ItemRequest(models.Model):
-#     STATUS_CHOICES = [
-#         ('PENDING', 'Pending'),
-#         ('APPROVED', 'Approved'),
-#         ('REJECTED', 'Rejected'),
-#         ('COMPLETED', 'Completed'),
-#         ('CANCELLED', 'Cancelled'),
-#     ]
-#
-#     warehouse = models.ForeignKey(
-#         'Warehouse',
-#         on_delete=models.CASCADE,
-#         related_name='item_requests',
-#         help_text="Warehouse where the items are stored"
-#     )
-#
-#     client = models.ForeignKey(
-#         CustomUser,
-#         on_delete=models.CASCADE,
-#         related_name='item_requests',
-#         limit_choices_to={'is_client': True},
-#         help_text="Client making the request"
-#     )
-#
-#     product_name = models.CharField(
-#         max_length=255,
-#         help_text="Name of the requested product",
-#         db_index=True
-#     )
-#
-#     quantity_requested = models.PositiveIntegerField(
-#         help_text="Number of units requested",
-#         null=True,
-#         blank=True
-#     )
-#
-#     weight_requested_kg = models.DecimalField(
-#         max_digits=12,
-#         decimal_places=2,
-#         help_text="Weight requested in kilograms",
-#         null=True,
-#         blank=True
-#     )
-#
-#     status = models.CharField(
-#         max_length=20,
-#         choices=STATUS_CHOICES,
-#         default='PENDING',
-#         help_text="Current status of the request"
-#     )
-#
-#     request_date = models.DateTimeField(
-#         default=timezone.now,
-#         help_text="Date and time when request was made"
-#     )
-#
-#     approval_date = models.DateTimeField(
-#         null=True,
-#         blank=True,
-#         help_text="Date and time when request was approved"
-#     )
-#
-#     completion_date = models.DateTimeField(
-#         null=True,
-#         blank=True,
-#         help_text="Date and time when request was completed"
-#     )
-#
-#     notes = models.TextField(
-#         blank=True,
-#         null=True,
-#         help_text="Additional notes about the request"
-#     )
-#
-#     def clean(self):
-#         # Ensure client has access to warehouse
-#         if self.client not in self.warehouse.users.all():
-#             raise ValidationError("Client does not have access to this warehouse")
-#
-#         # Ensure at least one of quantity or weight is specified
-#         if not self.quantity_requested and not self.weight_requested_kg:
-#             raise ValidationError("Must specify either quantity or weight requested")
-#
-#         # Check if product exists in warehouse
-#         available_products = Product.objects.filter(
-#             warehouse=self.warehouse,
-#             product_name=self.product_name,
-#             status='In Stock'
-#         )
-#         if not available_products.exists():
-#             raise ValidationError(f"Product '{self.product_name}' is not available in this warehouse")
-#
-#         # Check total available quantity/weight
-#         total_quantity = sum(p.quantity_in_stock or 0 for p in available_products)
-#         total_weight = sum(p.weight_quantity_kg or 0 for p in available_products)
-#
-#         if self.quantity_requested and self.quantity_requested > total_quantity:
-#             raise ValidationError(
-#                 f"Requested quantity ({self.quantity_requested}) exceeds available stock ({total_quantity})")
-#
-#         if self.weight_requested_kg and self.weight_requested_kg > total_weight:
-#             raise ValidationError(
-#                 f"Requested weight ({self.weight_requested_kg} kg) exceeds available weight ({total_weight} kg)")
-#
-#     def save(self, *args, **kwargs):
-#         if self.status == 'APPROVED' and not self.approval_date:
-#             self.approval_date = timezone.now()
-#         elif self.status == 'COMPLETED' and not self.completion_date:
-#             self.completion_date = timezone.now()
-#
-#         super().save(*args, **kwargs)
-#
-#         if self.status == 'COMPLETED':
-#             self.process_completion()
-#
-#     def process_completion(self):
-#         """Distribute the request across available products with the same name"""
-#         products = Product.objects.filter(
-#             warehouse=self.warehouse,
-#             product_name=self.product_name,
-#             status='In Stock'
-#         ).order_by('-entry_date')  # Process newer products first
-#
-#         remaining_quantity = self.quantity_requested or 0
-#         remaining_weight = self.weight_requested_kg or decimal.Decimal('0')
-#
-#         for product in products:
-#             if remaining_quantity <= 0 and remaining_weight <= 0:
-#                 break
-#
-#             # Calculate weight per unit if available
-#             weight_per_unit = None
-#             if product.quantity_in_stock and product.weight_quantity_kg:
-#                 weight_per_unit = float(product.weight_quantity_kg) / product.quantity_in_stock
-#
-#             # Handle quantity
-#             if remaining_quantity > 0:
-#                 quantity_to_take = min(remaining_quantity, product.quantity_in_stock or 0)
-#                 if quantity_to_take > 0:
-#                     product.quantity_in_stock -= quantity_to_take
-#                     remaining_quantity -= quantity_to_take
-#                     if weight_per_unit and product.weight_quantity_kg:
-#                         proportional_weight = decimal.Decimal(str(quantity_to_take * weight_per_unit))
-#                         product.weight_quantity_kg -= min(proportional_weight, product.weight_quantity_kg)
-#
-#             # Handle weight
-#             if remaining_weight > 0:
-#                 weight_to_take = min(remaining_weight, product.weight_quantity_kg or 0)
-#                 if weight_to_take > 0:
-#                     product.weight_quantity_kg -= weight_to_take
-#                     remaining_weight -= weight_to_take
-#                     if weight_per_unit and product.quantity_in_stock > 0:
-#                         proportional_quantity = int(float(weight_to_take) / weight_per_unit)
-#                         product.quantity_in_stock -= min(proportional_quantity, product.quantity_in_stock)
-#
-#             # Update product status and values
-#             product.quantity_in_stock = max(0, product.quantity_in_stock)
-#             product.weight_quantity_kg = max(0, product.weight_quantity_kg)
-#             product.weight_quantity = product.weight_quantity_kg * 1000
-#             product.total_value = product.unit_price * (product.quantity_in_stock or 0)
-#
-#             if product.quantity_in_stock == 0 or product.weight_quantity_kg == 0:
-#                 product.status = 'Out of Stock'
-#                 product.exit_date = timezone.now().date()
-#
-#             product.save()
-#
-#     def __str__(self):
-#         return f"Request {self.id} - {self.product_name} by {self.client}"
-#
-#     class Meta:
-#         verbose_name = "Item Request"
-#         verbose_name_plural = "Item Requests"
-#         ordering = ['-request_date']
+class ItemRequest(models.Model):
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
+        ('COMPLETED', 'Completed'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+
+    warehouse = models.ForeignKey(
+        'Warehouse',
+        on_delete=models.CASCADE,
+        related_name='item_requests',
+        help_text="Warehouse where the items are stored"
+    )
+    client = models.ForeignKey(
+        'authentication.CustomUser',
+        on_delete=models.CASCADE,
+        related_name='item_requests',
+        limit_choices_to={'is_client': True},
+        help_text="Client making the request"
+    )
+    product_name = models.CharField(
+        max_length=255,
+        help_text="Name of the requested product",
+        db_index=True
+    )
+    quantity_requested = models.PositiveIntegerField(
+        help_text="Number of units requested",
+        null=True,
+        blank=True
+    )
+    weight_requested_kg = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        help_text="Weight requested in kilograms",
+        null=True,
+        blank=True
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='PENDING',
+        help_text="Current status of the request"
+    )
+    request_date = models.DateTimeField(
+        default=timezone.now,
+        help_text="Date and time when request was made"
+    )
+    approval_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Date and time when request was approved"
+    )
+    completion_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Date and time when request was completed"
+    )
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Additional notes about the request"
+    )
+
+    def clean(self):
+        if self.client not in self.warehouse.users.all():
+            raise ValidationError("Client does not have access to this warehouse")
+        if not self.quantity_requested and not self.weight_requested_kg:
+            raise ValidationError("Must specify either quantity or weight requested")
+        available_products = Product.objects.filter(
+            warehouse=self.warehouse,
+            product_name=self.product_name,
+            status='In Stock'
+        )
+        if not available_products.exists():
+            raise ValidationError(f"Product '{self.product_name}' is not available in this warehouse")
+        total_quantity = sum(p.quantity_in_stock or 0 for p in available_products)
+        total_weight = sum(p.weight_quantity_kg or 0 for p in available_products)
+        if self.quantity_requested and self.quantity_requested > total_quantity:
+            raise ValidationError(f"Requested quantity ({self.quantity_requested}) exceeds available stock ({total_quantity})")
+        if self.weight_requested_kg and self.weight_requested_kg > total_weight:
+            raise ValidationError(f"Requested weight ({self.weight_requested_kg} kg) exceeds available weight ({total_weight} kg)")
+
+    def save(self, *args, **kwargs):
+        if self.status == 'APPROVED' and not self.approval_date:
+            self.approval_date = timezone.now()
+        elif self.status == 'COMPLETED' and not self.completion_date:
+            self.completion_date = timezone.now()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Request {self.id} - {self.product_name} by {self.client}"
+
+    class Meta:
+        verbose_name = "Item Request"
+        verbose_name_plural = "Item Requests"
+        ordering = ['-request_date']

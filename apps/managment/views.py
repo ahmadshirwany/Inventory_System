@@ -1,7 +1,5 @@
 import decimal
 import json
-from decimal import Decimal
-
 from django.contrib.auth import update_session_auth_hash
 from django.shortcuts import render, redirect, get_object_or_404
 from django import template
@@ -10,7 +8,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.template import loader
 from django.urls import reverse
 from django.contrib.auth.forms import PasswordChangeForm
-from .models import Warehouse,Product
+from .models import Warehouse,Product,ItemRequest
 from django.db.models import Q
 from .forms import WarehouseForm, ProductForm
 from django.utils import timezone
@@ -21,6 +19,7 @@ from django.http import JsonResponse
 from django.contrib import messages
 from django.db import transaction
 from .models import get_product_metadata
+from django.db.models import Sum
 
 @login_required
 def update_password(request):
@@ -456,37 +455,19 @@ def warehouse_detail(request, slug):
         'form': ProductForm(warehouse=warehouse),
         'filters': filters,
         'is_owner': request.user.groups.filter(name='owner').exists(),
+        'is_user': request.user.groups.filter(name='user').exists(),
         'product_metadata': json.dumps(metadata),
     })
 
 @login_required
 def warehouse_detail_customer(request, slug):
-    # Restrict access to customers only
-    if not request.user.is_client:
-        return render(
-            request,
-            "home/page-403.html",
-            {
-                'is_owner': request.user.groups.filter(name='owner').exists(),
-                "message": "Access Denied: This page is for customers only."
-            },
-            status=403
-        )
+    if not request.user.groups.filter(name='client').exists():
+        return render(request, "home/page-403.html", {"message": "Access Denied: This page is for customers only."}, status=403)
 
-    # Get warehouse, ensuring the customer has access
     warehouse = get_object_or_404(Warehouse, slug=slug)
     if request.user not in warehouse.users.all():
-        return render(
-            request,
-            "home/page-403.html",
-            {
-                'is_owner': request.user.groups.filter(name='owner').exists(),
-                "message": "Access Denied: You do not have permission to view this warehouse."
-            },
-            status=403
-        )
+        return render(request, "home/page-403.html", {"message": "Access Denied: You do not have permission to view this warehouse."}, status=403)
 
-    # Filter products
     products = Product.objects.filter(warehouse=warehouse)
     filters = {
         'sku': request.GET.get('sku', ''),
@@ -512,9 +493,49 @@ def warehouse_detail_customer(request, slug):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
+    # Calculate total available quantities per product name for "In Stock" items
+    available_products = Product.objects.filter(
+        warehouse=warehouse,
+        status='In Stock'
+    ).values('product_name').annotate(
+        total_quantity=Sum('quantity_in_stock'),
+        total_weight_kg=Sum('weight_quantity_kg')
+    ).order_by('product_name')
+
+    available_products_dict = {
+        item['product_name']: {
+            'total_quantity': item['total_quantity'] or 0,
+            'total_weight_kg': float(item['total_weight_kg']) if item['total_weight_kg'] else 0
+        } for item in available_products
+    }
+
+    if request.method == 'POST' and request.POST.get('request_item'):
+        product_name = request.POST.get('product_name')
+        quantity_requested = request.POST.get('quantity_requested', '') or None
+        weight_requested_kg = request.POST.get('weight_requested_kg', '') or None
+        notes = request.POST.get('notes', '')
+
+        try:
+            item_request = ItemRequest(
+                warehouse=warehouse,
+                client=request.user,
+                product_name=product_name,
+                quantity_requested=int(quantity_requested) if quantity_requested else None,
+                weight_requested_kg=float(weight_requested_kg) if weight_requested_kg else None,
+                notes=notes
+            )
+            item_request.full_clean()  # Validate against total available stock
+            item_request.save()
+            return JsonResponse({'success': True})
+        except ValidationError as e:
+            return JsonResponse({'success': False, 'errors': e.message_dict}, status=400)
+        except Exception as e:
+            return JsonResponse({'success': False, 'errors': {'general': [str(e)]}}, status=500)
+
     return render(request, 'managment/customer_products.html', {
         'warehouse': warehouse,
         'page_obj': page_obj,
         'filters': filters,
         'is_customer': True,
+        'available_products': available_products_dict,
     })
