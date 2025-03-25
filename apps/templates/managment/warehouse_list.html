@@ -122,7 +122,8 @@
                                 </thead>
                                 <tbody>
                                     {% for warehouse in warehouses %}
-                                    <tr data-slug="{{ warehouse.slug }}" onclick="window.location.href='{% url 'warehouse_detail' warehouse.slug %}'">
+
+                                  <tr data-slug="{{ warehouse.slug }}" onclick="window.location.href='{% if is_client %}{% url 'warehouse_detail_customer' warehouse.slug %}{% else %}{% url 'warehouse_detail' warehouse.slug %}{% endif %}'">
                                         <td>{{ warehouse.name }}</td>
                                         <td>{{ warehouse.type }}</td>
                                         <td>{{ warehouse.location }}</td>

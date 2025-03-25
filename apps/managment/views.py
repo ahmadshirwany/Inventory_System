@@ -298,6 +298,7 @@ def warehouse_list(request):
         'total_count': queryset.count(),
         'user_limit': request.user.user_limit,
         'current_user_count': request.user.owned_users.count() if not request.user.is_superuser else CustomUser.objects.count(),
+        'is_client': request.user.is_client
     }
     return render(request, 'managment/warehouse_list.html', context)
 
@@ -456,4 +457,64 @@ def warehouse_detail(request, slug):
         'filters': filters,
         'is_owner': request.user.groups.filter(name='owner').exists(),
         'product_metadata': json.dumps(metadata),
+    })
+
+@login_required
+def warehouse_detail_customer(request, slug):
+    # Restrict access to customers only
+    if not request.user.is_client:
+        return render(
+            request,
+            "home/page-403.html",
+            {
+                'is_owner': request.user.groups.filter(name='owner').exists(),
+                "message": "Access Denied: This page is for customers only."
+            },
+            status=403
+        )
+
+    # Get warehouse, ensuring the customer has access
+    warehouse = get_object_or_404(Warehouse, slug=slug)
+    if request.user not in warehouse.users.all():
+        return render(
+            request,
+            "home/page-403.html",
+            {
+                'is_owner': request.user.groups.filter(name='owner').exists(),
+                "message": "Access Denied: You do not have permission to view this warehouse."
+            },
+            status=403
+        )
+
+    # Filter products
+    products = Product.objects.filter(warehouse=warehouse)
+    filters = {
+        'sku': request.GET.get('sku', ''),
+        'barcode': request.GET.get('barcode', ''),
+        'product_name': request.GET.get('product_name', ''),
+        'product_type': request.GET.get('product_type', ''),
+        'status': request.GET.get('status', ''),
+    }
+
+    if filters['sku']:
+        products = products.filter(sku__icontains=filters['sku'])
+    if filters['barcode']:
+        products = products.filter(barcode__icontains=filters['barcode'])
+    if filters['product_name']:
+        products = products.filter(product_name__icontains=filters['product_name'])
+    if filters['product_type']:
+        products = products.filter(product_type=filters['product_type'])
+    if filters['status']:
+        products = products.filter(status=filters['status'])
+
+    products = products.order_by('entry_date')
+    paginator = Paginator(products, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'managment/customer_products.html', {
+        'warehouse': warehouse,
+        'page_obj': page_obj,
+        'filters': filters,
+        'is_customer': True,
     })

@@ -28,11 +28,13 @@
             <div class="card card-plain">
                 <div class="card-header card-header-primary">
                     <h4 class="card-title mt-0">Products in {{ warehouse.name }}</h4>
-                    <div class="header-buttons">
-                        <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#addProductModal">
-                            <i class="fa fa-plus"></i> Add New Product
-                        </button>
-                    </div>
+                    {% if request.user.is_superuser or is_owner %}
+                        <div class="header-buttons">
+                            <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                                <i class="fa fa-plus"></i> Add New Product
+                            </button>
+                        </div>
+                    {% endif %}
                     <p class="card-category">Inventory details for {{ warehouse.location }} ({{ warehouse.type }})</p>
                 </div>
                 <div class="card-body">
@@ -150,7 +152,7 @@
                                             <td>{{ product.notes_comments|default:"N/A"|truncatewords:10 }}</td>
                                             <td>{{ product.farmer.username|default:"N/A" }}</td>
                                             <td style="text-align: center;">
-                                                {% if user.is_superuser or is_owner %}
+                                                {% if request.user.is_superuser or is_owner %}
                                                     <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editProductModal" onclick="populateEditModal('{{ product.sku }}', '{{ product.barcode|default:'N/A'|escapejs }}', '{{ product.product_name|escapejs }}', '{{ product.weight_quantity_kg|default:'0' }}', '{{ product.quantity_in_stock }}', '{{ product.unit_price|default:'0' }}', '{{ product.harvest_date|default:''|date:'Y-m-d' }}', '{{ product.entry_date|date:'Y-m-d' }}', '{{ product.farmer.pk|default:'' }}', '{{ product.notes_comments|default:''|escapejs }}', '{{ product.packaging_condition|default:'N/A'|escapejs }}')">
                                                         Edit
                                                     </button>
@@ -165,41 +167,7 @@
                             </table>
 
                             <!-- Pagination -->
-                            <nav aria-label="Page navigation">
-                                <ul class="pagination">
-                                    {% if page_obj.has_previous %}
-                                        <li class="page-item">
-                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Previous</a>
-                                        </li>
-                                    {% else %}
-                                        <li class="page-item disabled">
-                                            <span class="page-link">Previous</span>
-                                        </li>
-                                    {% endif %}
-
-                                    {% for num in page_obj.paginator.page_range %}
-                                        {% if page_obj.number == num %}
-                                            <li class="page-item active">
-                                                <span class="page-link">{{ num }}</span>
-                                            </li>
-                                        {% elif num > page_obj.number|add:-3 and num < page_obj.number|add:3 %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
-                                            </li>
-                                        {% endif %}
-                                    {% endfor %}
-
-                                    {% if page_obj.has_next %}
-                                        <li class="page-item">
-                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Next</a>
-                                        </li>
-                                    {% else %}
-                                        <li class="page-item disabled">
-                                            <span class="page-link">Next</span>
-                                        </li>
-                                    {% endif %}
-                                </ul>
-                            </nav>
+                            {% include "includes/pagination.html" %}
                         {% else %}
                             <p class="text-center text-muted">No products found in {{ warehouse.name }} matching your criteria.</p>
                         {% endif %}
@@ -210,6 +178,7 @@
     </div>
 
     <!-- Add Product Modal -->
+    {% if request.user.is_superuser or is_owner %}
     <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
@@ -332,16 +301,12 @@
                         <div class="form-step active" data-step="1">
                             <div class="row">
                                 <div class="col-md-4 mb-3">
-                                    {{ form.sku.label_tag }}
-                                    <input type="text" class="form-control form-control-lg" id="edit_barcode" name="barcode" required aria-label="Barcode">
+                                    {{ form.barcode.label_tag }}
+                                    <input type="text" class="form-control" id="edit_barcode" name="barcode" required>
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     {{ form.product_name.label_tag }}
-                                    <select class="form-select form-select-lg" id="edit_product_name" name="product_name" required aria-label="Product Name">
-                                        {% for value, label in form.product_name.field.choices %}
-                                            <option value="{{ value }}">{{ label }}</option>
-                                        {% endfor %}
-                                    </select>
+                                    {{ form.product_name }}
                                 </div>
                             </div>
                         </div>
@@ -351,26 +316,22 @@
                             <div class="row">
                                 <div class="col-md-4 mb-3">
                                     {{ form.packaging_condition.label_tag }}
-                                    <select class="form-select form-select-lg" id="edit_packaging_condition" name="packaging_condition" required aria-label="Packaging Condition">
-                                        {% for value, label in form.packaging_condition.field.choices %}
-                                            <option value="{{ value }}">{{ label }}</option>
-                                        {% endfor %}
-                                    </select>
+                                    {{ form.packaging_condition }}
                                 </div>
                                 <div class="col-md-4 mb-3" id="edit_weight_per_bag_container">
                                     <label for="edit_weight_per_bag">Weight per Bag (kg)</label>
-                                    <select class="form-select form-select-lg" id="edit_weight_per_bag_select" name="weight_per_bag" style="display: none;">
+                                    <select class="form-select" id="edit_weight_per_bag_select" name="weight_per_bag" style="display: none;">
                                         <option value="">Select weight</option>
                                     </select>
-                                    <input type="number" class="form-control form-control-lg" id="edit_weight_per_bag_input" name="weight_per_bag" step="0.01" min="0" placeholder="Enter weight per bag (kg)" style="display: none;">
+                                    <input type="number" class="form-control" id="edit_weight_per_bag_input" name="weight_per_bag" step="0.01" min="0" placeholder="Enter weight per bag (kg)" style="display: none;">
                                 </div>
                                 <div class="col-md-4 mb-3" id="edit_quantity_in_stock_container">
                                     {{ form.quantity_in_stock.label_tag }}
-                                    <input type="number" class="form-control form-control-lg" id="edit_quantity_in_stock" name="quantity_in_stock" min="0" aria-label="Quantity in Stock">
+                                    <input type="number" class="form-control" id="edit_quantity_in_stock" name="quantity_in_stock" min="0">
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     {{ form.weight_quantity_kg.label_tag }}
-                                    <input type="number" class="form-control form-control-lg" id="edit_weight_quantity_kg" name="weight_quantity_kg" step="0.01" min="0" readonly aria-label="Weight in Kilograms">
+                                    <input type="number" class="form-control" id="edit_weight_quantity_kg" name="weight_quantity_kg" step="0.01" min="0" readonly>
                                 </div>
                             </div>
                         </div>
@@ -380,27 +341,23 @@
                             <div class="row">
                                 <div class="col-md-4 mb-3">
                                     {{ form.unit_price.label_tag }}
-                                    <input type="number" class="form-control form-control-lg" id="edit_unit_price" name="unit_price" step="0.01" min="0" required aria-label="Unit Price">
+                                    <input type="number" class="form-control" id="edit_unit_price" name="unit_price" step="0.01" min="0" required>
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     {{ form.harvest_date.label_tag }}
-                                    <input type="date" class="form-control form-control-lg" id="edit_harvest_date" name="harvest_date" aria-label="Harvest Date">
+                                    <input type="date" class="form-control" id="edit_harvest_date" name="harvest_date">
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     {{ form.entry_date.label_tag }}
-                                    <input type="date" class="form-control form-control-lg" id="edit_entry_date" name="entry_date" required aria-label="Entry Date">
+                                    <input type="date" class="form-control" id="edit_entry_date" name="entry_date" required>
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     {{ form.farmer.label_tag }}
-                                    <select class="form-select form-select-lg" id="edit_farmer" name="farmer" aria-label="Farmer">
-                                        {% for value, label in form.farmer.field.choices %}
-                                            <option value="{{ value }}">{{ label }}</option>
-                                        {% endfor %}
-                                    </select>
+                                    {{ form.farmer }}
                                 </div>
                                 <div class="col-md-12 mb-3">
                                     {{ form.notes_comments.label_tag }}
-                                    <textarea class="form-control" id="edit_notes_comments" name="notes_comments" rows="4" aria-label="Notes or Comments"></textarea>
+                                    <textarea class="form-control" id="edit_notes_comments" name="notes_comments" rows="4"></textarea>
                                 </div>
                             </div>
                         </div>
@@ -450,7 +407,11 @@
         </div>
     </div>
     {% endfor %}
+    {% endif %}
+{% endblock content %}
 
+{% block javascripts %}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const productMetadata = {{ product_metadata|safe }};
 
@@ -493,7 +454,6 @@
             document.getElementById('edit_farmer').value = farmer_pk !== '' ? farmer_pk : '';
             document.getElementById('edit_notes_comments').value = notes_comments !== 'N/A' ? notes_comments : '';
             document.getElementById('editProductModalLabel').innerText = `Edit Product: ${product_name} (SKU: ${sku})`;
-
             updateEditWeightField();
             const weightPerBag = weight_quantity_kg && quantity_in_stock ? (parseFloat(weight_quantity_kg) / quantity_in_stock).toFixed(2) : '';
             if (weightPerBag && packaging_condition !== "Bulk") {
@@ -615,12 +575,14 @@
                 }
             }
 
-            packagingSelect.addEventListener('change', updateWeightField);
-            weightSelect.addEventListener('change', updateTotalWeight);
-            weightInput.addEventListener('input', updateTotalWeight);
-            quantityInput.addEventListener('input', updateTotalWeight);
-            productNameSelect.addEventListener('change', updateNotesComments);
-            updateWeightField();
+            if (packagingSelect) {
+                packagingSelect.addEventListener('change', updateWeightField);
+                weightSelect.addEventListener('change', updateTotalWeight);
+                weightInput.addEventListener('input', updateTotalWeight);
+                quantityInput.addEventListener('input', updateTotalWeight);
+                productNameSelect.addEventListener('change', updateNotesComments);
+                updateWeightField();
+            }
 
             const addSteps = document.querySelectorAll('#addProductModal .step');
             const addFormSteps = document.querySelectorAll('#addProductModal .form-step');
@@ -643,66 +605,64 @@
                 addErrorDiv.style.display = 'none';
             }
 
-            prevBtn.addEventListener('click', function() {
-                if (addCurrentStep > 1) {
-                    addCurrentStep--;
-                    updateAddSteps();
-                }
-            });
-
-            nextBtn.addEventListener('click', function() {
-                try{
-                if (addCurrentStep < addTotalSteps) {
-                    const currentInputs = addFormSteps[addCurrentStep - 1].querySelectorAll('input[required], select[required]');
-                    let isValid = true;
-                    currentInputs.forEach(input => {
-                        if (!input.value && input.closest('.form-step').style.display !== 'none') {
-                            isValid = false;
-                            input.classList.add('is-invalid');
-                        } else {
-                            input.classList.remove('is-invalid');
-                        }
-                    });
-                    if (isValid) {
-                        addCurrentStep++;
+            if (prevBtn) {
+                prevBtn.addEventListener('click', function() {
+                    if (addCurrentStep > 1) {
+                        addCurrentStep--;
                         updateAddSteps();
                     }
-                }
-                } catch (error) {
-        console.error('Error in nextBtn handler:', error);
-    }
-            });
-
-            submitBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                const formData = new FormData(addForm);
-                fetch("{% url 'warehouse_detail' warehouse.slug %}", {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'X-CSRFToken': csrfToken },
-                    credentials: 'same-origin'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        let errorMessages = '';
-                        for (const [field, errors] of Object.entries(data.errors || {})) {
-                            errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
-                        }
-                        addErrorDiv.innerHTML = errorMessages || '<p>An error occurred.</p>';
-                        addErrorDiv.style.display = 'block';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    addErrorDiv.innerHTML = '<p>An error occurred while adding the product.</p>';
-                    addErrorDiv.style.display = 'block';
                 });
-            });
 
-            updateAddSteps();
+                nextBtn.addEventListener('click', function() {
+                    if (addCurrentStep < addTotalSteps) {
+                        const currentInputs = addFormSteps[addCurrentStep - 1].querySelectorAll('input[required], select[required]');
+                        let isValid = true;
+                        currentInputs.forEach(input => {
+                            if (!input.value && input.closest('.form-step').style.display !== 'none') {
+                                isValid = false;
+                                input.classList.add('is-invalid');
+                            } else {
+                                input.classList.remove('is-invalid');
+                            }
+                        });
+                        if (isValid) {
+                            addCurrentStep++;
+                            updateAddSteps();
+                        }
+                    }
+                });
+
+                submitBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const formData = new FormData(addForm);
+                    fetch("{% url 'warehouse_detail' warehouse.slug %}", {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-CSRFToken': csrfToken },
+                        credentials: 'same-origin'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            let errorMessages = '';
+                            for (const [field, errors] of Object.entries(data.errors || {})) {
+                                errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
+                            }
+                            addErrorDiv.innerHTML = errorMessages || '<p>An error occurred.</p>';
+                            addErrorDiv.style.display = 'block';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        addErrorDiv.innerHTML = '<p>An error occurred while adding the product.</p>';
+                        addErrorDiv.style.display = 'block';
+                    });
+                });
+
+                updateAddSteps();
+            }
 
             // Edit Product Wizard
             const editPackagingSelect = document.getElementById('edit_packaging_condition');
@@ -774,10 +734,12 @@
                 }
             }
 
-            editPackagingSelect.addEventListener('change', updateEditWeightField);
-            editWeightSelect.addEventListener('change', updateEditTotalWeight);
-            editWeightInput.addEventListener('input', updateEditTotalWeight);
-            editQuantityInput.addEventListener('input', updateEditTotalWeight);
+            if (editPackagingSelect) {
+                editPackagingSelect.addEventListener('change', updateEditWeightField);
+                editWeightSelect.addEventListener('change', updateEditTotalWeight);
+                editWeightInput.addEventListener('input', updateEditTotalWeight);
+                editQuantityInput.addEventListener('input', updateEditTotalWeight);
+            }
 
             const editSteps = document.querySelectorAll('#editProductModal .step');
             const editFormSteps = document.querySelectorAll('#editProductModal .form-step');
@@ -800,67 +762,69 @@
                 editErrorDiv.style.display = 'none';
             }
 
-            editPrevBtn.addEventListener('click', function() {
-                if (editCurrentStep > 1) {
-                    editCurrentStep--;
-                    updateEditSteps();
-                }
-            });
-
-            editNextBtn.addEventListener('click', function() {
-                if (editCurrentStep < editTotalSteps) {
-                    const currentInputs = editFormSteps[editCurrentStep - 1].querySelectorAll('input[required], select[required]');
-                    let isValid = true;
-                    currentInputs.forEach(input => {
-                        if (!input.value && input.closest('.form-step').style.display !== 'none' && input.style.display !== 'none') {
-                            isValid = false;
-                            input.classList.add('is-invalid');
-                        } else {
-                            input.classList.remove('is-invalid');
-                        }
-                    });
-                    if (isValid) {
-                        editCurrentStep++;
+            if (editPrevBtn) {
+                editPrevBtn.addEventListener('click', function() {
+                    if (editCurrentStep > 1) {
+                        editCurrentStep--;
                         updateEditSteps();
                     }
-                }
-            });
-
-            editSubmitBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                const formData = new FormData(editForm);
-                fetch("{% url 'warehouse_detail' warehouse.slug %}", {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'X-CSRFToken': csrfToken },
-                    credentials: 'same-origin'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        let errorMessages = '';
-                        for (const [field, errors] of Object.entries(data.errors || {})) {
-                            errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
-                        }
-                        editErrorDiv.innerHTML = errorMessages || '<p>An error occurred.</p>';
-                        editErrorDiv.style.display = 'block';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    editErrorDiv.innerHTML = '<p>An error occurred while updating the product.</p>';
-                    editErrorDiv.style.display = 'block';
                 });
-            });
 
-            document.getElementById('editProductModal').addEventListener('hidden.bs.modal', function() {
-                editCurrentStep = 1;
+                editNextBtn.addEventListener('click', function() {
+                    if (editCurrentStep < editTotalSteps) {
+                        const currentInputs = editFormSteps[editCurrentStep - 1].querySelectorAll('input[required], select[required]');
+                        let isValid = true;
+                        currentInputs.forEach(input => {
+                            if (!input.value && input.closest('.form-step').style.display !== 'none' && input.style.display !== 'none') {
+                                isValid = false;
+                                input.classList.add('is-invalid');
+                            } else {
+                                input.classList.remove('is-invalid');
+                            }
+                        });
+                        if (isValid) {
+                            editCurrentStep++;
+                            updateEditSteps();
+                        }
+                    }
+                });
+
+                editSubmitBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const formData = new FormData(editForm);
+                    fetch("{% url 'warehouse_detail' warehouse.slug %}", {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-CSRFToken': csrfToken },
+                        credentials: 'same-origin'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            let errorMessages = '';
+                            for (const [field, errors] of Object.entries(data.errors || {})) {
+                                errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
+                            }
+                            editErrorDiv.innerHTML = errorMessages || '<p>An error occurred.</p>';
+                            editErrorDiv.style.display = 'block';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        editErrorDiv.innerHTML = '<p>An error occurred while updating the product.</p>';
+                        editErrorDiv.style.display = 'block';
+                    });
+                });
+
+                document.getElementById('editProductModal').addEventListener('hidden.bs.modal', function() {
+                    editCurrentStep = 1;
+                    updateEditSteps();
+                });
+
                 updateEditSteps();
-            });
-
-            updateEditSteps();
+            }
 
             function submitTakeOutForm(sku) {
                 const form = document.getElementById(`takeOutForm_${sku}`);
@@ -916,8 +880,4 @@
             }
         });
     </script>
-{% endblock content %}
-
-{% block javascripts %}
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 {% endblock javascripts %}

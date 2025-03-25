@@ -15,6 +15,7 @@ urlpatterns = [
     path('warehouses-list/', views.warehouse_list, name='warehouse_list'),
     path('create-warehouse/', views.create_warehouse, name='warehouse_create'),
     path('warehouses-list/<slug:slug>/', views.warehouse_detail, name='warehouse_detail'),
+    path('warehouses-list/<slug:slug>/customer', views.warehouse_detail_customer, name='warehouse_detail_customer'),
     path('warehouses-list/<slug:slug>/product', views.warehouse_detail, name='product_detail'),
     path('warehouses-list/<slug:slug>/product/edit', views.warehouse_detail, name='edit_product'),
     path('warehouses-list/edit/<slug:slug>/', views.edit_warehouse, name='edit_warehouse'),
