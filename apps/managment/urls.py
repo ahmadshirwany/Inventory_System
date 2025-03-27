@@ -20,6 +20,8 @@ urlpatterns = [
     path('warehouses-list/<slug:slug>/product/edit', views.warehouse_detail, name='edit_product'),
     path('warehouses-list/edit/<slug:slug>/', views.edit_warehouse, name='edit_warehouse'),
     path('get_product_metadata/', views.get_product_metadata_view, name='get_product_metadata'),
+    path('requests/', views.owner_requests, name='owner_requests'),
+    path('customer/requests/', views.customer_requests, name='customer_requests'),
     # re_path(r'^.*$', views.pages, name='pages'),
 
 

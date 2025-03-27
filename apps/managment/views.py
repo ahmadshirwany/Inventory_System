@@ -539,3 +539,63 @@ def warehouse_detail_customer(request, slug):
         'is_customer': True,
         'available_products': available_products_dict,
     })
+
+@login_required
+def owner_requests(request):
+    if not request.user.is_authenticated:
+        return render(request, "home/page-403.html", {"message": "Access Denied: You must be logged in."}, status=403)
+
+    # Fetch warehouses owned by the user
+    owned_warehouses = Warehouse.objects.filter(ownership=request.user)
+    if not owned_warehouses.exists() and not request.user.is_superuser:
+        return render(request, "home/page-403.html", {"message": "Access Denied: You do not own any warehouses."}, status=403)
+
+    # Fetch all requests for owned warehouses
+    item_requests = ItemRequest.objects.filter(warehouse__in=owned_warehouses).order_by('-request_date')
+    paginator = Paginator(item_requests, 10)  # 10 requests per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Handle POST requests for processing
+    if request.method == 'POST' and 'action' in request.POST:
+        request_id = request.POST.get('request_id')
+        action = request.POST.get('action')
+        try:
+            item_request = ItemRequest.objects.get(id=request_id, warehouse__ownership=request.user)
+            if action == 'approve' and item_request.status == 'PENDING':
+                item_request.status = 'APPROVED'
+                item_request.approval_date = timezone.now()
+            elif action == 'reject' and item_request.status in ['PENDING', 'APPROVED']:
+                item_request.status = 'REJECTED'
+            elif action == 'complete' and item_request.status == 'APPROVED':
+                item_request.status = 'COMPLETED'
+                item_request.completion_date = timezone.now()
+            item_request.save()  # Triggers process_completion() for 'COMPLETED'
+            return JsonResponse({'success': True, 'status': item_request.status})
+        except ItemRequest.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Request not found or not owned'}, status=404)
+        except ValidationError as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+    context = {
+        'page_obj': page_obj,
+        'is_owner': True,
+    }
+    return render(request, 'managment/owner_requests.html', context)
+
+@login_required
+def customer_requests(request):
+    if not request.user.groups.filter(name='client').exists():
+        return render(request, "home/page-403.html", {"message": "Access Denied: This page is for customers only."}, status=403)
+
+    # Fetch customer's requests
+    customer_requests = ItemRequest.objects.filter(client=request.user).order_by('-request_date')
+    paginator = Paginator(customer_requests, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'is_customer': True,
+    }
+    return render(request, 'managment/customer_requests.html', context)
