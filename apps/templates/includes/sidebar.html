@@ -64,54 +64,35 @@
               </div>
             </li>
             {% endif %}
-{#            <li class="nav-item {% if 'ui-tables' in segment %} active {% endif %}">#}
-{#            <a class="nav-link" href="/ui-tables.html">#}
-{#              <i class="material-icons">content_paste</i>#}
-{#              <p>Table List</p>#}
-{#            </a>#}
-{#          </li>#}
-{#          <li class="nav-item {% if 'ui-typography' in segment %} active {% endif %}">#}
-{#            <a class="nav-link" href="/ui-typography.html">#}
-{#              <i class="material-icons">library_books</i>#}
-{#              <p>Typography</p>#}
-{#            </a>#}
-{#          </li>#}
-{#          <li class="nav-item {% if 'ui-icons' in segment %} active {% endif %}">#}
-{#            <a class="nav-link" href="/ui-icons.html">#}
-{#              <i class="material-icons">bubble_chart</i>#}
-{#              <p>Icons</p>#}
-{#            </a>#}
-{#          </li>#}
-{#          <li class="nav-item {% if 'ui-maps' in segment %} active {% endif %}">#}
-{#            <a class="nav-link" href="/ui-maps.html">#}
-{#              <i class="material-icons">location_ons</i>#}
-{#              <p>Maps</p>#}
-{#            </a>#}
-{#          </li>#}
-{#          <li class="nav-item {% if 'ui-notifications' in segment %} active {% endif %}">#}
-{#            <a class="nav-link" href="/ui-notifications.html">#}
-{#              <i class="material-icons">notifications</i>#}
-{#              <p>Notifications</p>#}
-{#            </a>#}
-{#          </li>#}
-{#          #}
-{#          <li class="nav-item ">#}
-{#            <a class="nav-link" href="/page-rtl-support.html">#}
-{#              <i class="material-icons">language</i>#}
-{#              <p>RTL Support</p>#}
-{#            </a>#}
-{#          </li>#}
+            {% if user.is_superuser or is_owner or is_user%}
              <li class="nav-item {% if 'page-user' in segment %} active {% endif %}">
              <a class="nav-link" href="{% url 'farmer_list' %}">
               <i class="material-icons">F</i>
               <p>Farmers</p>
             </a>
+            {% endif %}
+            {% if user.is_superuser or is_owner or is_user%}
            <li class="nav-item">
             <li class="nav-item {% if 'page-user' in segment %} active {% endif %}">
              <a class="nav-link" href="{% url 'client_list' %}">
               <i class="material-icons">Customers</i>
               <p>Customers</p>
             </a>
+            {% endif %}
+           <li class="nav-item">
+            <li class="nav-item {% if 'page-user' in segment %} active {% endif %}">
+             <a class="nav-link" href="{% url 'customer_requests' %}">
+              <i class="material-icons">R</i>
+              <p>Requested Items</p>
+            </a>
+              {% if user.is_superuser or is_owner or is_user%}
+           <li class="nav-item">
+            <li class="nav-item {% if 'page-user' in segment %} active {% endif %}">
+             <a class="nav-link" href="{% url 'owner_requests' %}">
+              <i class="material-icons">I</i>
+              <p>Item Requests</p>
+            </a>
+                   {% endif %}
            <li class="nav-item">
           <li class="nav-item ">
             <a class="nav-link" href="{% url 'logout' %}" >

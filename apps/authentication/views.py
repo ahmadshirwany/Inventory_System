@@ -120,7 +120,7 @@ def create_user(request):
                 status=403
             )
     if not request.user.is_superuser:
-        current_count = request.user.owned_users.count()
+        current_count = request.user.owned_users.filter(groups__name='user').count()
         user_limit = request.user.user_limit
 
         if user_limit is None or current_count >= user_limit:
@@ -297,6 +297,9 @@ def farmer_list(request):
         farmers = Farmer.objects.all()
     elif request.user.groups.filter(name='user').exists():
         farmers = Farmer.objects.filter(user__owner=request.user.owner)
+    else:
+        return render(request, "home/page-403.html", {"message": "Access Denied"},
+                      status=403)
 
     # Filtering
     filters = {}
@@ -319,12 +322,16 @@ def farmer_list(request):
         'page_obj': page_obj,
         'filters': filters,
         'form': FarmerCreationForm(),
-        'is_owner': is_owner
+        'is_owner': is_owner,
+        'is_user': request.user.groups.filter(name='user').exists(),
     })
 
 @login_required
 def client_list(request):
     # Check if user is superuser or owner
+    if  request.user.groups.filter(name='client').exists():
+        return render(request, "home/page-403.html", {"message": "Access Denied"}, status=403)
+
     is_owner = request.user.groups.filter(name='owner').exists()
 
     # Handle POST requests for adding or deleting clients
@@ -355,7 +362,7 @@ def client_list(request):
     elif is_owner:
         clients = Client.objects.filter(user__owner=request.user)
     else:
-        clients = Client.objects.filter(user=request.user)
+        clients = Client.objects.filter(user__owner=request.user.owner)
 
     # Apply filters
     filters = {}
@@ -378,6 +385,7 @@ def client_list(request):
         'filters': filters,
         'is_owner': is_owner,
         'form': form,  # Included for reference, though not rendered directly
+        'is_user': request.user.groups.filter(name='user').exists(),
     }
     return render(request, 'accounts/client_list.html', context)
 @login_required

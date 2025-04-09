@@ -32,6 +32,7 @@
                                         <th>Request Date</th>
                                         <th>Approval Date</th>
                                         <th>Completion Date</th>
+                                        <th>Price</th>
                                         <th>Notes</th>
                                     </tr>
                                 </thead>
@@ -47,7 +48,9 @@
                                             <td>{{ request.request_date|date:"Y-m-d H:i" }}</td>
                                             <td>{{ request.approval_date|date:"Y-m-d H:i"|default:"N/A" }}</td>
                                             <td>{{ request.completion_date|date:"Y-m-d H:i"|default:"N/A" }}</td>
+                                            <td>{{ request.total_price| default:"N/A" }}</td>
                                             <td>{{ request.notes|default:"N/A"|truncatewords:10 }}</td>
+
                                         </tr>
                                     {% endfor %}
                                 </tbody>

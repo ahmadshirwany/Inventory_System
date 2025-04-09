@@ -9,7 +9,7 @@ from django.template import loader
 from django.urls import reverse
 from django.contrib.auth.forms import PasswordChangeForm
 from .models import Warehouse,Product,ItemRequest
-from django.db.models import Q
+from django.db.models import Q, Max
 from .forms import WarehouseForm, ProductForm
 from django.utils import timezone
 from django.core.exceptions import PermissionDenied,ValidationError
@@ -60,6 +60,7 @@ def index(request):
         context = {'segment': 'index',
                    'warehouses': queryset,
                    'is_owner': request.user.groups.filter(name='owner').exists(),
+                   'is_user': request.user.groups.filter(name='user').exists(),
                    'users' : users,
                    'cutomers':cutomers
                    }
@@ -75,13 +76,15 @@ def index(request):
         context = {'segment': 'index',
                    'warehouses': queryset,
                    'users': users,
-                   'cutomers': cutomers
+                   'cutomers': cutomers,
+                   'is_user': request.user.groups.filter(name='user').exists(),
                    }
 
     else:
         context = {'segment': 'index',
                    'warehouses': queryset,
-                   'is_owner': request.user.groups.filter(name='owner').exists()
+                   'is_owner': request.user.groups.filter(name='owner').exists(),
+                   'is_user': request.user.groups.filter(name='user').exists(),
                    }
 
     html_template = loader.get_template('managment/index.html')
@@ -198,16 +201,6 @@ def create_warehouse(request):
 
 
 def warehouse_list(request):
-    """
-    Display and manage warehouse list with filtering, editing, and user addition via modals.
-
-    Args:
-        request: HTTP request object
-
-    Returns:
-        HttpResponse: Rendered page, form HTML, or JSON response
-    """
-    # Handle POST requests
     if request.method == 'POST':
         if 'slug' in request.POST:  # Edit warehouse
             warehouse = Warehouse.objects.get(slug=request.POST['slug'])
@@ -297,7 +290,8 @@ def warehouse_list(request):
         'total_count': queryset.count(),
         'user_limit': request.user.user_limit,
         'current_user_count': request.user.owned_users.count() if not request.user.is_superuser else CustomUser.objects.count(),
-        'is_client': request.user.is_client
+        'is_client': request.user.is_client,
+        'is_user': request.user.groups.filter(name='user').exists(),
     }
     return render(request, 'managment/warehouse_list.html', context)
 
@@ -468,46 +462,37 @@ def warehouse_detail_customer(request, slug):
     if request.user not in warehouse.users.all():
         return render(request, "home/page-403.html", {"message": "Access Denied: You do not have permission to view this warehouse."}, status=403)
 
-    products = Product.objects.filter(warehouse=warehouse)
+    products = Product.objects.filter(warehouse=warehouse, status='In Stock')
     filters = {
-        'sku': request.GET.get('sku', ''),
-        'barcode': request.GET.get('barcode', ''),
         'product_name': request.GET.get('product_name', ''),
         'product_type': request.GET.get('product_type', ''),
-        'status': request.GET.get('status', ''),
     }
 
-    if filters['sku']:
-        products = products.filter(sku__icontains=filters['sku'])
-    if filters['barcode']:
-        products = products.filter(barcode__icontains=filters['barcode'])
     if filters['product_name']:
         products = products.filter(product_name__icontains=filters['product_name'])
     if filters['product_type']:
         products = products.filter(product_type=filters['product_type'])
-    if filters['status']:
-        products = products.filter(status=filters['status'])
 
-    products = products.order_by('entry_date')
-    paginator = Paginator(products, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-
-    # Calculate total available quantities per product name for "In Stock" items
-    available_products = Product.objects.filter(
-        warehouse=warehouse,
-        status='In Stock'
-    ).values('product_name').annotate(
-        total_quantity=Sum('quantity_in_stock'),
-        total_weight_kg=Sum('weight_quantity_kg')
+    aggregated_products = products.values('product_name', 'product_type').annotate(
+        total_weight_kg=Sum('weight_quantity_kg'),
+        max_unit_price=Max('unit_price'),
+        total_quantity=Sum('quantity_in_stock')
     ).order_by('product_name')
 
-    available_products_dict = {
-        item['product_name']: {
-            'total_quantity': item['total_quantity'] or 0,
-            'total_weight_kg': float(item['total_weight_kg']) if item['total_weight_kg'] else 0
-        } for item in available_products
-    }
+    aggregated_products_list = [
+        {
+            'product_name': item['product_name'],
+            'product_type': item['product_type'],
+            'total_weight_kg': float(item['total_weight_kg']) if item['total_weight_kg'] else 0,
+            'max_unit_price': float(item['max_unit_price']) if item['max_unit_price'] else 0,
+            'total_quantity': item['total_quantity'] or 0
+        }
+        for item in aggregated_products
+    ]
+
+    paginator = Paginator(aggregated_products_list, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
 
     if request.method == 'POST' and request.POST.get('request_item'):
         product_name = request.POST.get('product_name')
@@ -515,43 +500,71 @@ def warehouse_detail_customer(request, slug):
         weight_requested_kg = request.POST.get('weight_requested_kg', '') or None
         notes = request.POST.get('notes', '')
 
+        # Find max_unit_price for the product
+        product_data = next((p for p in aggregated_products_list if p['product_name'] == product_name), None)
+        max_unit_price = product_data['max_unit_price'] if product_data else None
+
         try:
+            # Create the ItemRequest instance
             item_request = ItemRequest(
                 warehouse=warehouse,
                 client=request.user,
                 product_name=product_name,
                 quantity_requested=int(quantity_requested) if quantity_requested else None,
                 weight_requested_kg=float(weight_requested_kg) if weight_requested_kg else None,
-                notes=notes
+                notes=notes,
             )
+            # Calculate and set total_price before saving
+            item_request.total_price = item_request.calculate_total_price(decimal.Decimal(str(max_unit_price))) if max_unit_price else None
             item_request.full_clean()  # Validate against total available stock
             item_request.save()
-            return JsonResponse({'success': True})
+            return JsonResponse({
+                'success': True,
+                'total_price': str(item_request.total_price) if item_request.total_price else 'N/A'
+            })
         except ValidationError as e:
             return JsonResponse({'success': False, 'errors': e.message_dict}, status=400)
         except Exception as e:
             return JsonResponse({'success': False, 'errors': {'general': [str(e)]}}, status=500)
 
-    return render(request, 'managment/customer_products.html', {
+    context = {
         'warehouse': warehouse,
         'page_obj': page_obj,
         'filters': filters,
         'is_customer': True,
-        'available_products': available_products_dict,
-    })
+    }
+    return render(request, 'managment/customer_products.html', context)
 
 @login_required
 def owner_requests(request):
     if not request.user.is_authenticated:
         return render(request, "home/page-403.html", {"message": "Access Denied: You must be logged in."}, status=403)
+    if  request.user.groups.filter(name='client').exists():
+        return render(request, "home/page-403.html", {"message": "Access Denied: This page is not for customers."},
+                      status=403)
+    # Determine accessible warehouses based on user role
+    if request.user.owner is None or request.user.is_superuser:  # Top-level owner or superuser
+        # Owner sees all warehouses they directly own plus those owned by their users
+        accessible_warehouses = Warehouse.objects.filter(
+            Q(ownership=request.user) | Q(ownership__owner=request.user)
+        )
+        is_owner = True
+    else:  # Regular user
+        # User only sees warehouses they have direct access to
+        accessible_warehouses = Warehouse.objects.filter(users=request.user)
+        is_owner = False
 
-    # Fetch warehouses owned by the user
-    owned_warehouses = Warehouse.objects.filter(ownership=request.user)
-    if not owned_warehouses.exists() and not request.user.is_superuser:
-        return render(request, "home/page-403.html", {"message": "Access Denied: You do not own any warehouses."}, status=403)
+    # Check if user has access to any warehouses
+    if not accessible_warehouses.exists() and not request.user.is_superuser:
+        return render(request, "home/page-403.html",
+                      {"message": "Access Denied: You do not have access to any warehouses."}, status=403)
 
-    # Fetch all requests for owned warehouses
-    item_requests = ItemRequest.objects.filter(warehouse__in=owned_warehouses).order_by('-request_date')
+    # Fetch all requests for accessible warehouses
+    item_requests = ItemRequest.objects.filter(
+        warehouse__in=accessible_warehouses
+    ).order_by('-request_date')
+
+    # Pagination
     paginator = Paginator(item_requests, 10)  # 10 requests per page
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -561,7 +574,12 @@ def owner_requests(request):
         request_id = request.POST.get('request_id')
         action = request.POST.get('action')
         try:
-            item_request = ItemRequest.objects.get(id=request_id, warehouse__ownership=request.user)
+            # Ensure user has permission for this specific request
+            item_request = ItemRequest.objects.get(
+                id=request_id,
+                warehouse__in=accessible_warehouses
+            )
+
             if action == 'approve' and item_request.status == 'PENDING':
                 item_request.status = 'APPROVED'
                 item_request.approval_date = timezone.now()
@@ -570,16 +588,17 @@ def owner_requests(request):
             elif action == 'complete' and item_request.status == 'APPROVED':
                 item_request.status = 'COMPLETED'
                 item_request.completion_date = timezone.now()
-            item_request.save()  # Triggers process_completion() for 'COMPLETED'
+            item_request.save()
             return JsonResponse({'success': True, 'status': item_request.status})
         except ItemRequest.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Request not found or not owned'}, status=404)
+            return JsonResponse({'success': False, 'error': 'Request not found or not accessible'}, status=404)
         except ValidationError as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=400)
 
     context = {
         'page_obj': page_obj,
-        'is_owner': True,
+        'is_owner': is_owner,
+        'is_user': request.user.groups.filter(name='user').exists(),
     }
     return render(request, 'managment/owner_requests.html', context)
 

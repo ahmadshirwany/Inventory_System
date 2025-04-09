@@ -355,10 +355,13 @@ class Product(models.Model):
         if not self.notes_comments:
             self.notes_comments = product_data.get('notes_comments', '')
 
-        if self.manufacturing_date and not self.expiration_date and "Maximum Storage Duration (days)" in product_data:
+        if not self.expiration_date and "Maximum Storage Duration (days)" in product_data:
             try:
                 max_shelf_life = int(product_data["Maximum Storage Duration (days)"])
-                self.expiration_date = self.manufacturing_date + relativedelta(days=max_shelf_life)
+                for date_attr in [self.manufacturing_date, self.harvest_date]:
+                    if date_attr:
+                        self.expiration_date = date_attr + relativedelta(days=max_shelf_life)
+                        break  # Stop after setting expiration_date once
             except (ValueError, TypeError):
                 pass
 
@@ -626,7 +629,21 @@ class ItemRequest(models.Model):
         null=True,
         help_text="Additional notes about the request"
     )
+    total_price = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Total price of the requested items based on max unit price"
+    )
 
+    def calculate_total_price(self, max_unit_price):
+        """Calculate total price based on requested quantity or weight."""
+        if self.quantity_requested and max_unit_price:
+            return self.quantity_requested * max_unit_price
+        elif self.weight_requested_kg and max_unit_price:
+            return self.weight_requested_kg * max_unit_price
+        return None
     def clean(self):
         if self.client not in self.warehouse.users.all():
             raise ValidationError("Client does not have access to this warehouse")
