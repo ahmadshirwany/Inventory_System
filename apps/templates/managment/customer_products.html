@@ -73,7 +73,6 @@
                                                 <button type="button" class="btn btn-primary btn-sm request-btn"
                                                         data-bs-toggle="modal" data-bs-target="#requestModal"
                                                         data-product-name="{{ product.product_name }}"
-                                                        data-max-quantity="{{ product.total_quantity }}"
                                                         data-max-weight="{{ product.total_weight_kg }}"
                                                         data-unit-price="{{ product.max_unit_price }}">
                                                     Request
@@ -107,21 +106,23 @@
                     <div class="alert alert-danger error-messages" id="requestErrors" style="display: none;"></div>
                     <form method="POST" id="requestForm">
                         {% csrf_token %}
-                        <input type="hidden" name="request_item" value="1">
-                        <input type="hidden" name="product_name" id="modal_product_name">
+                        {{ form.warehouse.as_hidden }}
+                        {{ form.client.as_hidden }}
+                        {{ form.product_name.as_hidden }}
                         <div class="mb-3">
-                            <label for="modal_quantity_requested" class="form-label">Quantity Requested</label>
-                            <input type="number" class="form-control" id="modal_quantity_requested" name="quantity_requested" min="0" placeholder="Enter quantity (optional)" oninput="calculateModalTotalPrice()">
+                            {{ form.weight_requested_kg.label_tag }}
+                            {{ form.weight_requested_kg }}
+                            {% if form.weight_requested_kg.errors %}
+                                <div class="text-danger">{{ form.weight_requested_kg.errors }}</div>
+                            {% endif %}
                         </div>
                         <div class="mb-3">
-                            <label for="modal_weight_requested_kg" class="form-label">Weight Requested (kg)</label>
-                            <input type="number" class="form-control" id="modal_weight_requested_kg" name="weight_requested_kg" min="0" step="0.01" placeholder="Enter weight in kg (optional)" oninput="calculateModalTotalPrice()">
+                            {{ form.notes.label_tag }}
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                                <div class="text-danger">{{ form.notes.errors }}</div>
+                            {% endif %}
                         </div>
-                        <div class="mb-3">
-                            <label for="modal_notes" class="form-label">Notes</label>
-                            <textarea class="form-control" id="modal_notes" name="notes" rows="3" placeholder="Additional notes (optional)"></textarea>
-                        </div>
-                        <small class="text-muted">Specify at least one of quantity or weight.</small>
                         <div class="mb-3">
                             <span class="total-price" id="modal_total_price">Total: $0.00</span>
                         </div>
@@ -164,59 +165,38 @@
         document.querySelectorAll('.request-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const productName = this.getAttribute('data-product-name');
-                const maxQuantity = parseInt(this.getAttribute('data-max-quantity'));
                 const maxWeight = parseFloat(this.getAttribute('data-max-weight'));
                 currentMaxUnitPrice = parseFloat(this.getAttribute('data-unit-price')) || 0;
 
                 const modal = document.getElementById('requestModal');
-                const productNameInput = modal.querySelector('#modal_product_name');
-                const quantityInput = modal.querySelector('#modal_quantity_requested');
-                const weightInput = modal.querySelector('#modal_weight_requested_kg');
+                const productNameInput = modal.querySelector('#id_product_name');
+                const weightInput = modal.querySelector('#id_weight_requested_kg');
                 const totalPriceSpan = modal.querySelector('#modal_total_price');
 
                 productNameInput.value = productName;
-                quantityInput.max = maxQuantity;
                 weightInput.max = maxWeight;
-                quantityInput.placeholder = `Enter quantity (Max: ${maxQuantity})`;
                 weightInput.placeholder = `Enter weight in kg (Max: ${maxWeight})`;
-                quantityInput.value = '';
                 weightInput.value = '';
                 totalPriceSpan.textContent = 'Total: $0.00';
             });
         });
 
         function calculateModalTotalPrice() {
-            const quantity = parseInt(document.getElementById('modal_quantity_requested').value) || 0;
-            const weight = parseFloat(document.getElementById('modal_weight_requested_kg').value) || 0;
-            let total = 0;
-
-            if (quantity > 0) {
-                total = quantity * currentMaxUnitPrice;
-            } else if (weight > 0) {
-                total = weight * currentMaxUnitPrice;
-            }
-
+            const weight = parseFloat(document.getElementById('id_weight_requested_kg').value) || 0;
+            const total = weight * currentMaxUnitPrice;
             document.getElementById('modal_total_price').textContent = `Total: $${total.toFixed(2)}`;
         }
 
         function submitRequestForm() {
             const form = document.getElementById('requestForm');
             const errorDiv = document.getElementById('requestErrors');
-            const quantityInput = document.getElementById('modal_quantity_requested');
-            const weightInput = document.getElementById('modal_weight_requested_kg');
-            const quantity = parseInt(quantityInput.value) || 0;
+            const weightInput = document.getElementById('id_weight_requested_kg');
             const weight = parseFloat(weightInput.value) || 0;
-            const maxQuantity = parseInt(quantityInput.max);
             const maxWeight = parseFloat(weightInput.max);
             const csrfToken = getCookie('csrftoken');
 
-            if (quantity <= 0 && weight <= 0) {
-                errorDiv.innerHTML = '<p>Please specify at least one of Quantity or Weight (kg).</p>';
-                errorDiv.style.display = 'block';
-                return;
-            }
-            if (quantity > maxQuantity) {
-                errorDiv.innerHTML = `<p>Quantity cannot exceed ${maxQuantity}.</p>`;
+            if (weight <= 0) {
+                errorDiv.innerHTML = '<p>Please specify a Weight (kg) greater than 0.</p>';
                 errorDiv.style.display = 'block';
                 return;
             }
@@ -254,5 +234,8 @@
                 errorDiv.style.display = 'block';
             });
         }
+
+        // Attach calculateModalTotalPrice to weight input
+        document.getElementById('id_weight_requested_kg').addEventListener('input', calculateModalTotalPrice);
     </script>
 {% endblock javascripts %}

@@ -3,11 +3,12 @@ from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django import forms
-from .models import Warehouse,Product,get_product_metadata
+from .models import Warehouse,Product,get_product_metadata,ItemRequest
 from apps.authentication.models import CustomUser
 from django.utils import timezone
 from django.conf import settings
 from django.core.exceptions import ValidationError
+import decimal
 
 @login_required
 def update_password(request):
@@ -359,6 +360,107 @@ class ProductForm(forms.ModelForm):
         if not instance.ethylene_management and product_data.get('ethylene_management'):
             instance.ethylene_management = product_data['ethylene_management']
 
+        if commit:
+            instance.save()
+        return instance
+
+
+class ItemRequestForm(forms.ModelForm):
+    class Meta:
+        model = ItemRequest
+        fields = ['warehouse', 'client', 'product_name', 'weight_requested_kg', 'notes']
+        widgets = {
+            'warehouse': forms.Select(attrs={
+                'class': 'form-control form-select-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'required': True,
+                'aria-label': 'Warehouse',
+            }),
+            'client': forms.Select(attrs={
+                'class': 'form-control form-select-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'required': True,
+                'aria-label': 'Client',
+            }),
+            'product_name': forms.TextInput(attrs={
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'required': True,
+                'placeholder': 'Enter product name',
+                'aria-label': 'Product Name',
+            }),
+            'weight_requested_kg': forms.NumberInput(attrs={
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'step': '0.01',
+                'min': '0',
+                'required': True,
+                'placeholder': 'Enter weight in kg',
+                'aria-label': 'Weight Requested (kg)',
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': '3',
+                'style': 'border-radius: 8px; resize: vertical; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': 'Additional notes (optional)',
+                'aria-label': 'Notes',
+            }),
+        }
+
+    def __init__(self, *args, user=None, warehouse=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if user:
+            # Limit warehouse choices to those the user has access to
+            self.fields['warehouse'].queryset = Warehouse.objects.filter(users=user)
+            self.fields['client'].queryset = CustomUser.objects.filter(id=user.id, is_client=True)
+            self.fields['client'].initial = user
+        if warehouse:
+            self.fields['warehouse'].queryset = Warehouse.objects.filter(id=warehouse.id)
+            self.fields['warehouse'].initial = warehouse
+            # Optionally limit product_name choices based on warehouse (could use a Select widget with dynamic choices)
+            available_products = Product.objects.filter(
+                warehouse=warehouse,
+                status='In Stock'
+            ).values_list('product_name', flat=True).distinct()
+            self.fields['product_name'].widget = forms.Select(
+                choices=[(name, name) for name in available_products],
+                attrs=self.fields['product_name'].widget.attrs
+            )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        warehouse = cleaned_data.get('warehouse')
+        client = cleaned_data.get('client')
+        product_name = cleaned_data.get('product_name')
+        weight_requested_kg = cleaned_data.get('weight_requested_kg')
+
+        if warehouse and client and product_name:
+            # Check client access to warehouse
+            if client not in warehouse.users.all():
+                raise ValidationError("Client does not have access to this warehouse.")
+
+            # Check product availability
+            available_products = Product.objects.filter(
+                warehouse=warehouse,
+                product_name=product_name,
+                status='In Stock'
+            )
+            if not available_products.exists():
+                raise ValidationError(f"Product '{product_name}' is not available in this warehouse.")
+
+            total_weight = sum(p.weight_quantity_kg or 0 for p in available_products)
+            if weight_requested_kg and weight_requested_kg > total_weight:
+                raise ValidationError(f"Requested weight ({weight_requested_kg} kg) exceeds available weight ({total_weight} kg).")
+
+        if weight_requested_kg is None or weight_requested_kg <= 0:
+            raise ValidationError("Weight requested must be greater than 0.")
+
+        return cleaned_data
+
+    def save(self, commit=True, max_unit_price=None):
+        instance = super().save(commit=False)
+        if max_unit_price:
+            instance.total_price = instance.calculate_total_price(decimal.Decimal(str(max_unit_price)))
         if commit:
             instance.save()
         return instance

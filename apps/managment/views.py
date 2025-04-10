@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.contrib.auth.forms import PasswordChangeForm
 from .models import Warehouse,Product,ItemRequest
 from django.db.models import Q, Max
-from .forms import WarehouseForm, ProductForm
+from .forms import WarehouseForm, ProductForm,ItemRequestForm,PACKAGING_CONDITIONS
 from django.utils import timezone
 from django.core.exceptions import PermissionDenied,ValidationError
 from apps.authentication.models import CustomUser
@@ -453,6 +453,7 @@ def warehouse_detail(request, slug):
         'product_metadata': json.dumps(metadata),
     })
 
+
 @login_required
 def warehouse_detail_customer(request, slug):
     if not request.user.groups.filter(name='client').exists():
@@ -494,47 +495,37 @@ def warehouse_detail_customer(request, slug):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    if request.method == 'POST' and request.POST.get('request_item'):
-        product_name = request.POST.get('product_name')
-        quantity_requested = request.POST.get('quantity_requested', '') or None
-        weight_requested_kg = request.POST.get('weight_requested_kg', '') or None
-        notes = request.POST.get('notes', '')
+    if request.method == 'POST':
+        form = ItemRequestForm(request.POST, user=request.user, warehouse=warehouse)
+        if form.is_valid():
+            try:
+                product_name = form.cleaned_data['product_name']
+                max_unit_price = next(
+                    (p['max_unit_price'] for p in aggregated_products_list if p['product_name'] == product_name),
+                    None
+                )
+                item_request = form.save(commit=False, max_unit_price=max_unit_price)
+                item_request.full_clean()  # Additional model-level validation
+                item_request.save()
+                return JsonResponse({
+                    'success': True,
+                    'total_price': str(item_request.total_price) if item_request.total_price else 'N/A'
+                })
+            except ValidationError as e:
+                return JsonResponse({'success': False, 'errors': e.message_dict}, status=400)
+            except Exception as e:
+                return JsonResponse({'success': False, 'errors': {'general': [str(e)]}}, status=500)
+        return JsonResponse({'success': False, 'errors': form.errors}, status=400)
 
-        # Find max_unit_price for the product
-        product_data = next((p for p in aggregated_products_list if p['product_name'] == product_name), None)
-        max_unit_price = product_data['max_unit_price'] if product_data else None
-
-        try:
-            # Create the ItemRequest instance
-            item_request = ItemRequest(
-                warehouse=warehouse,
-                client=request.user,
-                product_name=product_name,
-                quantity_requested=int(quantity_requested) if quantity_requested else None,
-                weight_requested_kg=float(weight_requested_kg) if weight_requested_kg else None,
-                notes=notes,
-            )
-            # Calculate and set total_price before saving
-            item_request.total_price = item_request.calculate_total_price(decimal.Decimal(str(max_unit_price))) if max_unit_price else None
-            item_request.full_clean()  # Validate against total available stock
-            item_request.save()
-            return JsonResponse({
-                'success': True,
-                'total_price': str(item_request.total_price) if item_request.total_price else 'N/A'
-            })
-        except ValidationError as e:
-            return JsonResponse({'success': False, 'errors': e.message_dict}, status=400)
-        except Exception as e:
-            return JsonResponse({'success': False, 'errors': {'general': [str(e)]}}, status=500)
-
+    form = ItemRequestForm(user=request.user, warehouse=warehouse)
     context = {
         'warehouse': warehouse,
         'page_obj': page_obj,
         'filters': filters,
         'is_customer': True,
+        'form': form,
     }
     return render(request, 'managment/customer_products.html', context)
-
 @login_required
 def owner_requests(request):
     if not request.user.is_authenticated:
