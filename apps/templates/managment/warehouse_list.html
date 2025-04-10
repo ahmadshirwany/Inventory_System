@@ -112,9 +112,6 @@
                                         <th>Total Capacity (sqm)</th>
                                         <th>Available Space (sqm)</th>
                                         <th>Utilization Rate (%)</th>
-                                        <th>Users</th>
-                                        <th>Clients</th>
-                                        <th>Farmers</th>
                                         {% if user.is_superuser or is_owner %}
                                             <th>Actions</th>
                                         {% endif %}
@@ -131,33 +128,6 @@
                                         <td>{{ warehouse.total_capacity }}</td>
                                         <td>{{ warehouse.available_space }}</td>
                                         <td>{{ warehouse.utilization_rate }}</td>
-                                        <td>
-                                            {% if warehouse.filtered_users %}
-                                                {% for user in warehouse.filtered_users %}
-                                                    {{ user.username }}{% if not forloop.last %}, {% endif %}
-                                                {% endfor %}
-                                            {% else %}
-                                                None
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if  warehouse.filtered_clients %}
-                                                {% for client in  warehouse.filtered_clients %}
-                                                    {{ client.username }}{% if not forloop.last %}, {% endif %}
-                                                {% endfor %}
-                                            {% else %}
-                                                None
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if warehouse.filtered_farmers %}
-                                                {% for farmer in warehouse.filtered_farmers %}
-                                                    {{ farmer.username }}{% if not forloop.last %}, {% endif %}
-                                                {% endfor %}
-                                            {% else %}
-                                                None
-                                            {% endif %}
-                                        </td>
                                         {% if user.is_superuser or is_owner %}
                                         <td>
                                             <button class="btn btn-sm btn-primary edit-warehouse"
