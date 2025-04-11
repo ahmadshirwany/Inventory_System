@@ -534,7 +534,7 @@ def owner_requests(request):
         return render(request, "home/page-403.html", {"message": "Access Denied: This page is not for customers."},
                       status=403)
     # Determine accessible warehouses based on user role
-    if request.user.owner is None or request.user.is_superuser:  # Top-level owner or superuser
+    if request.user.owner  or request.user.is_superuser:  # Top-level owner or superuser
         # Owner sees all warehouses they directly own plus those owned by their users
         accessible_warehouses = Warehouse.objects.filter(
             Q(ownership=request.user) | Q(ownership__owner=request.user)
