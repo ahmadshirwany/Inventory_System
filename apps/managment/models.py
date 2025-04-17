@@ -249,6 +249,13 @@ class Product(models.Model):
                                           help_text="Weight or quantity of the product (in default units)")
     weight_quantity_kg = models.DecimalField(max_digits=100000000000, decimal_places=2, null=True, blank=True,
                                              help_text="Weight of the product in kilograms")
+    weight_per_bag_kg = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Weight per bag or container in kilograms"
+    )
     quantity_in_stock = models.PositiveIntegerField(help_text="Quantity available in stock",null=True, blank=True,)
     warehouse = models.ForeignKey(
         'Warehouse',
@@ -382,6 +389,17 @@ class Product(models.Model):
         if self.weight_quantity_kg is not None:
             if self.weight_quantity_kg < 0:
                 raise ValidationError("Weight quantity in kg cannot be negative.")
+        # Validate weight_per_bag_kg
+        if self.weight_per_bag_kg is not None:
+            if self.weight_per_bag_kg < 0:
+                raise ValidationError("Weight per bag in kg cannot be negative.")
+            if self.quantity_in_stock is not None and self.packaging_condition != 'Bulk':
+                calculated_weight_kg = self.weight_per_bag_kg * self.quantity_in_stock
+                if self.weight_quantity_kg is not None and abs(
+                        self.weight_quantity_kg - calculated_weight_kg) > 0.01:
+                    self.weight_quantity_kg = calculated_weight_kg
+        elif self.packaging_condition != 'Bulk' and self.quantity_in_stock is not None:
+            raise ValidationError("Weight per bag in kg is required for non-Bulk packaging with quantity in stock.")
             # Convert kg to grams (assuming default unit is grams)
             self.weight_quantity = self.weight_quantity_kg * 1000
         elif self.weight_quantity is not None:
@@ -462,6 +480,8 @@ class Product(models.Model):
             raise ValidationError("Status must be 'Expired' if expiration date is past or present.")
 
     def save(self, *args, **kwargs):
+        if self.weight_per_bag_kg is not None and self.quantity_in_stock is not None and self.packaging_condition != 'Bulk':
+            self.weight_quantity_kg = self.weight_per_bag_kg * self.quantity_in_stock
 
         if self.weight_quantity_kg is not None:
             self.weight_quantity = self.weight_quantity_kg * 1000

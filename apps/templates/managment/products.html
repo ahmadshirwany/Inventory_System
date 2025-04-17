@@ -19,6 +19,7 @@
         .form-step { display: none; }
         .form-step.active { display: block; }
         .error-messages { display: none; margin-bottom: 20px; }
+        .is-invalid { border-color: #dc3545; }
     </style>
 {% endblock stylesheets %}
 
@@ -28,7 +29,7 @@
             <div class="card card-plain">
                 <div class="card-header card-header-primary">
                     <h4 class="card-title mt-0">Products in {{ warehouse.name }}</h4>
-                    {% if request.user.is_superuser or is_owner or is_user%}
+                    {% if request.user.is_superuser or is_owner or is_user %}
                         <div class="header-buttons">
                             <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#addProductModal">
                                 <i class="fa fa-plus"></i> Add New Product
@@ -39,7 +40,7 @@
                 </div>
                 <div class="card-body">
                     <!-- Filter Section -->
-                    <button class="btn btn-secondary mb-3" type="button" data-toggle="collapse" data-target="#filterPanel" aria-expanded="false" aria-controls="filterPanel">
+                    <button class="btn btn-secondary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel" aria-expanded="false" aria-controls="filterPanel">
                         <i class="fa fa-filter"></i> Filters
                     </button>
 
@@ -84,38 +85,41 @@
                         {% if page_obj %}
                             <table class="table table-hover" id="productsTable">
                                 <thead>
-                                    <th>SKU</th>
-                                    <th>Barcode</th>
-                                    <th>Product Name</th>
-                                    <th>Type</th>
-                                    <th>Origin</th>
-                                    <th>Lot Number</th>
-                                    <th>Harvest Date</th>
-                                    <th>Entry Date</th>
-                                    <th>Manufacturing Date</th>
-                                    <th>Expiration Date</th>
-                                    <th>Exit Date</th>
-                                    <th>Supplier Code</th>
-                                    <th>Variety/Species</th>
-                                    <th>Weight (g)</th>
-                                    <th>Weight (kg)</th>
-                                    <th>Quantity in Stock</th>
-                                    <th>Packaging Condition</th>
-                                    <th>Status</th>
-                                    <th>Quality Standards</th>
-                                    <th>Storage Temp (°C)</th>
-                                    <th>Humidity (%)</th>
-                                    <th>CO₂ (%)</th>
-                                    <th>O₂ (%)</th>
-                                    <th>N₂ (%)</th>
-                                    <th>Ethylene Management</th>
-                                    <th>Unit Price</th>
-                                    <th>Total Value</th>
-                                    <th>Nutritional Info</th>
-                                    <th>Regulatory Codes</th>
-                                    <th>Notes/Comments</th>
-                                    <th>Farmer</th>
-                                    <th>Actions</th>
+                                    <tr>
+                                        <th>SKU</th>
+                                        <th>Barcode</th>
+                                        <th>Product Name</th>
+                                        <th>Type</th>
+                                        <th>Origin</th>
+                                        <th>Lot Number</th>
+                                        <th>Harvest Date</th>
+                                        <th>Entry Date</th>
+                                        <th>Manufacturing Date</th>
+                                        <th>Expiration Date</th>
+                                        <th>Exit Date</th>
+                                        <th>Supplier Code</th>
+                                        <th>Variety/Species</th>
+                                        <th>Weight (g)</th>
+                                        <th>Weight (kg)</th>
+                                        <th>Weight per Bag (kg)</th>
+                                        <th>Quantity in Stock</th>
+                                        <th>Packaging Condition</th>
+                                        <th>Status</th>
+                                        <th>Quality Standards</th>
+                                        <th>Storage Temp (°C)</th>
+                                        <th>Humidity (%)</th>
+                                        <th>CO₂ (%)</th>
+                                        <th>O₂ (%)</th>
+                                        <th>N₂ (%)</th>
+                                        <th>Ethylene Management</th>
+                                        <th>Unit Price</th>
+                                        <th>Total Value</th>
+                                        <th>Nutritional Info</th>
+                                        <th>Regulatory Codes</th>
+                                        <th>Notes/Comments</th>
+                                        <th>Farmer</th>
+                                        <th>Actions</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
                                     {% for product in page_obj %}
@@ -135,6 +139,7 @@
                                             <td>{{ product.variety_or_species|default:"N/A" }}</td>
                                             <td>{{ product.weight_quantity|default:"N/A" }}</td>
                                             <td>{{ product.weight_quantity_kg|default:"N/A" }}</td>
+                                            <td>{{ product.weight_per_bag_kg|default:"N/A" }}</td>
                                             <td>{{ product.quantity_in_stock }}</td>
                                             <td>{{ product.packaging_condition|default:"N/A" }}</td>
                                             <td>{{ product.status }}</td>
@@ -153,7 +158,7 @@
                                             <td>{{ product.farmer.username|default:"N/A" }}</td>
                                             <td style="text-align: center;">
                                                 {% if request.user.is_superuser or is_owner %}
-                                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editProductModal" onclick="populateEditModal('{{ product.sku }}', '{{ product.barcode|default:'N/A'|escapejs }}', '{{ product.product_name|escapejs }}', '{{ product.weight_quantity_kg|default:'0' }}', '{{ product.quantity_in_stock }}', '{{ product.unit_price|default:'0' }}', '{{ product.harvest_date|default:''|date:'Y-m-d' }}', '{{ product.entry_date|date:'Y-m-d' }}', '{{ product.farmer.pk|default:'' }}', '{{ product.notes_comments|default:''|escapejs }}', '{{ product.packaging_condition|default:'N/A'|escapejs }}')">
+                                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editProductModal" onclick="populateEditModal('{{ product.sku }}', '{{ product.barcode|default:'N/A'|escapejs }}', '{{ product.product_name|escapejs }}', '{{ product.weight_quantity_kg|default:'0' }}', '{{ product.quantity_in_stock }}', '{{ product.unit_price|default:'0' }}', '{{ product.harvest_date|default:''|date:'Y-m-d' }}', '{{ product.entry_date|date:'Y-m-d' }}', '{{ product.farmer.pk|default:'' }}', '{{ product.notes_comments|default:''|escapejs }}', '{{ product.packaging_condition|default:'N/A'|escapejs }}', '{{ product.weight_per_bag_kg|default:'N/A'|escapejs }}')">
                                                         Edit
                                                     </button>
                                                 {% endif %}
@@ -302,7 +307,7 @@
                             <div class="row">
                                 <div class="col-md-4 mb-3">
                                     {{ form.barcode.label_tag }}
-                                    <input type="text" class="form-control" id="edit_barcode" name="barcode" required>
+                                    <input type="text" class="form-control" id="edit_barcode" name="barcode">
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     {{ form.product_name.label_tag }}
@@ -341,7 +346,7 @@
                             <div class="row">
                                 <div class="col-md-4 mb-3">
                                     {{ form.unit_price.label_tag }}
-                                    <input type="number" class="form-control" id="edit_unit_price" name="unit_price" step="0.01" min="0" required>
+                                    <input type="number" class="form-control" id="edit_unit_price" name="unit_price" step="0.01" min="0">
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     {{ form.harvest_date.label_tag }}
@@ -349,7 +354,7 @@
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     {{ form.entry_date.label_tag }}
-                                    <input type="date" class="form-control" id="edit_entry_date" name="entry_date" required>
+                                    <input type="date" class="form-control" id="edit_entry_date" name="entry_date">
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     {{ form.farmer.label_tag }}
@@ -434,7 +439,7 @@
             return cookieValue;
         }
 
-        function populateEditModal(sku, barcode, product_name, weight_quantity_kg, quantity_in_stock, unit_price, harvest_date, entry_date, farmer_pk, notes_comments, packaging_condition) {
+        function populateEditModal(sku, barcode, product_name, weight_quantity_kg, quantity_in_stock, unit_price, harvest_date, entry_date, farmer_pk, notes_comments, packaging_condition, weight_per_bag_kg) {
             document.getElementById('edit_sku').value = sku;
             document.getElementById('edit_barcode').value = barcode !== 'N/A' ? barcode : '';
             document.getElementById('edit_product_name').value = product_name;
@@ -454,18 +459,17 @@
             document.getElementById('edit_farmer').value = farmer_pk !== '' ? farmer_pk : '';
             document.getElementById('edit_notes_comments').value = notes_comments !== 'N/A' ? notes_comments : '';
             document.getElementById('editProductModalLabel').innerText = `Edit Product: ${product_name} (SKU: ${sku})`;
-            updateEditWeightField();
-            const weightPerBag = weight_quantity_kg && quantity_in_stock ? (parseFloat(weight_quantity_kg) / quantity_in_stock).toFixed(2) : '';
-            if (weightPerBag && packaging_condition !== "Bulk") {
+            if (weight_per_bag_kg && packaging_condition !== "Bulk") {
                 const weights = packagingConditions[packaging_condition];
                 if (Array.isArray(weights)) {
-                    document.getElementById('edit_weight_per_bag_select').value = weightPerBag;
+                    document.getElementById('edit_weight_per_bag_select').value = weight_per_bag_kg;
                 } else if (weights === null) {
-                    document.getElementById('edit_weight_per_bag_input').value = weightPerBag;
+                    document.getElementById('edit_weight_per_bag_input').value = weight_per_bag_kg;
                 } else {
                     document.getElementById('edit_weight_per_bag_select').value = weights;
                 }
             }
+            updateEditWeightField();
         }
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -524,6 +528,8 @@
                     totalWeightInput.removeAttribute('readonly');
                     totalWeightInput.setAttribute('required', 'required');
                     quantityInput.value = '';
+                    weightSelect.value = '';
+                    weightInput.value = '';
                 } else if (Array.isArray(weights)) {
                     weights.forEach(weight => {
                         const option = document.createElement('option');
@@ -534,12 +540,10 @@
                     weightSelect.style.display = 'block';
                     weightSelect.setAttribute('required', 'required');
                     quantityInput.setAttribute('required', 'required');
-                    updateTotalWeight();
                 } else if (weights === null) {
                     weightInput.style.display = 'block';
                     weightInput.setAttribute('required', 'required');
                     quantityInput.setAttribute('required', 'required');
-                    updateTotalWeight();
                 } else {
                     const option = document.createElement('option');
                     option.value = weights;
@@ -549,8 +553,8 @@
                     weightSelect.style.display = 'block';
                     weightSelect.setAttribute('required', 'required');
                     quantityInput.setAttribute('required', 'required');
-                    updateTotalWeight();
                 }
+                updateTotalWeight();
             }
 
             function updateTotalWeight() {
@@ -618,7 +622,7 @@
                         const currentInputs = addFormSteps[addCurrentStep - 1].querySelectorAll('input[required], select[required]');
                         let isValid = true;
                         currentInputs.forEach(input => {
-                            if (!input.value && input.closest('.form-step').style.display !== 'none') {
+                            if (!input.value && input.closest('.form-step').style.display !== 'none' && input.style.display !== 'none') {
                                 isValid = false;
                                 input.classList.add('is-invalid');
                             } else {
@@ -635,6 +639,12 @@
                 submitBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     const formData = new FormData(addForm);
+                    const weightPerBag = weightSelect.style.display === 'block' ? weightSelect.value : weightInput.value;
+                    if (weightPerBag && packagingSelect.value !== "Bulk") {
+                        formData.set('weight_per_bag_kg', weightPerBag);
+                    } else {
+                        formData.delete('weight_per_bag_kg');
+                    }
                     fetch("{% url 'warehouse_detail' warehouse.slug %}", {
                         method: 'POST',
                         body: formData,
@@ -692,6 +702,8 @@
                     editTotalWeightInput.removeAttribute('readonly');
                     editTotalWeightInput.setAttribute('required', 'required');
                     editQuantityInput.value = '';
+                    editWeightSelect.value = '';
+                    editWeightInput.value = '';
                 } else if (Array.isArray(weights)) {
                     weights.forEach(weight => {
                         const option = document.createElement('option');
@@ -702,12 +714,10 @@
                     editWeightSelect.style.display = 'block';
                     editWeightSelect.setAttribute('required', 'required');
                     editQuantityInput.setAttribute('required', 'required');
-                    updateEditTotalWeight();
                 } else if (weights === null) {
                     editWeightInput.style.display = 'block';
                     editWeightInput.setAttribute('required', 'required');
                     editQuantityInput.setAttribute('required', 'required');
-                    updateEditTotalWeight();
                 } else {
                     const option = document.createElement('option');
                     option.value = weights;
@@ -717,8 +727,8 @@
                     editWeightSelect.style.display = 'block';
                     editWeightSelect.setAttribute('required', 'required');
                     editQuantityInput.setAttribute('required', 'required');
-                    updateEditTotalWeight();
                 }
+                updateEditTotalWeight();
             }
 
             function updateEditTotalWeight() {
@@ -792,6 +802,12 @@
                 editSubmitBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     const formData = new FormData(editForm);
+                    const weightPerBag = editWeightSelect.style.display === 'block' ? editWeightSelect.value : editWeightInput.value;
+                    if (weightPerBag && editPackagingSelect.value !== "Bulk") {
+                        formData.set('weight_per_bag_kg', weightPerBag);
+                    } else {
+                        formData.delete('weight_per_bag_kg');
+                    }
                     fetch("{% url 'warehouse_detail' warehouse.slug %}", {
                         method: 'POST',
                         body: formData,
@@ -821,6 +837,8 @@
                 document.getElementById('editProductModal').addEventListener('hidden.bs.modal', function() {
                     editCurrentStep = 1;
                     updateEditSteps();
+                    editForm.reset();
+                    editErrorDiv.style.display = 'none';
                 });
 
                 updateEditSteps();

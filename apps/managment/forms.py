@@ -173,7 +173,20 @@ class ProductForm(forms.ModelForm):
             'aria-label': 'Packaging Condition',
         })
     )
-
+    weight_per_bag_kg = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        help_text="Weight per bag or container in kilograms (e.g., weight per bag or sachet)",
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control form-control-lg',
+            'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+            'step': '0.01',
+            'min': '0',
+            'placeholder': 'e.g., 0.50 (in kg)',
+            'aria-label': 'Weight per Bag in Kilograms',
+        })
+    )
     class Meta:
         model = Product
         exclude = [
@@ -270,6 +283,8 @@ class ProductForm(forms.ModelForm):
             'placeholder': 'Add any additional notes or comments...',
             'aria-label': 'Notes or Comments',
         })
+        self.fields[
+            'weight_per_bag_kg'].initial = self.instance.weight_per_bag_kg if self.instance and self.instance.pk else None
 
         self.fields['harvest_date'].required = False
         self.fields['farmer'].required = False
@@ -281,6 +296,8 @@ class ProductForm(forms.ModelForm):
         packaging_condition = cleaned_data.get('packaging_condition')
         quantity_in_stock = cleaned_data.get('quantity_in_stock')
         weight_quantity_kg = cleaned_data.get('weight_quantity_kg')
+        weight_per_bag_kg = cleaned_data.get('weight_per_bag_kg')
+        expected_package_weight = PACKAGING_CONDITIONS.get(packaging_condition)
 
         if product_name:
             metadata = get_product_metadata()
@@ -289,15 +306,33 @@ class ProductForm(forms.ModelForm):
                 cleaned_data['notes_comments'] = product_data['notes_comments']
 
         if packaging_condition == "Bulk":
-            if quantity_in_stock is not None:
-                cleaned_data['quantity_in_stock'] = None  # Force null for Bulk
-            if not weight_quantity_kg:
-                raise ValidationError("Weight in kilograms is required for Bulk packaging.")
+            if weight_per_bag_kg is not None:
+                cleaned_data['weight_per_bag_kg'] = None
         else:
-            if quantity_in_stock is None:
-                raise ValidationError("Quantity in stock is required for non-Bulk packaging.")
-            if not weight_quantity_kg:
-                raise ValidationError("Weight in kilograms is required.")
+            if isinstance(expected_package_weight, (int, float)):
+                if weight_per_bag_kg is not None and abs(weight_per_bag_kg - expected_package_weight) > 0.01:
+                    raise ValidationError(
+                        f"Weight per bag must be {expected_package_weight} kg for {packaging_condition}."
+                    )
+                cleaned_data['weight_per_bag_kg'] = expected_package_weight
+            elif isinstance(expected_package_weight, list):
+                if weight_per_bag_kg is None:
+                    raise ValidationError(f"Weight per bag is required for {packaging_condition}.")
+                if weight_per_bag_kg not in expected_package_weight:
+                    raise ValidationError(
+                        f"Weight per bag must be one of {expected_package_weight} kg for {packaging_condition}."
+                    )
+            else:
+                if weight_per_bag_kg is None:
+                    raise ValidationError(f"Weight per bag is required for {packaging_condition}.")
+
+            if weight_per_bag_kg is not None and quantity_in_stock is not None:
+                calculated_weight_kg = weight_per_bag_kg * quantity_in_stock
+                if weight_quantity_kg is not None and abs(weight_quantity_kg - calculated_weight_kg) > 0.01:
+                    raise ValidationError(
+                        "Total weight (kg) must match weight per bag (kg) × quantity in stock."
+                    )
+                cleaned_data['weight_quantity_kg'] = calculated_weight_kg
 
         return cleaned_data
 
@@ -306,6 +341,7 @@ class ProductForm(forms.ModelForm):
         instance.supplier_code = instance.supplier_code or "N/A"
         instance.variety_or_species = instance.variety_or_species or "N/A"
         instance.packaging_condition = self.cleaned_data.get('packaging_condition') or "N/A"
+        instance.weight_per_bag_kg = self.cleaned_data.get('weight_per_bag_kg')
 
         if self.cleaned_data.get('weight_quantity_kg'):
             instance.weight_quantity = self.cleaned_data['weight_quantity_kg'] * 1000  # Convert kg to g for weight_quantity
