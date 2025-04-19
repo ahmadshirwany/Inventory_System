@@ -343,7 +343,7 @@ def warehouse_detail(request, slug):
     if filters['status']:
         products = products.filter(status=filters['status'])
 
-    products.order_by('entry_date')
+    products = products.order_by('entry_date')
     paginator = Paginator(products, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -367,23 +367,22 @@ def warehouse_detail(request, slug):
                     return JsonResponse({'success': False, 'errors': e.message_dict}, status=400)
             return JsonResponse({'success': False, 'errors': form.errors}, status=400)
 
-        elif 'edit_product' in request.POST:
+        elif 'delete_product' in request.POST:
             sku = request.POST.get('sku')
-            product = get_object_or_404(Product, sku=sku, warehouse=warehouse)
-            form = ProductForm(request.POST, instance=product)
-            if form.is_valid():
-                try:
-                    updated_product = form.save(commit=False)
-                    weight_quantity_kg = request.POST.get('weight_quantity_kg')
-                    if weight_quantity_kg:
-                        updated_product.weight_quantity_kg = decimal.Decimal(weight_quantity_kg)
-                        updated_product.weight_quantity = updated_product.weight_quantity_kg * 1000  # Convert kg to g
-                    updated_product.full_clean()
-                    updated_product.save()
-                    return JsonResponse({'success': True, 'message': 'Product updated successfully'}, status=200)
-                except ValidationError as e:
-                    return JsonResponse({'success': False, 'errors': e.message_dict}, status=400)
-            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+            if not sku:
+                return JsonResponse({'success': False, 'errors': {'sku': ['SKU is required']}}, status=400)
+            try:
+                product = get_object_or_404(Product, sku=sku, warehouse=warehouse)
+                if request.user.is_superuser or request.user == warehouse.ownership:
+                    product.delete()
+                    return JsonResponse({'success': True, 'message': 'Product deleted successfully'}, status=200)
+                else:
+                    return JsonResponse(
+                        {'success': False, 'errors': {'permission': ['You do not have permission to delete this product']}},
+                        status=403
+                    )
+            except Exception as e:
+                return JsonResponse({'success': False, 'errors': {'server': [str(e)]}}, status=400)
 
         elif 'take_out_product' in request.POST:
             sku = request.POST.get('sku')
@@ -577,6 +576,76 @@ def owner_requests(request):
             elif action == 'reject' and item_request.status in ['PENDING', 'APPROVED']:
                 item_request.status = 'REJECTED'
             elif action == 'complete' and item_request.status == 'APPROVED':
+                # Subtract stock from products with nearest expiration date
+                remaining_weight = item_request.weight_requested_kg
+                products = Product.objects.filter(
+                    warehouse=item_request.warehouse,
+                    product_name=item_request.product_name,
+                    status="In Stock",
+                ).order_by("expiration_date", "entry_date")  # Prioritize expiration_date, then entry_date
+
+                if not products.exists():
+                    raise ValidationError(f"No stock available for {item_request.product_name}.")
+
+                total_available = sum(p.weight_quantity_kg or 0 for p in products)
+                if remaining_weight > total_available:
+                    raise ValidationError(
+                        f"Requested {remaining_weight} kg exceeds available {total_available} kg."
+                    )
+
+                for product in products:
+                    if remaining_weight <= 0:
+                        break
+
+                    available_weight = product.weight_quantity_kg or 0
+                    weight_to_take = min(remaining_weight, available_weight)
+                    if weight_to_take <= 0:
+                        continue
+
+                    # Update product stock
+                    previous_weight = product.weight_quantity_kg
+                    previous_quantity = product.quantity_in_stock or 0
+                    product.weight_quantity_kg -= weight_to_take
+
+                    # Adjust quantity_in_stock if applicable (non-Bulk packaging)
+                    if product.packaging_condition != "Bulk" and product.quantity_in_stock and product.weight_per_bag_kg:
+                        weight_per_unit = product.weight_per_bag_kg
+                        quantity_to_take = int(weight_to_take / weight_per_unit)
+                        product.quantity_in_stock -= min(quantity_to_take, product.quantity_in_stock)
+                    else:
+                        quantity_to_take = 0
+
+                    product.weight_quantity = product.weight_quantity_kg * 1000  # Convert kg to g
+                    product.quantity_in_stock = max(0, product.quantity_in_stock or 0)
+                    product.weight_quantity_kg = max(0, product.weight_quantity_kg)
+
+                    # Update status and exit date if out of stock
+                    if product.quantity_in_stock == 0 or product.weight_quantity_kg == 0:
+                        product.status = "Out of Stock"
+                        product.exit_date = timezone.now().date()
+
+                    # Update total_value based on weight
+                    product.total_value = product.unit_price * product.weight_quantity_kg
+
+                    product.save()
+
+                    # Log the stock change
+                    # ProductLog.objects.create(
+                    #     product=product,
+                    #     user=request.user,
+                    #     action="REMOVE",
+                    #     quantity_change=-quantity_to_take,
+                    #     weight_change_kg=-weight_to_take,
+                    #     notes=f"Stock removed for ItemRequest {item_request.id} (Completed)"
+                    # )
+
+                    remaining_weight -= weight_to_take
+
+                if remaining_weight > 0:
+                    raise ValidationError("Insufficient stock to fulfill request.")
+
+                item_request.status = "COMPLETED"
+                item_request.completion_date = timezone.now()
                 item_request.status = 'COMPLETED'
                 item_request.completion_date = timezone.now()
             item_request.save()
