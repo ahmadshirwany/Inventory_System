@@ -400,47 +400,90 @@ def warehouse_detail(request, slug):
                     'errors': {'__all__': ['Please specify at least one of Quantity or Weight (kg) to take out.']}
                 }, status=400)
 
-            if quantity_to_take > product.quantity_in_stock:
-                return JsonResponse({
-                    'success': False,
-                    'errors': {'quantity_to_take': [f'Cannot take out more than {product.quantity_in_stock} units']}
-                }, status=400)
+            # Validate quantity if applicable
+
+            if quantity_to_take > 0 and product.quantity_in_stock is not None:
+
+                if quantity_to_take > product.quantity_in_stock:
+                    return JsonResponse({
+
+                        'success': False,
+
+                        'errors': {'quantity_to_take': [f'Cannot take out more than {product.quantity_in_stock} units']}
+
+                    }, status=400)
+
+            # Validate weight
 
             if weight_kg_to_take > (product.weight_quantity_kg or 0):
                 return JsonResponse({
+
                     'success': False,
+
                     'errors': {'weight_kg_to_take': [f'Cannot take out more than {product.weight_quantity_kg} kg']}
+
                 }, status=400)
 
             weight_per_unit = None
-            if product.quantity_in_stock > 0 and product.weight_quantity_kg:
+
+            if product.quantity_in_stock is not None and product.quantity_in_stock > 0 and product.weight_quantity_kg:
                 weight_per_unit = float(product.weight_quantity_kg) / product.quantity_in_stock
 
-            if quantity_to_take > 0:
-                product.quantity_in_stock -= quantity_to_take
-                if weight_per_unit and product.weight_quantity_kg:
-                    proportional_weight = decimal.Decimal(str(quantity_to_take * weight_per_unit))
-                    product.weight_quantity_kg -= min(proportional_weight, product.weight_quantity_kg)
+            if product.packaging_condition == 'Bulk' and product.quantity_in_stock is None:
 
-            if weight_kg_to_take > 0:
-                product.weight_quantity_kg = (product.weight_quantity_kg or decimal.Decimal('0')) - weight_kg_to_take
-                if weight_per_unit and product.quantity_in_stock > 0:
-                    proportional_quantity = int(float(weight_kg_to_take) / weight_per_unit)
-                    product.quantity_in_stock -= min(proportional_quantity, product.quantity_in_stock)
+                # For Bulk products with no quantity_in_stock, only subtract weight
 
-            product.quantity_in_stock = max(0, product.quantity_in_stock)
+                if weight_kg_to_take > 0:
+                    product.weight_quantity_kg = (product.weight_quantity_kg or decimal.Decimal(
+                        '0')) - weight_kg_to_take
+
+            else:
+
+                # Handle non-Bulk or Bulk with quantity_in_stock
+
+                if quantity_to_take > 0:
+
+                    product.quantity_in_stock -= quantity_to_take
+
+                    if weight_per_unit and product.weight_quantity_kg:
+                        proportional_weight = decimal.Decimal(str(quantity_to_take * weight_per_unit))
+
+                        product.weight_quantity_kg -= min(proportional_weight, product.weight_quantity_kg)
+
+                if weight_kg_to_take > 0:
+
+                    product.weight_quantity_kg = (product.weight_quantity_kg or decimal.Decimal(
+                        '0')) - weight_kg_to_take
+
+                    if weight_per_unit and product.quantity_in_stock is not None and product.quantity_in_stock > 0:
+                        proportional_quantity = int(float(weight_kg_to_take) / weight_per_unit)
+
+                        product.quantity_in_stock -= min(proportional_quantity, product.quantity_in_stock)
+
+            # Ensure non-negative values
+
+            if product.quantity_in_stock is not None:
+                product.quantity_in_stock = max(0, product.quantity_in_stock)
+
             product.weight_quantity_kg = max(0, product.weight_quantity_kg)
 
-            if product.quantity_in_stock == 0 or product.weight_quantity_kg == 0:
+            # Update status if out of stock
+
+            if (
+                    product.quantity_in_stock == 0 or product.quantity_in_stock is None) and product.weight_quantity_kg == 0:
                 product.status = 'Out of Stock'
+
                 product.exit_date = timezone.now().date()
 
-            product.total_value = product.unit_price * product.quantity_in_stock
+            # Update total value and weight in grams
+
+            product.total_value = product.unit_price * (product.quantity_in_stock or 0)
+
             product.weight_quantity = product.weight_quantity_kg * 1000  # Convert kg to g
+
             product.save()
 
-            return JsonResponse({'success': True, 'message': 'Product taken out successfully'}, status=200)
-
+            return JsonResponse({'success': True, 'message': 'Product taken out successfully'})
     metadata = get_product_metadata()
     return render(request, 'managment/products.html', {
         'warehouse': warehouse,
