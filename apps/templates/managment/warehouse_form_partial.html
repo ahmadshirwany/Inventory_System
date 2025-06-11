@@ -1,0 +1,15 @@
+{% for field in form %}
+    <div class="form-group">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}
+            <small class="form-text text-muted">{{ field.help_text }}</small>
+        {% endif %}
+        <div class="error-message" id="{{ field.id_for_label }}-error">
+            {% for error in field.errors %}{{ error }}<br>{% endfor %}
+        </div>
+        {% if field.name == 'available_space' %}
+            <div class="capacity-info">Utilization Rate: 0%</div>
+        {% endif %}
+    </div>
+{% endfor %}

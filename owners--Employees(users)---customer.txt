@@ -1,0 +1,9 @@
+owners-->Employees(users)--->customers
+owners-->Farmers
+warehouse -->product --> Farmers
+customers --> request --> product
+
+1.add customers
+2.add requests from the customers
+3.packaging for the product (kg/bag, quantity of bag, price/kg)
+4.packaging list ---> dropdown menu
