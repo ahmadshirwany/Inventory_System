@@ -17,7 +17,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 SECRET_KEY = config('SECRET_KEY', default='S#perS3crEt_1122')
 with open("IP_data.json", "r") as file:
     data_adress = json.load(file)
-print(data_adress)
 # SECURITY WARNING: don't run with debug turned on in production!
 # DEBUG = config('DEBUG', default=True, cast=bool)
 DEBUG = False
