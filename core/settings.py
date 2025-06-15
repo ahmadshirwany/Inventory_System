@@ -22,7 +22,7 @@ with open("IP_data.json", "r") as file:
 DEBUG = True
 # load production server from .env
 #ALLOWED_HOSTS = ['localhost', '127.0.0.1', config('SERVER', default='127.0.0.1')]
-ALLOWED_HOSTS = [data_adress["IP"],'localhost', '127.0.0.1']
+ALLOWED_HOSTS = [data_adress["IP"],'localhost', '*']
 
 # Application definition
 
