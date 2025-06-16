@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.core.exceptions import ValidationError
 import decimal
+from decimal import Decimal
 
 @login_required
 def update_password(request):
@@ -310,11 +311,12 @@ class ProductForm(forms.ModelForm):
                 cleaned_data['weight_per_bag_kg'] = None
         else:
             if isinstance(expected_package_weight, (int, float)):
-                if weight_per_bag_kg is not None and abs(weight_per_bag_kg - expected_package_weight) > 0.01:
+                expected_package_weight_decimal = Decimal(str(expected_package_weight))
+                if weight_per_bag_kg is not None and abs(weight_per_bag_kg - expected_package_weight_decimal) > 0.01:
                     raise ValidationError(
                         f"Weight per bag must be {expected_package_weight} kg for {packaging_condition}."
                     )
-                cleaned_data['weight_per_bag_kg'] = expected_package_weight
+                cleaned_data['weight_per_bag_kg'] = expected_package_weight_decimal
             elif isinstance(expected_package_weight, list):
                 if weight_per_bag_kg is None:
                     raise ValidationError(f"Weight per bag is required for {packaging_condition}.")
