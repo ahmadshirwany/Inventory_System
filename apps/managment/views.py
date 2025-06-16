@@ -290,7 +290,7 @@ def warehouse_list(request):
         'total_count': queryset.count(),
         'user_limit': request.user.user_limit,
         'current_user_count': request.user.owned_users.count() if not request.user.is_superuser else CustomUser.objects.count(),
-        'is_client': request.user.is_client,
+        'is_client': request.user.groups.filter(name='client').exists(),
         'is_user': request.user.groups.filter(name='user').exists(),
     }
     return render(request, 'managment/warehouse_list.html', context)

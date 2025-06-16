@@ -79,12 +79,14 @@
               <p>Customers</p>
             </a>
             {% endif %}
+             {% if is_client%}
            <li class="nav-item">
             <li class="nav-item {% if 'page-user' in segment %} active {% endif %}">
              <a class="nav-link" href="{% url 'customer_requests' %}">
               <i class="material-icons">R</i>
               <p>Requested Items</p>
             </a>
+             {% endif %}
               {% if user.is_superuser or is_owner or is_user%}
            <li class="nav-item">
             <li class="nav-item {% if 'page-user' in segment %} active {% endif %}">
