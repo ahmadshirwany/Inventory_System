@@ -85,6 +85,7 @@ def index(request):
                    'warehouses': queryset,
                    'is_owner': request.user.groups.filter(name='owner').exists(),
                    'is_user': request.user.groups.filter(name='user').exists(),
+                   'is_client': request.user.groups.filter(name='client').exists(),
                    }
 
     html_template = loader.get_template('managment/index.html')
@@ -566,6 +567,7 @@ def warehouse_detail_customer(request, slug):
         'filters': filters,
         'is_customer': True,
         'form': form,
+        'is_client': request.user.groups.filter(name='client').exists(),
     }
     return render(request, 'managment/customer_products.html', context)
 @login_required
@@ -576,7 +578,7 @@ def owner_requests(request):
         return render(request, "home/page-403.html", {"message": "Access Denied: This page is not for customers."},
                       status=403)
     # Determine accessible warehouses based on user role
-    if request.user.owner  or request.user.is_superuser:  # Top-level owner or superuser
+    if request.user.groups.filter(name='owner').exists()  or request.user.is_superuser:  # Top-level owner or superuser
         # Owner sees all warehouses they directly own plus those owned by their users
         accessible_warehouses = Warehouse.objects.filter(
             Q(ownership=request.user) | Q(ownership__owner=request.user)
@@ -702,6 +704,7 @@ def owner_requests(request):
         'page_obj': page_obj,
         'is_owner': is_owner,
         'is_user': request.user.groups.filter(name='user').exists(),
+        'is_client': request.user.groups.filter(name='client').exists(),
     }
     return render(request, 'managment/owner_requests.html', context)
 
@@ -719,5 +722,6 @@ def customer_requests(request):
     context = {
         'page_obj': page_obj,
         'is_customer': True,
+        'is_client': request.user.groups.filter(name='client').exists(),
     }
     return render(request, 'managment/customer_requests.html', context)

@@ -429,7 +429,7 @@ class Product(models.Model):
         # Existing validation logic
         if self.harvest_date and self.entry_date:
             today = timezone.now().date()
-            if harvest_date > today:
+            if self.harvest_date > today:
                 raise ValidationError("Harvest date cannot be in the future.")
             if self.harvest_date > self.entry_date:
                 raise ValidationError("Harvest date cannot be later than entry date.")
