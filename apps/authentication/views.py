@@ -91,6 +91,8 @@ def user_profile(request):
         "current_user": request.user,
         'is_owner': request.user.groups.filter(name='owner').exists(),
         "form": form,
+        'is_client': request.user.groups.filter(name='client').exists(),
+        'is_user': request.user.groups.filter(name='user').exists()
     }
     return render(request, "managment/user_profile.html", context)
 from django.contrib import messages
