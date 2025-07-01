@@ -92,7 +92,8 @@ def user_profile(request):
         'is_owner': request.user.groups.filter(name='owner').exists(),
         "form": form,
         'is_client': request.user.groups.filter(name='client').exists(),
-        'is_user': request.user.groups.filter(name='user').exists()
+        'is_user': request.user.groups.filter(name='user').exists(),
+        'is_farmer': request.user.groups.filter(name='farmer').exists(),
     }
     return render(request, "managment/user_profile.html", context)
 from django.contrib import messages
@@ -364,7 +365,7 @@ def client_list(request):
     elif is_owner:
         clients = Client.objects.filter(user__owner=request.user)
     else:
-        clients = Client.objects.filter(user__owner=request.user.owner)
+        clients = Client.objects.filter(user__owner=request.user)
 
     # Apply filters
     filters = {}
@@ -388,6 +389,7 @@ def client_list(request):
         'is_owner': is_owner,
         'form': form,  # Included for reference, though not rendered directly
         'is_user': request.user.groups.filter(name='user').exists(),
+        'is_farmer': request.user.groups.filter(name='farmer').exists(),
     }
     return render(request, 'accounts/client_list.html', context)
 @login_required

@@ -5,11 +5,14 @@ Copyright (c) 2019 - present AppSeed.us
 import datetime
 import uuid
 from datetime import timezone
-
+from datetime import date
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from .models import CustomUser, Farmer,Client
+import re
+from django.db import transaction
+from django.contrib.auth import password_validation
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -121,9 +124,8 @@ class ProfilePictureForm(forms.ModelForm):
         return picture
 
 class FarmerCreationForm(forms.ModelForm):
-    # CustomUser fields
     username = forms.CharField(max_length=150, required=True, help_text="Unique username for the farmer's user account.")
-    email = forms.EmailField(required=False, help_text="Email address for the user (optional).")
+    user_email = forms.EmailField(required=True, help_text="Email address for the user account.")
     password1 = forms.CharField(
         label="Password",
         widget=forms.PasswordInput,
@@ -134,6 +136,7 @@ class FarmerCreationForm(forms.ModelForm):
         widget=forms.PasswordInput,
         help_text="Confirm the password."
     )
+    contact_number = forms.CharField(max_length=20, required=True, help_text="Primary contact number of the farmer.")
 
     class Meta:
         model = Farmer
@@ -149,51 +152,68 @@ class FarmerCreationForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'rows': 3}),
         }
 
+    def clean_contact_number(self):
+        contact_number = self.cleaned_data.get('contact_number')
+        # Basic phone number validation (e.g., +1234567890 or 123-456-7890)
+        phone_pattern = r'^\+?1?\d{9,15}$|^(\d{3}[-.\s]?\d{3}[-.\s]?\d{4})$'
+        if not re.match(phone_pattern, contact_number):
+            raise forms.ValidationError("Enter a valid phone number (e.g., +1234567890 or 123-456-7890).")
+        return contact_number
+
     def clean(self):
         cleaned_data = super().clean()
         password1 = cleaned_data.get("password1")
         password2 = cleaned_data.get("password2")
+        username = cleaned_data.get("username")
+        user_email = cleaned_data.get("user_email")
+        farmer_email = cleaned_data.get("email")
 
-        # Validate passwords match
-        if password1 and password2 and password1 != password2:
-            raise forms.ValidationError("Passwords do not match.")
+        # Validate passwords
+        if password1 and password2:
+            if password1 != password2:
+                raise forms.ValidationError("Passwords do not match.")
+            try:
+                forms.password_validation.validate_password(password1)
+            except forms.ValidationError as e:
+                raise forms.ValidationError({"password1": e})
 
         # Ensure username is unique
-        username = cleaned_data.get("username")
-        if CustomUser.objects.filter(username=username).exists():
-            raise forms.ValidationError("This username is already taken.")
+        if User.objects.filter(username=username).exists():
+            raise forms.ValidationError({"username": "This username is already taken."})
 
-        # Use form email if provided, otherwise generate one
-        email = cleaned_data.get("email")
-        if not email:
-            cleaned_data['email'] = f"{username}@example.com"
+        # Ensure user_email is unique
+        if User.objects.filter(email=user_email).exists():
+            raise forms.ValidationError({"user_email": "This email is already taken."})
+
+        # Ensure farmer_email is unique if provided
+        if farmer_email and Farmer.objects.filter(email=farmer_email).exists():
+            raise forms.ValidationError({"email": "This farmer email is already taken."})
 
         return cleaned_data
 
+    @transaction.atomic
     def save(self, request, commit=True):
-        # Create the CustomUser instance
-        user = CustomUser(
+        # Create CustomUser instance
+        user = User(
             username=self.cleaned_data['username'],
-            email=self.cleaned_data['email'],
+            email=self.cleaned_data['user_email'],
             is_farmer=True,
-            owner=request.user if request.user.is_authenticated else None  # Set owner as request.user
+            owner=request.user if request.user.is_authenticated else None
         )
-        user.set_password(self.cleaned_data['password1'])  # Set the password
+        user.set_password(self.cleaned_data['password1'])
         if commit:
             user.save()
 
-        # Create the Farmer instance
+        # Create Farmer instance
         farmer = super().save(commit=False)
         farmer.user = user
-        farmer.farmer_id = uuid.uuid4()  # Ensure unique farmer_id
-        farmer.registration_date = datetime.datetime.now().date()     # Set registration_date to today
+        farmer.registration_date = date.today()
         if commit:
             farmer.save()
 
         return farmer
 
 class ClientCreationForm(forms.ModelForm):
-    # CustomUser fields
     username = forms.CharField(
         max_length=150,
         required=True,
@@ -201,8 +221,8 @@ class ClientCreationForm(forms.ModelForm):
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
     email = forms.EmailField(
-        required=False,
-        help_text="Email address for the user (optional).",
+        required=True,
+        help_text="Email address for the user account.",
         widget=forms.EmailInput(attrs={'class': 'form-control'})
     )
     password1 = forms.CharField(
@@ -215,6 +235,12 @@ class ClientCreationForm(forms.ModelForm):
         widget=forms.PasswordInput(attrs={'class': 'form-control'}),
         help_text="Confirm the password."
     )
+    phone = forms.CharField(
+        max_length=20,
+        required=True,
+        help_text="Primary phone number of the client.",
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
 
     class Meta:
         model = Client
@@ -224,42 +250,48 @@ class ClientCreationForm(forms.ModelForm):
         )
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'user_type': forms.Select(attrs={'class': 'form-control'}),
+            'user_type': forms.Select(attrs={'class': 'form-control form-select'}),
             'phone': forms.TextInput(attrs={'class': 'form-control'}),
             'address': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
             'country': forms.TextInput(attrs={'class': 'form-control'}),
-            'account_status': forms.Select(attrs={'class': 'form-control'}),
+            'account_status': forms.Select(attrs={'class': 'form-control form-select'}),
             'notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
         }
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone')
+        phone_pattern = r'^\+?1?\d{9,15}$|^(\d{3}[-.\s]?\d{3}[-.\s]?\d{4})$'
+        if not re.match(phone_pattern, phone):
+            raise forms.ValidationError("Enter a valid phone number (e.g., +1234567890 or 123-456-7890).")
+        return phone
 
     def clean(self):
         cleaned_data = super().clean()
         password1 = cleaned_data.get("password1")
         password2 = cleaned_data.get("password2")
+        username = cleaned_data.get("username")
+        email = cleaned_data.get("email")
 
         # Validate passwords match
         if password1 and password2 and password1 != password2:
             raise forms.ValidationError("Passwords do not match.")
+        try:
+            password_validation.validate_password(password1)
+        except forms.ValidationError as e:
+            raise forms.ValidationError({"password1": e})
 
         # Ensure username is unique
-        username = cleaned_data.get("username")
         if CustomUser.objects.filter(username=username).exists():
-            raise forms.ValidationError("This username is already taken.")
+            raise forms.ValidationError({"username": "This username is already taken."})
 
-        # Use form email if provided, otherwise generate one
-        email = cleaned_data.get("email")
-        if not email:
-            cleaned_data['email'] = f"{username}@example.com"
-
-        # Ensure phone is provided
-        phone = cleaned_data.get("phone")
-        if not phone:
-            raise forms.ValidationError("Phone number is required.")
+        # Ensure email is unique
+        if CustomUser.objects.filter(email=email).exists():
+            raise forms.ValidationError({"email": "This email is already taken."})
 
         return cleaned_data
 
+    @transaction.atomic
     def save(self, request, commit=True):
-        # Create the CustomUser instance
         user = CustomUser(
             username=self.cleaned_data['username'],
             email=self.cleaned_data['email'],
@@ -270,12 +302,10 @@ class ClientCreationForm(forms.ModelForm):
         if commit:
             user.save()
 
-        # Create the Client instance
         client = super().save(commit=False)
         client.user = user
-        client.client_id = uuid.uuid4()  # Ensure unique client_id
-        client.registration_date = datetime.datetime.now().date()  # Set registration_date to today
+        client.client_id = uuid.uuid4()
+        client.registration_date = date.today()
         if commit:
             client.save()
-
         return client

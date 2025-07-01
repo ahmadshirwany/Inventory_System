@@ -86,6 +86,7 @@ def index(request):
                    'is_owner': request.user.groups.filter(name='owner').exists(),
                    'is_user': request.user.groups.filter(name='user').exists(),
                    'is_client': request.user.groups.filter(name='client').exists(),
+                   'is_farmer': request.user.groups.filter(name='farmer').exists(),
                    }
 
     html_template = loader.get_template('managment/index.html')
@@ -293,6 +294,7 @@ def warehouse_list(request):
         'current_user_count': request.user.owned_users.count() if not request.user.is_superuser else CustomUser.objects.count(),
         'is_client': request.user.groups.filter(name='client').exists(),
         'is_user': request.user.groups.filter(name='user').exists(),
+        'is_farmer': request.user.groups.filter(name='farmer').exists(),
     }
     return render(request, 'managment/warehouse_list.html', context)
 

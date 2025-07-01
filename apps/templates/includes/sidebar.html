@@ -71,7 +71,7 @@
               <p>Farmers</p>
             </a>
             {% endif %}
-            {% if user.is_superuser or is_owner or is_user%}
+            {% if user.is_superuser or is_owner or is_user or is_farmer%}
            <li class="nav-item">
             <li class="nav-item {% if 'page-user' in segment %} active {% endif %}">
              <a class="nav-link" href="{% url 'client_list' %}">
