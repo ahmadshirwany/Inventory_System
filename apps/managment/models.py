@@ -482,7 +482,31 @@ class Product(models.Model):
         if self.expiration_date and self.expiration_date <= timezone.now().date() and self.status != 'Expired':
             raise ValidationError("Status must be 'Expired' if expiration date is past or present.")
 
+    def generate_sku(self):
+        """Generate a unique SKU based on warehouse ID and sequential number."""
+        if not self.warehouse:
+            raise ValidationError("Warehouse must be set to generate SKU.")
+        max_seq = Product.objects.filter(warehouse=self.warehouse).aggregate(Max('sku'))['sku__max']
+        seq = 1
+        if max_seq and '-' in max_seq:
+            try:
+                seq = int(max_seq.split('-')[-1]) + 1
+            except ValueError:
+                seq = 1
+        return f"WH-{self.warehouse.id}-{seq:06d}"
+
+    def generate_barcode(self):
+        """Generate a unique 12-digit barcode."""
+        while True:
+            barcode = str(uuid.uuid4().int)[:12]
+            if not Product.objects.filter(barcode=barcode).exists():
+                return barcode
+
     def save(self, *args, **kwargs):
+        if not self.sku:
+            self.sku = self.generate_sku()
+        if not self.barcode and self.product_type == 'Raw':
+            self.barcode = self.generate_barcode()
         if self.weight_per_bag_kg is not None and self.quantity_in_stock is not None and self.packaging_condition != 'Bulk':
             self.weight_quantity_kg = self.weight_per_bag_kg * self.quantity_in_stock
 

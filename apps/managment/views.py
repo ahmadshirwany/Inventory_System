@@ -313,7 +313,8 @@ def get_product_metadata_view(request):
 def warehouse_detail(request, slug):
     if not request.user.is_superuser:
         warehouse = get_object_or_404(Warehouse, slug=slug)
-        if request.user != warehouse.ownership and request.user not in warehouse.users.all():
+        if not hasattr(warehouse, 'ownership') or warehouse.ownership is None or \
+                (request.user != warehouse.ownership and request.user not in warehouse.users.all()):
             return render(
                 request,
                 "home/page-403.html",
@@ -326,7 +327,7 @@ def warehouse_detail(request, slug):
     else:
         warehouse = get_object_or_404(Warehouse, slug=slug)
 
-    products = Product.objects.filter(warehouse=warehouse)
+    products = Product.objects.filter(warehouse=warehouse).select_related('farmer').prefetch_related('warehouse')
     filters = {
         'sku': request.GET.get('sku', ''),
         'barcode': request.GET.get('barcode', ''),
@@ -334,6 +335,13 @@ def warehouse_detail(request, slug):
         'product_type': request.GET.get('product_type', ''),
         'status': request.GET.get('status', ''),
     }
+
+    valid_product_types = [choice[0] for choice in Product._meta.get_field('product_type').choices]
+    valid_statuses = [choice[0] for choice in Product._meta.get_field('status').choices]
+    if filters['product_type'] and filters['product_type'] not in valid_product_types:
+        filters['product_type'] = ''
+    if filters['status'] and filters['status'] not in valid_statuses:
+        filters['status'] = ''
 
     if filters['sku']:
         products = products.filter(sku__icontains=filters['sku'])
@@ -346,28 +354,29 @@ def warehouse_detail(request, slug):
     if filters['status']:
         products = products.filter(status=filters['status'])
 
-    products = products.order_by('entry_date')
+    sort_by = request.GET.get('sort_by', 'entry_date')
+    valid_sort_fields = ['sku', 'product_name', 'entry_date', 'status', '-entry_date']
+    if sort_by in valid_sort_fields:
+        products = products.order_by(sort_by)
+    else:
+        products = products.order_by('entry_date')
+
     paginator = Paginator(products, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
     if request.method == 'POST':
-        form = ProductForm(request.POST)
-
+        form = ProductForm(request.POST, warehouse=warehouse)
         if 'add_product' in request.POST:
             if form.is_valid():
                 product = form.save(commit=False)
                 product.warehouse = warehouse
-                weight_quantity_kg = request.POST.get('weight_quantity_kg')
-                if weight_quantity_kg:
-                    product.weight_quantity_kg = decimal.Decimal(weight_quantity_kg)
-                    product.weight_quantity = product.weight_quantity_kg * 1000
                 try:
                     product.full_clean()
                     product.save()
                     return JsonResponse({'success': True, 'message': 'Product added successfully'}, status=201)
                 except ValidationError as e:
-                    return JsonResponse({'success': False, 'errors': e.message_dict}, status=400)
+                    return JsonResponse({'success': False, 'errors': dict(e)}, status=400)
             return JsonResponse({'success': False, 'errors': form.errors}, status=400)
 
         elif 'delete_product' in request.POST:
@@ -403,64 +412,41 @@ def warehouse_detail(request, slug):
                     'errors': {'__all__': ['Please specify at least one of Quantity or Weight (kg) to take out.']}
                 }, status=400)
 
-            # Validate quantity if applicable
-
             if quantity_to_take > 0 and product.quantity_in_stock is not None:
-
                 if quantity_to_take > product.quantity_in_stock:
                     return JsonResponse({
-
                         'success': False,
-
                         'errors': {'quantity_to_take': [f'Cannot take out more than {product.quantity_in_stock} units']}
-
                     }, status=400)
-
-            # Validate weight
 
             if weight_kg_to_take > (product.weight_quantity_kg or 0):
                 return JsonResponse({
-
                     'success': False,
-
                     'errors': {'weight_kg_to_take': [f'Cannot take out more than {product.weight_quantity_kg} kg']}
-
                 }, status=400)
 
             weight_per_unit = None
-
             if product.quantity_in_stock is not None and product.quantity_in_stock > 0 and product.weight_quantity_kg:
                 weight_per_unit = float(product.weight_quantity_kg) / product.quantity_in_stock
 
             if product.packaging_condition == 'Bulk' and product.quantity_in_stock is None:
-
-                # For Bulk products with no quantity_in_stock, only subtract weight
-
                 if weight_kg_to_take > 0:
                     product.weight_quantity_kg = (product.weight_quantity_kg or decimal.Decimal(
                         '0')) - weight_kg_to_take
 
             else:
-
-                # Handle non-Bulk or Bulk with quantity_in_stock
-
                 if quantity_to_take > 0:
-
                     product.quantity_in_stock -= quantity_to_take
-
                     if weight_per_unit and product.weight_quantity_kg:
                         proportional_weight = decimal.Decimal(str(quantity_to_take * weight_per_unit))
 
                         product.weight_quantity_kg -= min(proportional_weight, product.weight_quantity_kg)
-
                 if weight_kg_to_take > 0:
-
                     product.weight_quantity_kg = (product.weight_quantity_kg or decimal.Decimal(
                         '0')) - weight_kg_to_take
 
                     if weight_per_unit and product.quantity_in_stock is not None and product.quantity_in_stock > 0:
-                        proportional_quantity = int(float(weight_kg_to_take) / weight_per_unit)
-
+                        proportional_quantity = int(weight_kg_to_take / weight_per_unit)
                         product.quantity_in_stock -= min(proportional_quantity, product.quantity_in_stock)
 
             # Ensure non-negative values
@@ -475,20 +461,20 @@ def warehouse_detail(request, slug):
             if (
                     product.quantity_in_stock == 0 or product.quantity_in_stock is None) and product.weight_quantity_kg == 0:
                 product.status = 'Out of Stock'
-
                 product.exit_date = timezone.now().date()
 
-            # Update total value and weight in grams
+            product.weight_quantity = product.weight_quantity_kg * 1000
+            product.total_value = product.unit_price * product.weight_quantity_kg if product.weight_quantity_kg else 0
 
-            product.total_value = product.unit_price * (product.quantity_in_stock or 0)
+            try:
+                product.full_clean()
+                product.save()
+                return JsonResponse({'success': True, 'message': 'Product taken out successfully'}, status=200)
+            except ValidationError as e:
+                return JsonResponse({'success': False, 'errors': dict(e)}, status=400)
 
-            product.weight_quantity = product.weight_quantity_kg * 1000  # Convert kg to g
-
-            product.save()
-
-            return JsonResponse({'success': True, 'message': 'Product taken out successfully'})
     metadata = get_product_metadata()
-    return render(request, 'managment/products.html', {
+    context = {
         'warehouse': warehouse,
         'page_obj': page_obj,
         'form': ProductForm(warehouse=warehouse),
@@ -496,8 +482,36 @@ def warehouse_detail(request, slug):
         'is_owner': request.user.groups.filter(name='owner').exists(),
         'is_user': request.user.groups.filter(name='user').exists(),
         'product_metadata': json.dumps(metadata),
-    })
+        'packaging_conditions': json.dumps(PACKAGING_CONDITIONS),
+        # 'filter_query': urlencode(filters)
+    }
+    return render(request, 'managment/products.html', context)
 
+import uuid
+@login_required
+def generate_barcode(request, slug):
+    warehouse = get_object_or_404(Warehouse, slug=slug)
+    while True:
+        barcode = str(uuid.uuid4().int)[:12]
+        if not Product.objects.filter(barcode=barcode).exists():
+            return JsonResponse({'barcode': barcode})
+    return JsonResponse({'error': 'Unable to generate unique barcode'}, status=500)
+
+@login_required
+def generate_sku(request, slug):
+    warehouse = get_object_or_404(Warehouse, slug=slug)
+    try:
+        max_seq = Product.objects.filter(warehouse=warehouse).aggregate(Max('sku'))['sku__max']
+        seq = 1
+        if max_seq and '-' in max_seq:
+            try:
+                seq = int(max_seq.split('-')[-1]) + 1
+            except ValueError:
+                seq = 1
+        sku = f"WH-{warehouse.id}-{seq:06d}"
+        return JsonResponse({'sku': sku})
+    except Exception as e:
+        return JsonResponse({'error': f'Unable to generate unique SKU: {str(e)}'}, status=500)
 
 @login_required
 def warehouse_detail_customer(request, slug):

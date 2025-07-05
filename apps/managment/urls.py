@@ -22,6 +22,8 @@ urlpatterns = [
     path('get_product_metadata/', views.get_product_metadata_view, name='get_product_metadata'),
     path('requests/', views.owner_requests, name='owner_requests'),
     path('customer/requests/', views.customer_requests, name='customer_requests'),
+    path('warehouse/<slug:slug>/generate-barcode/', views.generate_barcode, name='generate_barcode'),
+    path('warehouse/<slug:slug>/generate-sku/', views.generate_sku, name='generate_sku'),
     # re_path(r'^.*$', views.pages, name='pages'),
 
 

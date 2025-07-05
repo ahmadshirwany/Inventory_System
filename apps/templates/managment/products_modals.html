@@ -1,3 +1,4 @@
+```html
 {% if request.user.is_superuser or is_owner or is_user %}
 <!-- Add Product Modal -->
 <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true" data-bs-backdrop="static">
@@ -8,7 +9,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-danger error-messages" id="formErrors"></div>
+                <div class="alert alert-danger error-messages" id="formErrors" style="display: none;"></div>
                 <form method="POST" id="productWizardForm">
                     {% csrf_token %}
                     <input type="hidden" name="add_product" value="1">
@@ -24,10 +25,12 @@
                             <div class="col-md-4 mb-3">
                                 {{ form.sku.label_tag }}
                                 {{ form.sku }}
+                                <small class="text-muted" id="skuHelp">Auto-generated</small>
                             </div>
                             <div class="col-md-4 mb-3">
                                 {{ form.barcode.label_tag }}
                                 {{ form.barcode }}
+                                <small class="text-muted" id="barcodeHelp">Auto-generated for Raw products</small>
                             </div>
                             <div class="col-md-4 mb-3">
                                 {{ form.product_name.label_tag }}
@@ -107,7 +110,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-danger error-messages" id="deleteFormErrors"></div>
+                <div class="alert alert-danger error-messages" id="deleteFormErrors" style="display: none;"></div>
                 <p>Are you sure you want to delete the product <strong id="deleteProductName"></strong> (SKU: <strong id="deleteProductSKU"></strong>)? This action cannot be undone.</p>
                 <form method="POST" id="deleteProductForm">
                     {% csrf_token %}
@@ -125,33 +128,33 @@
 
 <!-- Take Out Product Modals -->
 {% for product in page_obj %}
-<div class="modal fade" id="takeOutProductModal_{{ product.sku }}" tabindex="-1" aria-labelledby="takeOutProductModalLabel_{{ product.sku }}" aria-hidden="true" data-bs-backdrop="static">
+<div class="modal fade" id="takeOutProductModal_{{ product.sku|slugify }}" tabindex="-1" aria-labelledby="takeOutProductModalLabel_{{ product.sku|slugify }}" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="takeOutProductModalLabel_{{ product.sku }}">Take Out Product: {{ product.product_name }} (SKU: {{ product.sku }})</h5>
+                <h5 class="modal-title" id="takeOutProductModalLabel_{{ product.sku|slugify }}">Take Out Product: {{ product.product_name }} (SKU: {{ product.sku }})</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-danger error-messages" id="takeOutErrors_{{ product.sku }}"></div>
-                <form method="POST" id="takeOutForm_{{ product.sku }}">
+                <div class="alert alert-danger error-messages" id="takeOutErrors_{{ product.sku|slugify }}" style="display: none;"></div>
+                <form method="POST" id="takeOutForm_{{ product.sku|slugify }}">
                     {% csrf_token %}
                     <input type="hidden" name="take_out_product" value="1">
                     <input type="hidden" name="sku" value="{{ product.sku }}">
                     <div class="mb-3">
-                        <label for="quantity_to_take_{{ product.sku }}" class="form-label">Quantity to Take Out (Current: {{ product.quantity_in_stock }})</label>
-                        <input type="number" class="form-control" id="quantity_to_take_{{ product.sku }}" name="quantity_to_take" min="0" max="{{ product.quantity_in_stock }}" placeholder="Enter quantity (optional)">
+                        <label for="quantity_to_take_{{ product.sku|slugify }}" class="form-label">Quantity to Take Out (Current: {{ product.quantity_in_stock|default:"N/A" }})</label>
+                        <input type="number" class="form-control" id="quantity_to_take_{{ product.sku|slugify }}" name="quantity_to_take" min="0" {% if product.quantity_in_stock %}max="{{ product.quantity_in_stock }}"{% endif %} placeholder="Enter quantity (optional)" {% if product.packaging_condition == 'Bulk' %}style="display: none;"{% endif %}>
                     </div>
                     <div class="mb-3">
-                        <label for="weight_kg_to_take_{{ product.sku }}" class="form-label">Weight (kg) to Take Out (Current: {{ product.weight_quantity_kg|default:"N/A" }})</label>
-                        <input type="number" class="form-control" id="weight_kg_to_take_{{ product.sku }}" name="weight_kg_to_take" min="0" max="{{ product.weight_quantity_kg|default:'0' }}" step="0.01" placeholder="Enter weight in kg (optional)">
+                        <label for="weight_kg_to_take_{{ product.sku|slugify }}" class="form-label">Weight (kg) to Take Out (Current: {{ product.weight_quantity_kg|default:"N/A" }})</label>
+                        <input type="number" class="form-control" id="weight_kg_to_take_{{ product.sku|slugify }}" name="weight_kg_to_take" min="0" max="{{ product.weight_quantity_kg|default:'0' }}" step="0.01" placeholder="Enter weight in kg (optional)">
                     </div>
                     <small class="text-muted">Fill in one or both fields. Taking out quantity will proportionally reduce weight, and vice versa.</small>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-danger" id="takeOutProductBtn_{{ product.sku }}">Take Out</button>
+                <button type="button" class="btn btn-danger" id="takeOutProductBtn_{{ product.sku|slugify }}">Take Out</button>
             </div>
         </div>
     </div>
@@ -182,6 +185,7 @@
 
 <script>
     const productMetadata = {{ product_metadata|safe }};
+    const packagingConditions = {{ packaging_conditions|safe }};
 
     function getCookie(name) {
         let cookieValue = null;
@@ -227,28 +231,6 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         const csrfToken = getCookie('csrftoken');
-        const packagingConditions = {
-            "Bidons hermétiques": null,
-            "Bocaux en verre": null,
-            "Boîtes perforées": null,
-            "Bouteilles hermétiques": null,
-            "Congélation": null,
-            "Conteneurs hermétiques": null,
-            "Endroit frais": null,
-            "Pots hermétiques": null,
-            "Réfrigération": null,
-            "Sacs en filet": [10, 20, 25, 50, 100],
-            "Sacs en jute": [10, 20, 25, 50, 100],
-            "Sacs en polypropylène": [10, 20, 25, 50, 100],
-            "Sacs en toile": [10, 20, 25, 50, 100],
-            "Sacs hermétiques": [10, 20, 25, 50, 100],
-            "Sous vide": null,
-            "Sachet - 100g": 0.1,
-            "Sachet - 250g": 0.25,
-            "Sachet - 500g": 0.5,
-            "Sachet - 1000g": 1,
-            "Bulk": null
-        };
 
         // Add Product Wizard
         function setupWizard(modalId, formId, prevBtnId, nextBtnId, submitBtnId, errorDivId) {
@@ -258,9 +240,13 @@
             const quantityInput = document.getElementById('id_quantity_in_stock');
             const totalWeightInput = document.getElementById('id_weight_quantity_kg');
             const productNameSelect = document.getElementById('id_product_name');
+            const skuInput = document.getElementById('id_sku');
+            const barcodeInput = document.getElementById('id_barcode');
             const notesCommentsTextarea = document.getElementById('id_notes_comments');
             const weightPerBagContainer = document.getElementById('weight_per_bag_container');
             const quantityContainer = document.getElementById('quantity_in_stock_container');
+            const skuHelp = document.getElementById('skuHelp');
+            const barcodeHelp = document.getElementById('barcodeHelp');
 
             function updateWeightField() {
                 const selectedCondition = packagingSelect.value;
@@ -333,12 +319,70 @@
                 }
             }
 
+            function updateSkuField() {
+                skuInput.setAttribute('readonly', 'readonly');
+                skuHelp.innerText = 'Auto-generated';
+                fetch("{% url 'generate_sku' warehouse.slug %}", {
+                    method: 'GET',
+                    headers: { 'X-CSRFToken': csrfToken },
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.sku) {
+                        skuInput.value = data.sku;
+                    } else {
+                        console.error('SKU generation failed:', data.error);
+                        skuHelp.innerText = 'Error generating SKU';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching SKU:', error);
+                    skuHelp.innerText = 'Error generating SKU';
+                });
+            }
+
+            function updateBarcodeField() {
+                const selectedProduct = productNameSelect.value;
+                const productData = productMetadata[selectedProduct] || {};
+                const productType = productData['product_type'] || 'Raw';
+                if (productType === 'Raw') {
+                    barcodeInput.setAttribute('readonly', 'readonly');
+                    barcodeHelp.innerText = 'Auto-generated for Raw products';
+                    fetch("{% url 'generate_barcode' warehouse.slug %}", {
+                        method: 'GET',
+                        headers: { 'X-CSRFToken': csrfToken },
+                        credentials: 'same-origin'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.barcode) {
+                            barcodeInput.value = data.barcode;
+                        } else {
+                            console.error('Barcode generation failed:', data.error);
+                            barcodeHelp.innerText = 'Error generating barcode';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching barcode:', error);
+                        barcodeHelp.innerText = 'Error generating barcode';
+                    });
+                } else {
+                    barcodeInput.removeAttribute('readonly');
+                    barcodeHelp.innerText = 'Enter barcode for Processed products';
+                    barcodeInput.value = '';
+                }
+            }
+
             if (packagingSelect) {
                 packagingSelect.addEventListener('change', updateWeightField);
                 weightSelect.addEventListener('change', updateTotalWeight);
                 weightInput.addEventListener('input', updateTotalWeight);
                 quantityInput.addEventListener('input', updateTotalWeight);
-                productNameSelect.addEventListener('change', updateNotesComments);
+                productNameSelect.addEventListener('change', () => {
+                    updateNotesComments();
+                    updateBarcodeField();
+                });
                 updateWeightField();
             }
 
@@ -353,6 +397,7 @@
             const totalSteps = 3;
 
             function updateSteps() {
+                console.log('Updating steps to:', currentStep);
                 steps.forEach(step => step.classList.remove('active'));
                 steps[currentStep - 1].classList.add('active');
                 formSteps.forEach(step => step.classList.remove('active'));
@@ -363,8 +408,9 @@
                 errorDiv.style.display = 'none';
             }
 
-            if (prevBtn) {
+            if (prevBtn && nextBtn && submitBtn) {
                 prevBtn.addEventListener('click', function() {
+                    console.log('Previous button clicked, currentStep:', currentStep);
                     if (currentStep > 1) {
                         currentStep--;
                         updateSteps();
@@ -372,11 +418,14 @@
                 });
 
                 nextBtn.addEventListener('click', function() {
+                    console.log('Next button clicked, currentStep:', currentStep);
                     if (currentStep < totalSteps) {
-                        const currentInputs = formSteps[currentStep - 1].querySelectorAll('input[required], select[required]');
+                        const currentFormStep = formSteps[currentStep - 1];
+                        const currentInputs = currentFormStep.querySelectorAll('input:not([readonly]), select:not([readonly])');
                         let isValid = true;
                         currentInputs.forEach(input => {
-                            if (!input.value && input.closest('.form-step').style.display !== 'none' && input.style.display !== 'none') {
+                            if (input.hasAttribute('required') && !input.value && input.style.display !== 'none' && input.closest('.form-step').classList.contains('active')) {
+                                console.log('Validation failed for:', input.id);
                                 isValid = false;
                                 input.classList.add('is-invalid');
                             } else {
@@ -386,12 +435,33 @@
                         if (isValid) {
                             currentStep++;
                             updateSteps();
+                        } else {
+                            errorDiv.innerHTML = '<p>Please fill in all required fields.</p>';
+                            errorDiv.style.display = 'block';
+                            hideErrorAfterDelay(errorDiv);
                         }
                     }
                 });
 
                 submitBtn.addEventListener('click', function(e) {
                     e.preventDefault();
+                    console.log('Submit button clicked');
+                    let isValid = true;
+                    form.querySelectorAll('input:not([readonly]), select:not([readonly])').forEach(input => {
+                        if (input.hasAttribute('required') && !input.value && input.style.display !== 'none') {
+                            console.log('Validation failed for:', input.id);
+                            isValid = false;
+                            input.classList.add('is-invalid');
+                        } else {
+                            input.classList.remove('is-invalid');
+                        }
+                    });
+                    if (!isValid) {
+                        errorDiv.innerHTML = '<p>Please fill in all required fields.</p>';
+                        errorDiv.style.display = 'block';
+                        hideErrorAfterDelay(errorDiv);
+                        return;
+                    }
                     const formData = new FormData(form);
                     const weightPerBag = weightSelect.style.display === 'block' ? weightSelect.value : weightInput.value;
                     if (weightPerBag && packagingSelect.value !== "Bulk") {
@@ -427,15 +497,29 @@
                     });
                 });
 
+                // Fetch SKU when modal opens
+                document.getElementById(modalId).addEventListener('shown.bs.modal', function() {
+                    console.log('Modal shown, fetching SKU');
+                    updateSkuField();
+                    updateBarcodeField();
+                });
+
                 document.getElementById(modalId).addEventListener('hidden.bs.modal', function() {
+                    console.log('Modal hidden, resetting to step 1');
                     currentStep = 1;
                     updateSteps();
                     form.reset();
                     errorDiv.style.display = 'none';
-                    updateWeightField(); // Reset weight field visibility
+                    updateWeightField();
+                    updateBarcodeField();
+                    skuInput.value = '';
+                    skuHelp.innerText = 'Auto-generated';
+                    form.querySelectorAll('.is-invalid').forEach(input => input.classList.remove('is-invalid'));
                 });
 
                 updateSteps();
+            } else {
+                console.error('Wizard buttons not found');
             }
         }
 
@@ -445,9 +529,6 @@
             const form = document.getElementById('deleteProductForm');
             const errorDiv = document.getElementById('deleteFormErrors');
             const sku = document.getElementById('delete_sku').value;
-
-            console.log('CSRF Token:', csrfToken);
-            console.log('Form Data:', [...new FormData(form).entries()]);
 
             if (!sku) {
                 errorDiv.innerHTML = '<p>No product SKU provided.</p>';
@@ -470,12 +551,8 @@
                 headers: { 'X-CSRFToken': csrfToken },
                 credentials: 'same-origin'
             })
-            .then(response => {
-                console.log('Response Status:', response.status);
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                console.log('Response Data:', data);
                 if (data.success) {
                     location.reload();
                 } else {
@@ -503,9 +580,6 @@
             const errorDiv = document.getElementById(`takeOutErrors_${sku}`);
             const quantityInput = document.getElementById(`quantity_to_take_${sku}`);
             const weightKgInput = document.getElementById(`weight_kg_to_take_${sku}`);
-
-            console.log('CSRF Token:', csrfToken);
-            console.log('Form Data:', [...new FormData(form).entries()]);
 
             const quantityToTake = parseFloat(quantityInput.value) || 0;
             const weightKgToTake = parseFloat(weightKgInput.value) || 0;
@@ -537,12 +611,8 @@
                 headers: { 'X-CSRFToken': csrfToken },
                 credentials: 'same-origin'
             })
-            .then(response => {
-                console.log('Response Status:', response.status);
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                console.log('Response Data:', data);
                 if (data.success) {
                     location.reload();
                 } else {
@@ -578,5 +648,6 @@
             const sku = btn.id.replace('takeOutProductBtn_', '');
             btn.addEventListener('click', () => submitTakeOutForm(sku));
         });
-    }); // Fixed missing closing brace
+    });
 </script>
+```

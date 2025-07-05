@@ -188,6 +188,7 @@ class ProductForm(forms.ModelForm):
             'aria-label': 'Weight per Bag in Kilograms',
         })
     )
+
     class Meta:
         model = Product
         exclude = [
@@ -215,14 +216,13 @@ class ProductForm(forms.ModelForm):
 
         self.fields['sku'].widget.attrs.update({
             **common_attrs,
-            'placeholder': 'e.g., SKU-12345',
-            'required': True,
+            # 'readonly': 'readonly',  # Make SKU read-only
+            'placeholder': 'Auto-generated',
             'aria-label': 'Stock Keeping Unit',
         })
         self.fields['barcode'].widget.attrs.update({
             **common_attrs,
-            'placeholder': 'e.g., 012345678905',
-            'required': True,
+            'placeholder': 'Auto-generated for Raw, enter for Processed',
             'aria-label': 'Barcode',
         })
         self.fields['product_name'].widget.attrs.update({
@@ -240,7 +240,7 @@ class ProductForm(forms.ModelForm):
                 'step': '0.01',
                 'min': '0',
                 'placeholder': 'e.g., 0.50 (in kg)',
-                'required': True,  # Required for all cases
+                'required': True,
                 'aria-label': 'Weight in Kilograms',
             })
         )
@@ -248,7 +248,7 @@ class ProductForm(forms.ModelForm):
             **common_attrs,
             'min': '0',
             'placeholder': 'e.g., 100',
-            'required': False,  # Made optional for Bulk
+            'required': False,
             'aria-label': 'Quantity in Stock',
         })
         self.fields['unit_price'].widget.attrs.update({
@@ -284,9 +284,7 @@ class ProductForm(forms.ModelForm):
             'placeholder': 'Add any additional notes or comments...',
             'aria-label': 'Notes or Comments',
         })
-        self.fields[
-            'weight_per_bag_kg'].initial = self.instance.weight_per_bag_kg if self.instance and self.instance.pk else None
-
+        self.fields['weight_per_bag_kg'].initial = self.instance.weight_per_bag_kg if self.instance and self.instance.pk else None
         self.fields['harvest_date'].required = False
         self.fields['farmer'].required = False
         self.fields['notes_comments'].required = False
@@ -298,7 +296,13 @@ class ProductForm(forms.ModelForm):
         quantity_in_stock = cleaned_data.get('quantity_in_stock')
         weight_quantity_kg = cleaned_data.get('weight_quantity_kg')
         weight_per_bag_kg = cleaned_data.get('weight_per_bag_kg')
-        expected_package_weight = PACKAGING_CONDITIONS.get(packaging_condition)
+        product_type = get_product_metadata().get(product_name, {}).get('product_type', 'Raw')
+
+        # Validate product_type-specific fields
+        if product_type == 'Raw' and not cleaned_data.get('harvest_date'):
+            raise ValidationError("Harvest date is required for raw products.")
+        if product_type == 'Processed' and cleaned_data.get('harvest_date'):
+            raise ValidationError("Harvest date should not be set for processed products.")
 
         if product_name:
             metadata = get_product_metadata()
@@ -309,7 +313,12 @@ class ProductForm(forms.ModelForm):
         if packaging_condition == "Bulk":
             if weight_per_bag_kg is not None:
                 cleaned_data['weight_per_bag_kg'] = None
+            if quantity_in_stock is not None:
+                cleaned_data['quantity_in_stock'] = None
         else:
+            if quantity_in_stock is None:
+                raise ValidationError("Quantity in stock is required for non-Bulk packaging.")
+            expected_package_weight = PACKAGING_CONDITIONS.get(packaging_condition)
             if isinstance(expected_package_weight, (int, float)):
                 expected_package_weight_decimal = Decimal(str(expected_package_weight))
                 if weight_per_bag_kg is not None and abs(weight_per_bag_kg - expected_package_weight_decimal) > 0.01:
@@ -340,22 +349,22 @@ class ProductForm(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        instance.supplier_code = instance.supplier_code or "N/A"
-        instance.variety_or_species = instance.variety_or_species or "N/A"
-        instance.packaging_condition = self.cleaned_data.get('packaging_condition') or "N/A"
+        instance.supplier_code = None
+        instance.variety_or_species = None
+        instance.packaging_condition = self.cleaned_data.get('packaging_condition') or None
         instance.weight_per_bag_kg = self.cleaned_data.get('weight_per_bag_kg')
 
         if self.cleaned_data.get('weight_quantity_kg'):
-            instance.weight_quantity = self.cleaned_data['weight_quantity_kg'] * 1000  # Convert kg to g for weight_quantity
+            instance.weight_quantity = self.cleaned_data['weight_quantity_kg'] * 1000
 
-        if self.cleaned_data.get('unit_price') and self.cleaned_data.get('quantity_in_stock'):
-            instance.total_value = self.cleaned_data['unit_price'] * self.cleaned_data['quantity_in_stock']
-        elif self.cleaned_data.get('unit_price') and self.cleaned_data.get('packaging_condition') == "Bulk":
+        if self.cleaned_data.get('unit_price') and self.cleaned_data.get('weight_quantity_kg'):
             instance.total_value = self.cleaned_data['unit_price'] * self.cleaned_data['weight_quantity_kg']
+        else:
+            instance.total_value = 0
 
         metadata = get_product_metadata()
         product_data = metadata.get(self.cleaned_data['product_name'], {})
-        instance.product_type = product_data.get('product_type', instance.product_type)
+        instance.product_type = product_data.get('product_type', instance.product_type or 'Raw')
 
         date_from_form = self.cleaned_data.get('harvest_date')
         if date_from_form:
@@ -401,7 +410,6 @@ class ProductForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
-
 
 class ItemRequestForm(forms.ModelForm):
     class Meta:
