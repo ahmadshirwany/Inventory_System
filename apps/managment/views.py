@@ -483,6 +483,7 @@ def warehouse_detail(request, slug):
         'is_user': request.user.groups.filter(name='user').exists(),
         'product_metadata': json.dumps(metadata),
         'packaging_conditions': json.dumps(PACKAGING_CONDITIONS),
+        'is_farmer': request.user.groups.filter(name='farmer').exists(),
         # 'filter_query': urlencode(filters)
     }
     return render(request, 'managment/products.html', context)

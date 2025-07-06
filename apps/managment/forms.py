@@ -298,11 +298,12 @@ class ProductForm(forms.ModelForm):
         weight_per_bag_kg = cleaned_data.get('weight_per_bag_kg')
         product_type = get_product_metadata().get(product_name, {}).get('product_type', 'Raw')
 
+
         # Validate product_type-specific fields
-        if product_type == 'Raw' and not cleaned_data.get('harvest_date'):
-            raise ValidationError("Harvest date is required for raw products.")
-        if product_type == 'Processed' and cleaned_data.get('harvest_date'):
-            raise ValidationError("Harvest date should not be set for processed products.")
+        #if product_type == 'Raw' and not cleaned_data.get('harvest_date'):
+        #    raise ValidationError("Harvest date is required for raw products.")
+        #if product_type == 'Processed' and cleaned_data.get('harvest_date'):
+        #    raise ValidationError("Harvest date should not be set for processed products.")
 
         if product_name:
             metadata = get_product_metadata()

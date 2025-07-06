@@ -1,5 +1,5 @@
 ```html
-{% if request.user.is_superuser or is_owner or is_user %}
+{% if request.user.is_superuser or is_owner or is_user or is_farmer%}
 <!-- Add Product Modal -->
 <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl">
