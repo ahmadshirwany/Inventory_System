@@ -38,7 +38,7 @@
             </div>
             <div class="card-body">
                 {% if msg %}
-                    <div class="alert alert-success" role="alert">
+                    <div class="alert alert-success" role="alert" id="success-message">
                         {{ msg|safe }}
                     </div>
                 {% endif %}
@@ -123,6 +123,16 @@ function validatePasswords() {
     }
     return true;
 }
+
+// Hide success message after 5 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    const successMessage = document.getElementById('success-message');
+    if (successMessage) {
+        setTimeout(function() {
+            successMessage.style.display = 'none';
+        }, 5000);
+    }
+});
 
 document.getElementById('id_password1').addEventListener('input', checkPasswords);
 document.getElementById('id_password2').addEventListener('input', checkPasswords);
