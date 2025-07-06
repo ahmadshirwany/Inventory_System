@@ -57,6 +57,29 @@
         justify-content: center;
         border-radius: 50%;
     }
+    .password-field-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    .password-match {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+
+        font-size: 16px;
+        font-weight: bold;
+    }
+    .match {
+        color: #28a745; /* Green for match */
+    }
+    .no-match {
+        color: #dc3545; /* Red for no match */
+    }
+    .form-control {
+        padding-right: 30px; /* Ensure space for the indicator */
+    }
     @media (max-width: 768px) {
         .profile-picture-container {
             width: 120px;
@@ -76,6 +99,13 @@
             </div>
             <div class="card-body">
                 <!-- Password Change Form -->
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-success" role="alert" id="success-message">
+                            {{ message|safe }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
                 <form method="POST" action="{% url 'user_profile' %}" id="password-form">
                     {% csrf_token %}
                     <input type="hidden" name="update_password" value="true">
@@ -120,9 +150,10 @@
                     </div>
                     <div class="row">
                         <div class="col-md-12">
-                            <div class="form-group">
+                            <div class="form-group password-field-container">
                                 <label>Change Password</label>
-                                <input type="password" name="new_password1" class="form-control" placeholder="Enter new password">
+                                <input type="password" name="new_password1" id="id_new_password1" class="form-control" placeholder="Enter new password">
+                                <span id="password1-match" class="password-match"></span>
                                 {% for error in form.new_password1.errors %}
                                     <span class="help-block text-danger">{{ error }}</span>
                                 {% endfor %}
@@ -131,9 +162,10 @@
                     </div>
                     <div class="row">
                         <div class="col-md-12">
-                            <div class="form-group">
+                            <div class="form-group password-field-container">
                                 <label>Confirm Password</label>
-                                <input type="password" name="new_password2" class="form-control" placeholder="Confirm new password">
+                                <input type="password" name="new_password2" id="id_new_password2" class="form-control" placeholder="Confirm new password">
+                                <span id="password2-match" class="password-match"></span>
                                 {% for error in form.new_password2.errors %}
                                     <span class="help-block text-danger">{{ error }}</span>
                                 {% endfor %}
@@ -224,6 +256,43 @@ function cancelPreview() {
     document.getElementById('profile-img').style.opacity = '1';
 }
 
+function checkPasswords() {
+    const password1 = document.getElementById('id_new_password1').value;
+    const password2 = document.getElementById('id_new_password2').value;
+    const matchIndicator1 = document.getElementById('password1-match');
+    const matchIndicator2 = document.getElementById('password2-match');
+
+    if (password1 && password2) {
+        if (password1 === password2) {
+            matchIndicator1.textContent = '✔';
+            matchIndicator1.className = 'password-match match';
+            matchIndicator2.textContent = '✔';
+            matchIndicator2.className = 'password-match match';
+        } else {
+            matchIndicator1.textContent = '✘';
+            matchIndicator1.className = 'password-match no-match';
+            matchIndicator2.textContent = '✘';
+            matchIndicator2.className = 'password-match no-match';
+        }
+    } else {
+        matchIndicator1.textContent = '';
+        matchIndicator1.className = 'password-match';
+        matchIndicator2.textContent = '';
+        matchIndicator2.className = 'password-match';
+    }
+}
+
+function validatePasswords() {
+    const password1 = document.getElementById('id_new_password1').value;
+    const password2 = document.getElementById('id_new_password2').value;
+
+    if (password1 !== password2) {
+        alert('Passwords do not match!');
+        return false;
+    }
+    return true;
+}
+
 // Form submission handling
 document.getElementById('profile-pic-form').addEventListener('submit', function(e) {
     document.getElementById('loading-overlay').style.display = 'flex';
@@ -233,15 +302,20 @@ document.getElementById('password-form').addEventListener('submit', function(e) 
     const submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     submitBtn.innerHTML = 'Updating...';
+    return validatePasswords();
 });
 
-// Handle Django messages
-{% if messages %}
-    {% for message in messages %}
-        setTimeout(() => {
-            alert('{{ message|escapejs }}');
-        }, 500);
-    {% endfor %}
-{% endif %}
+// Hide success message after 5 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    const successMessage = document.getElementById('success-message');
+    if (successMessage) {
+        setTimeout(function() {
+            successMessage.style.display = 'none';
+        }, 5000);
+    }
+});
+
+document.getElementById('id_new_password1').addEventListener('input', checkPasswords);
+document.getElementById('id_new_password2').addEventListener('input', checkPasswords);
 </script>
 {% endblock javascripts %}
