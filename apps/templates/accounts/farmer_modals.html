@@ -22,13 +22,15 @@
                             <label class="required" for="id_user_email">Email</label>
                             <input type="email" class="form-control" id="id_user_email" name="user_email" required>
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-4 mb-3 password-field-container">
                             <label class="required" for="id_password1">Password</label>
                             <input type="password" class="form-control" id="id_password1" name="password1" required>
+                            <span id="id_password1-match" class="password-match"></span>
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-4 mb-3 password-field-container">
                             <label class="required" for="id_password2">Confirm Password</label>
                             <input type="password" class="form-control" id="id_password2" name="password2" required>
+                            <span id="id_password2-match" class="password-match"></span>
                         </div>
                         <!-- Farmer Fields -->
                         <div class="col-md-4 mb-3">
@@ -36,7 +38,7 @@
                             <input type="text" class="form-control" id="id_name" name="name" required>
                         </div>
                         <div class="col-md-4 mb-3">
-                            <label class="required" for="id_contact_number">Contact Number</label>
+                            <label class="required" for="id_contact_number"> Mobile-Cellular phone number</label>
                             <input type="text" class="form-control" id="id_contact_number" name="contact_number" required>
                         </div>
                         <div class="col-md-4 mb-3">
@@ -131,6 +133,23 @@
     .error-messages { display: none; margin-bottom: 20px; }
     .is-invalid { border-color: #dc3545; }
     .required:after { content: " *"; color: red; }
+    .password-field-container {
+        position: relative;
+    }
+    .password-match {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 16px;
+        font-weight: bold;
+    }
+    .match {
+        color: #28a745; /* Green for match */
+    }
+    .no-match {
+        color: #dc3545; /* Red for no match */
+    }
 </style>
 
 <script>
@@ -155,6 +174,32 @@
                 errorDiv.style.display = 'none';
                 errorDiv.innerHTML = '';
             }, 5000);
+        }
+    }
+
+    function checkPasswords() {
+        const password1 = document.getElementById('id_password1').value;
+        const password2 = document.getElementById('id_password2').value;
+        const matchIndicator1 = document.getElementById('id_password1-match');
+        const matchIndicator2 = document.getElementById('id_password2-match');
+
+        if (password1 && password2) {
+            if (password1 === password2) {
+                matchIndicator1.textContent = '✔';
+                matchIndicator1.className = 'password-match match';
+                matchIndicator2.textContent = '✔';
+                matchIndicator2.className = 'password-match match';
+            } else {
+                matchIndicator1.textContent = '✘';
+                matchIndicator1.className = 'password-match no-match';
+                matchIndicator2.textContent = '✘';
+                matchIndicator2.className = 'password-match no-match';
+            }
+        } else {
+            matchIndicator1.textContent = '';
+            matchIndicator1.className = 'password-match';
+            matchIndicator2.textContent = '';
+            matchIndicator2.className = 'password-match';
         }
     }
 
@@ -270,4 +315,7 @@
             hideErrorAfterDelay(errorDiv);
         });
     }
+
+    document.getElementById('id_password1').addEventListener('input', checkPasswords);
+    document.getElementById('id_password2').addEventListener('input', checkPasswords);
 </script>

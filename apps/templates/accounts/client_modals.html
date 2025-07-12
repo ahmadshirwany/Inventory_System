@@ -23,14 +23,16 @@
                             {{ form.email }}
                             <small class="help-text">{{ form.email.help_text }}</small>
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-4 mb-3 password-field-container">
                             <label class="required" for="id_password1">{{ form.password1.label }}</label>
                             {{ form.password1 }}
+                            <span id="id_password1-match" class="password-match"></span>
                             <small class="help-text">{{ form.password1.help_text }}</small>
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-4 mb-3 password-field-container">
                             <label class="required" for="id_password2">{{ form.password2.label }}</label>
                             {{ form.password2 }}
+                            <span id="id_password2-match" class="password-match"></span>
                             <small class="help-text">{{ form.password2.help_text }}</small>
                         </div>
                         <!-- Client Fields -->
@@ -119,6 +121,30 @@
 </div>
 {% endfor %}
 
+<style>
+    .modal-xl { max-width: 90%; }
+    .error-messages { display: none; margin-bottom: 20px; }
+    .is-invalid { border-color: #dc3545; }
+    .required:after { content: " *"; color: red; }
+    .password-field-container {
+        position: relative;
+    }
+    .password-match {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 16px;
+        font-weight: bold;
+    }
+    .match {
+        color: #28a745; /* Green for match */
+    }
+    .no-match {
+        color: #dc3545; /* Red for no match */
+    }
+</style>
+
 <script>
     function getCookie(name) {
         let cookieValue = null;
@@ -135,11 +161,48 @@
         return cookieValue;
     }
 
+    function hideErrorAfterDelay(errorDiv) {
+        if (errorDiv && errorDiv.style.display === 'block') {
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+                errorDiv.innerHTML = '';
+            }, 5000);
+        }
+    }
+
+    function checkPasswords() {
+        const password1 = document.getElementById('id_password1').value;
+        const password2 = document.getElementById('id_password2').value;
+        const matchIndicator1 = document.getElementById('id_password1-match');
+        const matchIndicator2 = document.getElementById('id_password2-match');
+
+        if (password1 && password2) {
+            if (password1 === password2) {
+                matchIndicator1.textContent = '✔';
+                matchIndicator1.className = 'password-match match';
+                matchIndicator2.textContent = '✔';
+                matchIndicator2.className = 'password-match match';
+            } else {
+                matchIndicator1.textContent = '✘';
+                matchIndicator1.className = 'password-match no-match';
+                matchIndicator2.textContent = '✘';
+                matchIndicator2.className = 'password-match no-match';
+            }
+        } else {
+            matchIndicator1.textContent = '';
+            matchIndicator1.className = 'password-match';
+            matchIndicator2.textContent = '';
+            matchIndicator2.className = 'password-match';
+        }
+    }
+
     function submitClientForm() {
         const form = document.getElementById('clientForm');
         const errorDiv = document.getElementById('formErrors');
         const email = document.getElementById('id_email').value;
         const phone = document.getElementById('id_phone').value;
+        const password1 = document.getElementById('id_password1').value;
+        const password2 = document.getElementById('id_password2').value;
         const phonePattern = /^\+?1?\d{9,15}$|^(\d{3}[-.\s]?\d{3}[-.\s]?\d{4})$/;
         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -150,10 +213,14 @@
         if (!phonePattern.test(phone)) {
             errors.push('Phone: Enter a valid phone number (e.g., +1234567890 or 123-456-7890).');
         }
+        if (password1 !== password2) {
+            errors.push('Password: Passwords do not match.');
+        }
 
         if (errors.length > 0) {
             errorDiv.innerHTML = errors.map(e => `<p>${e}</p>`).join('');
             errorDiv.style.display = 'block';
+            hideErrorAfterDelay(errorDiv);
             return;
         }
 
@@ -183,6 +250,7 @@
                     }
                     errorDiv.innerHTML = errorMessages;
                     errorDiv.style.display = 'block';
+                    hideErrorAfterDelay(errorDiv);
                 });
             }
         })
@@ -190,6 +258,7 @@
             console.error('Error:', error);
             errorDiv.innerHTML = '<p>An error occurred while adding the client. Please try again.</p>';
             errorDiv.style.display = 'block';
+            hideErrorAfterDelay(errorDiv);
         });
     }
 
@@ -218,4 +287,7 @@
             alert('An error occurred while deleting the client.');
         });
     }
+
+    document.getElementById('id_password1').addEventListener('input', checkPasswords);
+    document.getElementById('id_password2').addEventListener('input', checkPasswords);
 </script>
