@@ -47,12 +47,12 @@
                                 {{ form.packaging_condition }}
                             </div>
                             <div class="col-md-4 mb-3" id="weight_per_bag_container">
-                                <label for="weight_per_bag">Weight per Bag (kg)</label>
-                                <select class="form-select form-select-lg" id="weight_per_bag_select" name="weight_per_bag" style="display: none;">
-                                    <option value="">Select weight</option>
-                                </select>
-                                <input type="number" class="form-control form-control-lg" id="weight_per_bag_input" name="weight_per_bag" step="0.01" min="0" placeholder="Enter weight per bag (kg)" style="display: none;">
-                            </div>
+    <label for="weight_per_bag">Weight per Bag (kg)</label>
+    <select class="form-select form-select-lg" id="weight_per_bag_select" name="weight_per_bag" style="display: none;">
+        <option value="">Select weight</option>
+    </select>
+    <input type="number" class="form-control form-control-lg" id="weight_per_bag_input" name="weight_per_bag" step="0.01" min="0" placeholder="Enter weight per bag (kg)" style="display: none;" onkeydown="preventE(event)">
+</div>
                             <div class="col-md-4 mb-3" id="quantity_in_stock_container">
                                 {{ form.quantity_in_stock.label_tag }}
                                 {{ form.quantity_in_stock }}
@@ -634,7 +634,7 @@
         }
 
         // Initialize Add Product Wizard
-        setupWizard('addProductModal', 'productWizardForm', 'prevBtn', 'nextBtn', 'submitBtn', 'formErrors');
+            setupWizard('addProductModal', 'productWizardForm', 'prevBtn', 'nextBtn', 'submitBtn', 'formErrors');
 
         // Attach event listeners for modal buttons
         const deleteBtn = document.getElementById('deleteProductBtn');
@@ -649,5 +649,10 @@
             btn.addEventListener('click', () => submitTakeOutForm(sku));
         });
     });
+    function preventE(event) {
+    if (event.key === 'e' || event.key === 'E') {
+        event.preventDefault();
+    }
+}
 </script>
 ```

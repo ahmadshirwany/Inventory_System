@@ -174,20 +174,7 @@ class ProductForm(forms.ModelForm):
             'aria-label': 'Packaging Condition',
         })
     )
-    weight_per_bag_kg = forms.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        required=False,
-        help_text="Weight per bag or container in kilograms (e.g., weight per bag or sachet)",
-        widget=forms.NumberInput(attrs={
-            'class': 'form-control form-control-lg',
-            'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
-            'step': '0.01',
-            'min': '0',
-            'placeholder': 'e.g., 0.50 (in kg)',
-            'aria-label': 'Weight per Bag in Kilograms',
-        })
-    )
+
 
     class Meta:
         model = Product
@@ -198,6 +185,30 @@ class ProductForm(forms.ModelForm):
             'co2', 'o2', 'n2', 'ethylene_management', 'nutritional_info', 'regulatory_codes',
             'product_type', 'lot_number'
         ]
+        widgets = {
+            'quantity_in_stock': forms.NumberInput(attrs={
+                'step': '1',
+                'onkeypress': "return (event.charCode != 101 && event.charCode != 69);",
+                'oninput': "this.value = this.value.replace(/[eE]/g, '');",
+                'aria-describedby': 'quantityHelp',
+                'class': 'form-control form-control-lg'
+            }),
+            'weight_per_bag': forms.NumberInput(attrs={
+                'step': '1',
+                'onkeypress': "return   (event.charCode != 101 && event.charCode != 69);",
+                'oninput': "this.value = this.value.replace(/[eE]/g, '');",
+                'aria-describedby': 'weightPerBagHelp',
+                'class': 'form-control form-control-lg'
+            }),
+                'weight_quantity_kg': forms.NumberInput(attrs={
+                    'step': '0.01',
+                    'min': '0',
+                    'readonly': 'readonly',
+                    'class': 'form-control form-control-lg'
+                }),
+
+
+        }
 
     def __init__(self, *args, warehouse=None, **kwargs):
         super().__init__(*args, **kwargs)
