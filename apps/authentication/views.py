@@ -19,6 +19,10 @@ from django.contrib import messages
 from django.views import View
 from django.contrib.auth import logout
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.contrib.auth import get_user_model
+from django.db import models
+from django.contrib.auth import authenticate
+from django.core.exceptions import PermissionDenied,ValidationError
 
 class CustomLogoutView(View):
     def get(self, request):
@@ -39,7 +43,19 @@ def login_view(request):
         if form.is_valid():
             username = form.cleaned_data.get("username")
             password = form.cleaned_data.get("password")
-            user = authenticate(username=username, password=password)
+            if "@" in username:
+                UserModel = get_user_model()
+                try:
+                    user = UserModel.objects.get(
+                        models.Q(username__iexact=username) | models.Q(email__iexact=username)
+                    )
+                except UserModel.DoesNotExist:
+                    raise ValidationError("Invalid username or email.")
+                except UserModel.MultipleObjectsReturned:
+                    user = UserModel.objects.filter(email__iexact=login).first()
+                user = authenticate(request=request, username=user.username, password=password)
+            else:
+                user = authenticate(username=username, password=password)
             if user is not None:
                 login(request, user)
                 return redirect("/")

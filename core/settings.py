@@ -84,7 +84,10 @@ DATABASES = {
         'NAME': 'db.sqlite3',
     }
 }
-
+AUTHENTICATION_BACKENDS = [
+    'apps.authentication.backends.EmailOrUsernameBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
 # Password validation
 # https://docs.djangoproject.com/en/3.0/ref/settings/#auth-password-validators
 

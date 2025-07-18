@@ -65,15 +65,15 @@
         <div class="col-md-12">
             <div class="card card-plain">
                 <div class="card-header card-header-primary">
-                    <h4 class="card-title mt-0">Clients</h4>
+                    <h4 class="card-title mt-0">Customers</h4>
                     {% if request.user.is_superuser or is_owner or is_farmer %}
                         <div class="header-buttons">
                             <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#addClientModal">
-                                <i class="fa fa-plus"></i> Add New Client
+                                <i class="fa fa-plus"></i> Add New Customer
                             </button>
                         </div>
                     {% endif %}
-                    <p class="card-category">List of all clients</p>
+                    <p class="card-category">List of all Customers</p>
                 </div>
                 <div class="card-body">
                     <!-- Filter Section -->

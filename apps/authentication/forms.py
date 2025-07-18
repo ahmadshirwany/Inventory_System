@@ -34,12 +34,12 @@ class CustomUserCreationForm(UserCreationForm):
         # Dynamically set group choices based on user permissions
         if self.request_user and self.request_user.is_authenticated:
             if self.request_user.is_superuser:
-                self.fields['group'].choices = [("owner", "Owner"), ("user", "User")]
+                self.fields['group'].choices = [("owner", "Owner"), ("user", "Employee")]
             else:
-                self.fields['group'].choices = [("user", "User")]
+                self.fields['group'].choices = [("user", "Employee")]
         else:
             # Default to 'user' if no user is provided or the user is not authenticated
-            self.fields['group'].choices = [("user", "User")]
+            self.fields['group'].choices = [("user", "Employee")]
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -53,14 +53,12 @@ class LoginForm(forms.Form):
     username = forms.CharField(
         widget=forms.TextInput(
             attrs={
-                "placeholder": "Username",
                 "class": "form-control"
             }
         ))
     password = forms.CharField(
         widget=forms.PasswordInput(
             attrs={
-                "placeholder": "Password",
                 "class": "form-control"
             }
         ))
