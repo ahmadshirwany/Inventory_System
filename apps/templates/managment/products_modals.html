@@ -1,5 +1,4 @@
-```html
-{% if request.user.is_superuser or is_owner or is_user or is_farmer%}
+{% if request.user.is_superuser or is_owner or is_user or is_farmer %}
 <!-- Add Product Modal -->
 <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl">
@@ -28,12 +27,12 @@
                                 <small class="text-muted" id="skuHelp">Auto-generated</small>
                             </div>
                             <div class="col-md-4 mb-3">
-                                {{ form.barcode.label_tag }}
+                                <label for="{{ form.barcode.id_for_label }}">Barcode <span class="text-danger" id="barcodeRequired">*</span></label>
                                 {{ form.barcode }}
                                 <small class="text-muted" id="barcodeHelp">Auto-generated for Raw products</small>
                             </div>
                             <div class="col-md-4 mb-3">
-                                {{ form.product_name.label_tag }}
+                                <label for="{{ form.product_name.id_for_label }}">Product Name <span class="text-danger">*</span></label>
                                 {{ form.product_name }}
                             </div>
                         </div>
@@ -43,22 +42,22 @@
                     <div class="form-step" data-step="2">
                         <div class="row">
                             <div class="col-md-4 mb-3">
-                                {{ form.packaging_condition.label_tag }}
+                                <label for="{{ form.packaging_condition.id_for_label }}">Packaging Condition <span class="text-danger">*</span></label>
                                 {{ form.packaging_condition }}
                             </div>
                             <div class="col-md-4 mb-3" id="weight_per_bag_container">
-    <label for="weight_per_bag">Weight per Bag (kg)</label>
-    <select class="form-select form-select-lg" id="weight_per_bag_select" name="weight_per_bag" style="display: none;">
-        <option value="">Select weight</option>
-    </select>
-    <input type="number" class="form-control form-control-lg" id="weight_per_bag_input" name="weight_per_bag" step="0.01" min="0" placeholder="Enter weight per bag (kg)" style="display: none;" onkeydown="preventE(event)">
-</div>
+                                <label for="weight_per_bag">Weight per Bag (kg) <span class="text-danger" id="weightPerBagRequired">*</span></label>
+                                <select class="form-select form-select-lg" id="weight_per_bag_select" name="weight_per_bag" style="display: none;">
+                                    <option value="">Select weight</option>
+                                </select>
+                                <input type="number" class="form-control form-control-lg" id="weight_per_bag_input" name="weight_per_bag" step="0.01" min="0" placeholder="Enter weight per bag (kg)" style="display: none;" onkeydown="preventE(event)">
+                            </div>
                             <div class="col-md-4 mb-3" id="quantity_in_stock_container">
-                                {{ form.quantity_in_stock.label_tag }}
+                                <label for="{{ form.quantity_in_stock.id_for_label }}">Quantity in Stock <span class="text-danger" id="quantityRequired">*</span></label>
                                 {{ form.quantity_in_stock }}
                             </div>
                             <div class="col-md-4 mb-3">
-                                {{ form.weight_quantity_kg.label_tag }}
+                                <label for="{{ form.weight_quantity_kg.id_for_label }}">Weight (kg) <span class="text-danger" id="totalWeightRequired" style="display: none;">*</span></label>
                                 {{ form.weight_quantity_kg }}
                             </div>
                         </div>
@@ -68,7 +67,7 @@
                     <div class="form-step" data-step="3">
                         <div class="row">
                             <div class="col-md-4 mb-3">
-                                {{ form.unit_price.label_tag }}
+                                <label for="{{ form.unit_price.id_for_label }}">Unit Price <span class="text-danger">*</span></label>
                                 {{ form.unit_price }}
                             </div>
                             <div class="col-md-4 mb-3">
@@ -181,6 +180,7 @@
         -moz-appearance: none;
         padding-right: 2rem;
     }
+    .text-danger { color: #dc3545; }
 </style>
 
 <script>
@@ -247,6 +247,10 @@
             const quantityContainer = document.getElementById('quantity_in_stock_container');
             const skuHelp = document.getElementById('skuHelp');
             const barcodeHelp = document.getElementById('barcodeHelp');
+            const barcodeRequired = document.getElementById('barcodeRequired');
+            const weightPerBagRequired = document.getElementById('weightPerBagRequired');
+            const quantityRequired = document.getElementById('quantityRequired');
+            const totalWeightRequired = document.getElementById('totalWeightRequired');
 
             function updateWeightField() {
                 const selectedCondition = packagingSelect.value;
@@ -261,6 +265,9 @@
                 totalWeightInput.value = '';
                 quantityContainer.style.display = 'block';
                 weightPerBagContainer.style.display = 'block';
+                weightPerBagRequired.style.display = 'inline';
+                quantityRequired.style.display = 'inline';
+                totalWeightRequired.style.display = 'none';
 
                 if (selectedCondition === "Bulk") {
                     quantityContainer.style.display = 'none';
@@ -270,6 +277,9 @@
                     quantityInput.value = '';
                     weightSelect.value = '';
                     weightInput.value = '';
+                    weightPerBagRequired.style.display = 'none';
+                    quantityRequired.style.display = 'none';
+                    totalWeightRequired.style.display = 'inline';
                 } else if (Array.isArray(weights)) {
                     weights.forEach(weight => {
                         const option = document.createElement('option');
@@ -349,6 +359,7 @@
                 if (productType === 'Raw') {
                     barcodeInput.setAttribute('readonly', 'readonly');
                     barcodeHelp.innerText = 'Auto-generated for Raw products';
+                    barcodeRequired.style.display = 'none';
                     fetch("{% url 'generate_barcode' warehouse.slug %}", {
                         method: 'GET',
                         headers: { 'X-CSRFToken': csrfToken },
@@ -369,7 +380,9 @@
                     });
                 } else {
                     barcodeInput.removeAttribute('readonly');
+                    barcodeInput.setAttribute('required', 'required');
                     barcodeHelp.innerText = 'Enter barcode for Processed products';
+                    barcodeRequired.style.display = 'inline';
                     barcodeInput.value = '';
                 }
             }
@@ -634,7 +647,7 @@
         }
 
         // Initialize Add Product Wizard
-            setupWizard('addProductModal', 'productWizardForm', 'prevBtn', 'nextBtn', 'submitBtn', 'formErrors');
+        setupWizard('addProductModal', 'productWizardForm', 'prevBtn', 'nextBtn', 'submitBtn', 'formErrors');
 
         // Attach event listeners for modal buttons
         const deleteBtn = document.getElementById('deleteProductBtn');
@@ -649,10 +662,10 @@
             btn.addEventListener('click', () => submitTakeOutForm(sku));
         });
     });
+
     function preventE(event) {
-    if (event.key === 'e' || event.key === 'E') {
-        event.preventDefault();
+        if (event.key === 'e' || event.key === 'E') {
+            event.preventDefault();
+        }
     }
-}
 </script>
-```
