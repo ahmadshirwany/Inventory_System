@@ -157,6 +157,11 @@
     .modal-body {
         padding: 20px 30px;
         background-color: #fff;
+        max-height: 70vh; /* Set max height for scrollable content */
+        overflow-y: auto; /* Enable vertical scrolling */
+    }
+    body.modal-open {
+        overflow: hidden; /* Prevent background page scrolling */
     }
     .section-title {
         font-size: 1.2rem;
@@ -284,27 +289,6 @@
             padding: 8px 15px;
             font-size: 0.9rem;
         }
-    }
-    .modal-xl { max-width: 90%; }
-    .error-messages { display: none; margin-bottom: 20px; }
-    .is-invalid { border-color: #dc3545; }
-    .required:after { content: " *"; color: red; }
-    .password-field-container {
-        position: relative;
-    }
-    .password-match {
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 16px;
-        font-weight: bold;
-    }
-    .match {
-        color: #28a745; /* Green for match */
-    }
-    .no-match {
-        color: #dc3545; /* Red for no match */
     }
 </style>
 
@@ -471,6 +455,21 @@
             hideErrorAfterDelay(errorDiv);
         });
     }
+
+    // Prevent modal scroll from affecting background page
+    document.querySelectorAll('.modal-body').forEach(modalBody => {
+        modalBody.addEventListener('wheel', (event) => {
+            event.stopPropagation();
+            const isAtTop = modalBody.scrollTop === 0;
+            const isAtBottom = modalBody.scrollTop + modalBody.clientHeight >= modalBody.scrollHeight;
+            const isScrollingUp = event.deltaY < 0;
+            const isScrollingDown = event.deltaY > 0;
+
+            if ((isScrollingUp && isAtTop) || (isScrollingDown && isAtBottom)) {
+                event.preventDefault();
+            }
+        });
+    });
 
     document.getElementById('id_password1').addEventListener('input', checkPasswords);
     document.getElementById('id_password2').addEventListener('input', checkPasswords);
