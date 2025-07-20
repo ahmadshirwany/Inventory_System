@@ -13,7 +13,9 @@
                     {% csrf_token %}
                     <input type="hidden" name="add_farmer" value="1">
                     <div class="row">
-                        <!-- User Fields -->
+                        <!-- User Account Information -->
+                        <h6 class="section-title">User Account Information</h6>
+                        <hr class="section-divider">
                         <div class="col-md-4 mb-3">
                             <label class="required" for="id_username">Username</label>
                             <input type="text" class="form-control" id="id_username" name="username" required>
@@ -24,33 +26,38 @@
                         </div>
                         <div class="col-md-4 mb-3 password-field-container">
                             <label class="required" for="id_password1">Password</label>
-                            <input type="password" class="form-control" id="id_password1" name="password1" required>
+                            <input type="password" class="form-control password-input" id="id_password1" name="password1" required>
                             <span id="id_password1-match" class="password-match"></span>
                         </div>
                         <div class="col-md-4 mb-3 password-field-container">
                             <label class="required" for="id_password2">Confirm Password</label>
-                            <input type="password" class="form-control" id="id_password2" name="password2" required>
+                            <input type="password" class="form-control password-input" id="id_password2" name="password2" required>
                             <span id="id_password2-match" class="password-match"></span>
                         </div>
-                        <!-- Farmer Fields -->
+                        <!-- Personal Information -->
+                        <h6 class="section-title mt-4">Personal Information</h6>
+                        <hr class="section-divider">
                         <div class="col-md-4 mb-3">
                             <label class="required" for="id_name">Name</label>
                             <input type="text" class="form-control" id="id_name" name="name" required>
                         </div>
                         <div class="col-md-4 mb-3">
-                            <label class="required" for="id_contact_number"> Mobile-Cellular phone number</label>
+                            <label class="required" for="id_contact_number">Mobile-Cellular Phone Number</label>
                             <input type="text" class="form-control" id="id_contact_number" name="contact_number" required>
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="required" for="id_address">Address</label>
                             <textarea class="form-control" id="id_address" name="address" required></textarea>
                         </div>
+                        <!-- Farm Information -->
+                        <h6 class="section-title mt-4">Farm Information</h6>
+                        <hr class="section-divider">
                         <div class="col-md-4 mb-3">
                             <label for="id_farm_name">Farm Name</label>
                             <input type="text" class="form-control" id="id_farm_name" name="farm_name">
                         </div>
                         <div class="col-md-4 mb-3">
-                            <label class="required" for="id_farm_location">Farm Location</label>
+                            <label for="id_farm_location">Farm Location</label>
                             <input type="text" class="form-control" id="id_farm_location" name="farm_location" required>
                         </div>
                         <div class="col-md-4 mb-3">
@@ -73,8 +80,8 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-success" onclick="submitFarmerForm()">Submit</button>
+                <button type="button" class="btn btn-secondary custom-btn" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success custom-btn" onclick="submitFarmerForm()">Submit</button>
             </div>
         </div>
     </div>
@@ -129,26 +136,159 @@
 {% endif %}
 
 <style>
-    .modal-xl { max-width: 90%; }
-    .error-messages { display: none; margin-bottom: 20px; }
-    .is-invalid { border-color: #dc3545; }
-    .required:after { content: " *"; color: red; }
+    .modal-xl {
+        max-width: 90%;
+    }
+    .modal-content {
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border: none;
+    }
+    .modal-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        padding: 15px 20px;
+    }
+    .modal-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #343a40;
+    }
+    .modal-body {
+        padding: 20px 30px;
+        background-color: #fff;
+        max-height: 70vh; /* Set max height for scrollable content */
+        overflow-y: auto; /* Enable vertical scrolling */
+    }
+    body.modal-open {
+        overflow: hidden; /* Prevent background page scrolling */
+    }
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 10px;
+    }
+    .section-divider {
+        border-top: 1px solid #e9ecef;
+        margin-bottom: 20px;
+    }
+    .form-control {
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        padding: 10px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        background-color: #f8f9fa;
+    }
+    .form-control:focus {
+        border-color: #28a745;
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.1);
+        background-color: #fff;
+    }
+    .password-input {
+        padding-right: 40px; /* Reserve space for password match indicator */
+    }
+    textarea.form-control {
+        min-height: 80px;
+        resize: vertical;
+    }
+    .required:after {
+        content: " *";
+        color: #dc3545;
+        font-weight: bold;
+    }
     .password-field-container {
         position: relative;
     }
     .password-match {
         position: absolute;
-        right: 10px;
-        top: 50%;
+        right: 12px;
+        top: calc(50% + 12px); /* Adjust for vertical centering relative to input */
         transform: translateY(-50%);
-        font-size: 16px;
+        font-size: 1rem;
         font-weight: bold;
+        width: 20px;
+        height: 20px;
+        line-height: 20px;
+        text-align: center;
+        border-radius: 50%;
+        background-color: #f8f9fa;
     }
     .match {
-        color: #28a745; /* Green for match */
+        color: #28a745;
+        background-color: #e6f4ea;
     }
     .no-match {
-        color: #dc3545; /* Red for no match */
+        color: #dc3545;
+        background-color: #f8d7da;
+    }
+    .error-messages {
+        display: none;
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 20px;
+        color: #721c24;
+        font-size: 0.9rem;
+    }
+    .error-messages p:before {
+        content: "⚠ ";
+        font-weight: bold;
+    }
+    .is-invalid {
+        border-color: #dc3545;
+        background-color: #fff5f5;
+    }
+    .custom-btn {
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+    .btn-secondary.custom-btn {
+        background-color: #6c757d;
+        border-color: #6c757d;
+    }
+    .btn-secondary.custom-btn:hover {
+        background-color: #5a6268;
+        border-color: #545b62;
+        transform: translateY(-1px);
+    }
+    .btn-success.custom-btn {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+    .btn-success.custom-btn:hover {
+        background-color: #218838;
+        border-color: #1e7e34;
+        transform: translateY(-1px);
+    }
+    @media (max-width: 768px) {
+        .modal-body {
+            padding: 15px;
+        }
+        .section-title {
+            font-size: 1.1rem;
+        }
+        .form-control {
+            font-size: 0.9rem;
+            padding: 8px;
+        }
+        .password-input {
+            padding-right: 35px;
+        }
+        .password-match {
+            right: 10px;
+            font-size: 0.9rem;
+            width: 18px;
+            height: 18px;
+            line-height: 18px;
+        }
+        .custom-btn {
+            padding: 8px 15px;
+            font-size: 0.9rem;
+        }
     }
 </style>
 
@@ -315,6 +455,21 @@
             hideErrorAfterDelay(errorDiv);
         });
     }
+
+    // Prevent modal scroll from affecting background page
+    document.querySelectorAll('.modal-body').forEach(modalBody => {
+        modalBody.addEventListener('wheel', (event) => {
+            event.stopPropagation();
+            const isAtTop = modalBody.scrollTop === 0;
+            const isAtBottom = modalBody.scrollTop + modalBody.clientHeight >= modalBody.scrollHeight;
+            const isScrollingUp = event.deltaY < 0;
+            const isScrollingDown = event.deltaY > 0;
+
+            if ((isScrollingUp && isAtTop) || (isScrollingDown && isAtBottom)) {
+                event.preventDefault();
+            }
+        });
+    });
 
     document.getElementById('id_password1').addEventListener('input', checkPasswords);
     document.getElementById('id_password2').addEventListener('input', checkPasswords);

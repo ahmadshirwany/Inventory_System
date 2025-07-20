@@ -13,7 +13,26 @@ from .models import CustomUser, Farmer,Client
 import re
 from django.db import transaction
 from django.contrib.auth import password_validation
+from django.contrib.auth import get_user_model
 
+
+def validate_password_strength(password, field_name="password1"):
+    """Validate password strength with specific requirements."""
+    errors = []
+
+    if len(password) < 8:
+        errors.append("Password must be at least 8 characters long.")
+    if not re.search(r'[A-Z]', password):
+        errors.append("Password must contain at least one uppercase letter.")
+    if not re.search(r'[a-z]', password):
+        errors.append("Password must contain at least one lowercase letter.")
+    if not re.search(r'[0-9]', password):
+        errors.append("Password must contain at least one number.")
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        errors.append("Password must contain at least one special character.")
+
+    if errors:
+        raise forms.ValidationError({field_name: errors})
 
 class CustomUserCreationForm(UserCreationForm):
     group = forms.ChoiceField(
@@ -170,17 +189,18 @@ class FarmerCreationForm(forms.ModelForm):
         if password1 and password2:
             if password1 != password2:
                 raise forms.ValidationError("Passwords do not match.")
+            validate_password_strength(password1)
             try:
-                forms.password_validation.validate_password(password1)
+                password_validation.validate_password(password1)
             except forms.ValidationError as e:
                 raise forms.ValidationError({"password1": e})
-
+        getUser = get_user_model()
         # Ensure username is unique
-        if User.objects.filter(username=username).exists():
+        if getUser.objects.filter(username=username).exists():
             raise forms.ValidationError({"username": "This username is already taken."})
 
         # Ensure user_email is unique
-        if User.objects.filter(email=user_email).exists():
+        if getUser.objects.filter(email=user_email).exists():
             raise forms.ValidationError({"user_email": "This email is already taken."})
 
         # Ensure farmer_email is unique if provided
@@ -192,7 +212,7 @@ class FarmerCreationForm(forms.ModelForm):
     @transaction.atomic
     def save(self, request, commit=True):
         # Create CustomUser instance
-        user = User(
+        user = CustomUser(
             username=self.cleaned_data['username'],
             email=self.cleaned_data['user_email'],
             is_farmer=True,
@@ -205,6 +225,7 @@ class FarmerCreationForm(forms.ModelForm):
         # Create Farmer instance
         farmer = super().save(commit=False)
         farmer.user = user
+        farmer.email = self.cleaned_data['user_email']
         farmer.registration_date = date.today()
         if commit:
             farmer.save()
@@ -273,6 +294,7 @@ class ClientCreationForm(forms.ModelForm):
         # Validate passwords match
         if password1 and password2 and password1 != password2:
             raise forms.ValidationError("Passwords do not match.")
+        validate_password_strength(password1)
         try:
             password_validation.validate_password(password1)
         except forms.ValidationError as e:
