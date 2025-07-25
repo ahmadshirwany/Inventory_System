@@ -522,3 +522,106 @@ class ItemRequestForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+class ProductMetadataForm(forms.Form):
+    Product = forms.CharField(
+        max_length=255,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter product name',
+            'aria-label': 'Product Name',
+        })
+    )
+    Ethylene_Management = forms.CharField(
+        max_length=255,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter ethylene management strategy',
+            'aria-label': 'Ethylene Management',
+        })
+    )
+    Ideal_Temperature_C = forms.CharField(
+        max_length=50,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., 20-25',
+            'aria-label': 'Ideal Temperature (C)',
+        })
+    )
+    Relative_Humidity = forms.CharField(
+        max_length=50,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., 50-60 or <50',
+            'aria-label': 'Relative Humidity (%)',
+        })
+    )
+    Maximum_Storage_Duration_days = forms.IntegerField(
+        required=False,
+        min_value=0,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., 720',
+            'aria-label': 'Maximum Storage Duration (days)',
+        })
+    )
+    CO2 = forms.CharField(
+        max_length=50,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., <1 or -',
+            'aria-label': 'CO2 (%)',
+        })
+    )
+    O2 = forms.CharField(
+        max_length=50,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., <5 or -',
+            'aria-label': 'O2 (%)',
+        })
+    )
+    N2 = forms.CharField(
+        max_length=50,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., >95 or -',
+            'aria-label': 'N2 (%)',
+        })
+    )
+    Additional_Notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': 'Enter additional notes',
+            'aria-label': 'Additional Notes',
+        })
+    )
+    Product_Type = forms.ChoiceField(
+        choices=[('Raw', 'Raw'), ('Processed', 'Processed')],
+        required=True,
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'aria-label': 'Product Type',
+        })
+    )
+
+    def clean_Product(self):
+        product_name = self.cleaned_data['Product']
+        if not product_name:
+            raise forms.ValidationError("Product name is required.")
+        return product_name
+
+    def clean_Maximum_Storage_Duration_days(self):
+        duration = self.cleaned_data.get('Maximum_Storage_Duration_days')
+        if duration is not None and duration < 0:
+            raise forms.ValidationError("Maximum storage duration cannot be negative.")
+        return duration
