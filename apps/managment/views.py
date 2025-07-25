@@ -3,7 +3,7 @@ import json
 from django.contrib.auth import update_session_auth_hash
 from django.shortcuts import render, redirect, get_object_or_404
 from django import template
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required,user_passes_test
 from django.http import HttpResponse, HttpResponseRedirect
 from django.template import loader
 from django.urls import reverse
@@ -18,8 +18,11 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.contrib import messages
 from django.db import transaction
-from .models import get_product_metadata
+from .models import get_product_metadata, refresh_product_metadata
 from django.db.models import Sum
+import os
+from django.conf import settings
+from .forms import ProductMetadataForm
 
 @login_required
 def update_password(request):
@@ -742,3 +745,113 @@ def customer_requests(request):
         'is_client': request.user.groups.filter(name='client').exists(),
     }
     return render(request, 'managment/customer_requests.html', context)
+
+
+def is_superuser(user):
+    return user.is_superuser
+
+
+@login_required
+@user_passes_test(is_superuser, login_url='home')
+def manage_product_metadata(request):
+    JSON_FILE_PATH = os.path.join(settings.BASE_DIR.parent, 'apps', 'managment', 'products.json')
+
+    # Load current metadata
+    try:
+        with open(JSON_FILE_PATH, 'r') as f:
+            products = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        products = []
+
+    if request.method == 'POST':
+        # Handle form submission
+        if 'add_product' in request.POST:
+            form = ProductMetadataForm(request.POST)
+            if form.is_valid():
+                new_product = form.cleaned_data
+                # Map form field names to JSON keys
+                json_product = {
+                    'Product': new_product['Product'],
+                    'Ethylene Management': new_product['Ethylene_Management'],
+                    'Ideal Temperature (C)': new_product['Ideal_Temperature_C'],
+                    'Relative Humidity (%)': new_product['Relative_Humidity'],
+                    'Maximum Storage Duration (days)': new_product['Maximum_Storage_Duration_days'],
+                    'CO2 (%)': new_product['CO2'],
+                    'O2 (%)': new_product['O2'],
+                    'N2 (%)': new_product['N2'],
+                    'Additional Notes': new_product['Additional_Notes'],
+                    'Product Type': new_product['Product_Type']
+                }
+                products.append(json_product)
+                try:
+                    with open(JSON_FILE_PATH, 'w') as f:
+                        json.dump(products, f, indent=2)
+                    refresh_product_metadata()  # Refresh cache
+                    messages.success(request, "Product added successfully.")
+                    return redirect('manage_product_metadata')
+                except Exception as e:
+                    messages.error(request, f"Error saving product: {str(e)}")
+            else:
+                messages.error(request, "Invalid form data. Please check the fields.")
+        elif 'edit_product' in request.POST:
+            index = int(request.POST.get('index'))
+            form = ProductMetadataForm(request.POST)
+            if form.is_valid():
+                json_product = {
+                    'Product': form.cleaned_data['Product'],
+                    'Ethylene Management': form.cleaned_data['Ethylene_Management'],
+                    'Ideal Temperature (C)': form.cleaned_data['Ideal_Temperature_C'],
+                    'Relative Humidity (%)': form.cleaned_data['Relative_Humidity'],
+                    'Maximum Storage Duration (days)': form.cleaned_data['Maximum_Storage_Duration_days'],
+                    'CO2 (%)': form.cleaned_data['CO2'],
+                    'O2 (%)': form.cleaned_data['O2'],
+                    'N2 (%)': form.cleaned_data['N2'],
+                    'Additional Notes': form.cleaned_data['Additional_Notes'],
+                    'Product Type': form.cleaned_data['Product_Type']
+                }
+                products[index] = json_product
+                try:
+                    with open(JSON_FILE_PATH, 'w') as f:
+                        json.dump(products, f, indent=2)
+                    refresh_product_metadata()  # Refresh cache
+                    messages.success(request, "Product updated successfully.")
+                    return redirect('manage_product_metadata')
+                except Exception as e:
+                    messages.error(request, f"Error saving product: {str(e)}")
+            else:
+                messages.error(request, "Invalid form data. Please check the fields.")
+        elif 'delete_product' in request.POST:
+            index = int(request.POST.get('index'))
+            try:
+                products.pop(index)
+                with open(JSON_FILE_PATH, 'w') as f:
+                    json.dump(products, f, indent=2)
+                refresh_product_metadata()  # Refresh cache
+                messages.success(request, "Product deleted successfully.")
+                return redirect('manage_product_metadata')
+            except Exception as e:
+                messages.error(request, f"Error deleting product: {str(e)}")
+
+    # Prepare forms for existing products with proper field mapping
+    product_forms = []
+    for i, product in enumerate(products):
+        initial_data = {
+            'Product': product.get('Product'),
+            'Ethylene_Management': product.get('Ethylene Management'),
+            'Ideal_Temperature_C': product.get('Ideal Temperature (C)'),
+            'Relative_Humidity': product.get('Relative Humidity (%)'),
+            'Maximum_Storage_Duration_days': product.get('Maximum Storage Duration (days)'),
+            'CO2': product.get('CO2 (%)'),
+            'O2': product.get('O2 (%)'),
+            'N2': product.get('N2 (%)'),
+            'Additional_Notes': product.get('Additional Notes'),
+            'Product_Type': product.get('Product Type')
+        }
+        product_forms.append((i, ProductMetadataForm(initial=initial_data)))
+
+    add_form = ProductMetadataForm()
+
+    return render(request, 'managment/manage_product_metadata.html', {
+        'product_forms': product_forms,
+        'add_form': add_form,
+    })

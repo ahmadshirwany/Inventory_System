@@ -11,6 +11,7 @@ urlpatterns = [
 
     # The home page
     path('', views.index, name='home'),
+
     # path('user-profile/', views.update_password, name='update_password'),
     path('warehouses-list/', views.warehouse_list, name='warehouse_list'),
     path('create-warehouse/', views.create_warehouse, name='warehouse_create'),
@@ -24,6 +25,8 @@ urlpatterns = [
     path('customer/requests/', views.customer_requests, name='customer_requests'),
     path('warehouse/<slug:slug>/generate-barcode/', views.generate_barcode, name='generate_barcode'),
     path('warehouse/<slug:slug>/generate-sku/', views.generate_sku, name='generate_sku'),
+    path('manage-product-metadata/', views.manage_product_metadata, name='manage_product_metadata'),
+
     # re_path(r'^.*$', views.pages, name='pages'),
 
 
