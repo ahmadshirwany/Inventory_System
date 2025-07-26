@@ -95,6 +95,14 @@
               <p>Item Requests</p>
             </a>
                    {% endif %}
+            {% if user.is_superuser %}
+           <li class="nav-item">
+            <li class="nav-item {% if 'page-user' in segment %} active {% endif %}">
+             <a class="nav-link" href="{% url 'manage_product_metadata' %}">
+              <i class="material-icons">PM</i>
+              <p>Product Meta Data</p>
+            </a>
+                   {% endif %}
            <li class="nav-item">
           <li class="nav-item ">
             <a class="nav-link" href="{% url 'logout' %}" >
