@@ -23,6 +23,7 @@ from django.db.models import Sum
 import os
 from django.conf import settings
 from .forms import ProductMetadataForm
+from decimal import Decimal,ROUND_HALF_UP
 
 @login_required
 def update_password(request):
@@ -449,7 +450,7 @@ def warehouse_detail(request, slug):
                         '0')) - weight_kg_to_take
 
                     if weight_per_unit and product.quantity_in_stock is not None and product.quantity_in_stock > 0:
-                        proportional_quantity = int(weight_kg_to_take / weight_per_unit)
+                        proportional_quantity = int(weight_kg_to_take / Decimal(weight_per_unit))
                         product.quantity_in_stock -= min(proportional_quantity, product.quantity_in_stock)
 
             # Ensure non-negative values
@@ -467,7 +468,7 @@ def warehouse_detail(request, slug):
                 product.exit_date = timezone.now().date()
 
             product.weight_quantity = product.weight_quantity_kg * 1000
-            product.total_value = product.unit_price * product.weight_quantity_kg if product.weight_quantity_kg else 0
+            product.total_value = (product.unit_price * product.weight_quantity_kg).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if product.weight_quantity_kg else 0
 
             try:
                 product.full_clean()
