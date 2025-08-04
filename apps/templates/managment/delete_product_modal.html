@@ -1,0 +1,137 @@
+{% if request.user.is_superuser or is_owner or is_user or is_farmer %}
+<!-- Delete Product Modal -->
+<div class="modal fade" id="deleteProductModal" tabindex="-1" aria-labelledby="deleteProductModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteProductModalLabel">Delete Product</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger error-messages" id="deleteFormErrors" style="display: none;"></div>
+                <p>Are you sure you want to delete the product <strong id="deleteProductName"></strong> (SKU: <strong id="deleteProductSKU"></strong>)? This action cannot be undone.</p>
+                <form method="POST" id="deleteProductForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="delete_product" value="1">
+                    <input type="hidden" name="sku" id="delete_sku">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-danger" id="deleteProductBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+    .error-messages { display: none; margin-bottom: 20px; }
+    .text-danger { color: #dc3545; }
+</style>
+
+<script>
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function setDeleteModal(sku, product_name) {
+        const deleteSkuInput = document.getElementById('delete_sku');
+        const deleteProductName = document.getElementById('deleteProductName');
+        const deleteProductSKU = document.getElementById('deleteProductSKU');
+        const deleteModalLabel = document.getElementById('deleteProductModalLabel');
+        const errorDiv = document.getElementById('deleteFormErrors');
+
+        if (deleteSkuInput && deleteProductName && deleteProductSKU && deleteModalLabel) {
+            deleteSkuInput.value = sku;
+            deleteProductName.innerText = product_name || 'Unknown';
+            deleteProductSKU.innerText = sku || 'Unknown';
+            deleteModalLabel.innerText = `Delete Product: ${product_name || 'Unknown'} (SKU: ${sku || 'Unknown'})`;
+            errorDiv.style.display = 'none';
+        } else {
+            console.error('One or more modal elements not found');
+        }
+    }
+
+    function hideErrorAfterDelay(errorDiv) {
+        if (errorDiv && errorDiv.style.display === 'block') {
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+                errorDiv.innerHTML = '';
+            }, 5000);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const csrfToken = getCookie('csrftoken');
+
+        // Delete Product Form Submission
+        function submitDeleteForm() {
+            console.log('submitDeleteForm called');
+            const form = document.getElementById('deleteProductForm');
+            const errorDiv = document.getElementById('deleteFormErrors');
+            const sku = document.getElementById('delete_sku').value;
+
+            if (!sku) {
+                errorDiv.innerHTML = '<p>No product SKU provided.</p>';
+                errorDiv.style.display = 'block';
+                hideErrorAfterDelay(errorDiv);
+                return;
+            }
+
+            if (!csrfToken) {
+                errorDiv.innerHTML = '<p>CSRF token missing.</p>';
+                errorDiv.style.display = 'block';
+                hideErrorAfterDelay(errorDiv);
+                return;
+            }
+
+            const formData = new FormData(form);
+            fetch("{% url 'warehouse_detail' warehouse.slug %}", {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': csrfToken },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    let errorMessages = '';
+                    for (const [field, errors] of Object.entries(data.errors || {})) {
+                        errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
+                    }
+                    errorDiv.innerHTML = errorMessages || '<p>An error occurred while deleting the product.</p>';
+                    errorDiv.style.display = 'block';
+                    hideErrorAfterDelay(errorDiv);
+                }
+            })
+            .catch(error => {
+                console.error('Fetch Error:', error);
+                errorDiv.innerHTML = `<p>An error occurred while deleting the product: ${error.message}</p>`;
+                errorDiv.style.display = 'block';
+                hideErrorAfterDelay(errorDiv);
+            });
+        }
+
+        // Attach event listeners for modal buttons
+        const deleteBtn = document.getElementById('deleteProductBtn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', submitDeleteForm);
+        } else {
+            console.error('Delete button not found');
+        }
+    });
+</script>

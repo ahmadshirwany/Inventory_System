@@ -1,0 +1,137 @@
+{% if request.user.is_superuser or is_owner or is_user or is_farmer %}
+<!-- Take Out Product Modals -->
+{% for product in page_obj %}
+<div class="modal fade" id="takeOutProductModal_{{ product.sku|slugify }}" tabindex="-1" aria-labelledby="takeOutProductModalLabel_{{ product.sku|slugify }}" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="takeOutProductModalLabel_{{ product.sku|slugify }}">Take Out Product: {{ product.product_name }} (SKU: {{ product.sku }})</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger error-messages" id="takeOutErrors_{{ product.sku|slugify }}" style="display: none;"></div>
+                <form method="POST" id="takeOutForm_{{ product.sku|slugify }}">
+                    {% csrf_token %}
+                    <input type="hidden" name="take_out_product" value="1">
+                    <input type="hidden" name="sku" value="{{ product.sku }}">
+                    <div class="mb-3">
+                        <label for="quantity_to_take_{{ product.sku|slugify }}" class="form-label">Quantity to Take Out (Current: {{ product.quantity_in_stock|default:"N/A" }})</label>
+                        <input type="number" class="form-control" id="quantity_to_take_{{ product.sku|slugify }}" name="quantity_to_take" min="0" {% if product.quantity_in_stock %}max="{{ product.quantity_in_stock }}"{% endif %} placeholder="Enter quantity (optional)" {% if product.packaging_condition == 'Bulk' %}style="display: none;"{% endif %}>
+                    </div>
+                    <div class="mb-3">
+                        <label for="weight_kg_to_take_{{ product.sku|slugify }}" class="form-label">Weight (kg) to Take Out (Current: {{ product.weight_quantity_kg|default:"N/A" }})</label>
+                        <input type="number" class="form-control" id="weight_kg_to_take_{{ product.sku|slugify }}" name="weight_kg_to_take" min="0" max="{{ product.weight_quantity_kg|default:'0' }}" step="0.01" placeholder="Enter weight in kg (optional)">
+                    </div>
+                    <small class="text-muted">Fill in one or both fields. Taking out quantity will proportionally reduce weight, and vice versa.</small>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-danger" id="takeOutProductBtn_{{ product.sku|slugify }}">Take Out</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+<style>
+    .error-messages { display: none; margin-bottom: 20px; }
+    .text-danger { color: #dc3545; }
+</style>
+
+<script>
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function hideErrorAfterDelay(errorDiv) {
+        if (errorDiv && errorDiv.style.display === 'block') {
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+                errorDiv.innerHTML = '';
+            }, 5000);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const csrfToken = getCookie('csrftoken');
+
+        // Take Out Product Form Submission
+        function submitTakeOutForm(sku) {
+            console.log('submitTakeOutForm called for SKU:', sku);
+            const form = document.getElementById(`takeOutForm_${sku}`);
+            const errorDiv = document.getElementById(`takeOutErrors_${sku}`);
+            const quantityInput = document.getElementById(`quantity_to_take_${sku}`);
+            const weightKgInput = document.getElementById(`weight_kg_to_take_${sku}`);
+
+            const quantityToTake = parseFloat(quantityInput.value) || 0;
+            const weightKgToTake = parseFloat(weightKgInput.value) || 0;
+
+            if (quantityToTake <= 0 && weightKgToTake <= 0) {
+                errorDiv.innerHTML = '<p>Please specify at least one of Quantity or Weight (kg) to take out.</p>';
+                errorDiv.style.display = 'block';
+                hideErrorAfterDelay(errorDiv);
+                return;
+            }
+
+            if (quantityToTake > parseInt(quantityInput.max)) {
+                errorDiv.innerHTML = `<p>Quantity cannot exceed ${quantityInput.max}.</p>`;
+                errorDiv.style.display = 'block';
+                hideErrorAfterDelay(errorDiv);
+                return;
+            }
+            if (weightKgToTake > parseFloat(weightKgInput.max)) {
+                errorDiv.innerHTML = `<p>Weight (kg) cannot exceed ${weightKgInput.max}.</p>`;
+                errorDiv.style.display = 'block';
+                hideErrorAfterDelay(errorDiv);
+                return;
+            }
+
+            const formData = new FormData(form);
+            fetch("{% url 'warehouse_detail' warehouse.slug %}", {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': csrfToken },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    let errorMessages = '';
+                    for (const [field, errors] of Object.entries(data.errors || {})) {
+                        errorMessages += `<p>${field}: ${errors.join(', ')}</p>`;
+                    }
+                    errorDiv.innerHTML = errorMessages || '<p>An error occurred.</p>';
+                    errorDiv.style.display = 'block';
+                    hideErrorAfterDelay(errorDiv);
+                }
+            })
+            .catch(error => {
+                console.error('Fetch Error:', error);
+                errorDiv.innerHTML = `<p>An error occurred while taking out the product: ${error.message}</p>`;
+                errorDiv.style.display = 'block';
+                hideErrorAfterDelay(errorDiv);
+            });
+        }
+
+        // Attach event listeners for modal buttons
+        document.querySelectorAll('[id^="takeOutProductBtn_"]').forEach(btn => {
+            const sku = btn.id.replace('takeOutProductBtn_', '');
+            btn.addEventListener('click', () => submitTakeOutForm(sku));
+        });
+    });
+</script>

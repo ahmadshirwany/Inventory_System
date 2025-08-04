@@ -158,14 +158,14 @@
                                             <td>{{ product.nutritional_info|default:"N/A"|truncatewords:10 }}</td>
                                             <td>{{ product.regulatory_codes|default:"N/A" }}</td>
                                             <td>{{ product.notes_comments|default:"N/A"|truncatewords:10 }}</td>
-                                            <td>{{ product.farmer.username|default:"N/A" }}</td>
+                                            <td>{{ product.farmer.username|defaultබ
                                             <td style="text-align: center;">
                                                 {% if request.user.is_superuser or is_owner %}
                                                     <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteProductModal" onclick="setDeleteModal('{{ product.sku }}', '{{ product.product_name|escapejs }}')">
                                                         Delete
                                                     </button>
                                                 {% endif %}
-                                                <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#takeOutProductModal_{{ product.sku }}" onclick="event.stopPropagation();">
+                                                <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#takeOutProductModal_{{ product.sku|slugify }}" onclick="event.stopPropagation();">
                                                     Take Out
                                                 </button>
                                             </td>
@@ -186,7 +186,9 @@
     </div>
 
     <!-- Include Modals -->
-    {% include "managment/products_modals.html" %}
+    {% include "managment/add_product_modal.html" %}
+    {% include "managment/delete_product_modal.html" %}
+    {% include "managment/take_out_product_modal.html" %}
 {% endblock content %}
 
 {% block javascripts %}
