@@ -142,27 +142,141 @@ class WarehouseForm(forms.ModelForm):
         return instance
 
 PACKAGING_CONDITIONS = {
-    "Bidons hermétiques": None,
-    "Bocaux en verre": None,
-    "Boîtes perforées": None,
-    "Bouteilles hermétiques": None,
-    "Congélation": None,
-    "Conteneurs hermétiques": None,
-    "Endroit frais": None,
-    "Pots hermétiques": None,
-    "Réfrigération": None,
-    "Sacs en filet": [10, 20, 25, 50, 100],
-    "Sacs en jute": [10, 20, 25, 50, 100],
-    "Sacs en polypropylène": [10, 20, 25, 50, 100],
-    "Sacs en toile": [10, 20, 25, 50, 100],
-    "Sacs hermétiques": [10, 20, 25, 50, 100],
-    "Sous vide": None,
-    "Sachet - 100g": 0.1,
-    "Sachet - 250g": 0.25,
-    "Sachet - 500g": 0.5,
-    "Sachet - 1000g": 1,
-    "Bulk": None  # Added "Bulk" with None
+    "Bacs alimentaires hermétiques": "kgs",
+    "Barquette": "kgs",
+    "Barquette aérée": "kgs",
+    "Barquette PET": "kgs",
+    "Barquette PET perforée": "kgs",
+    "Barquette ventilée": "kgs",
+    "Bidon plastique": "liters",
+    "Bocal hermétique": "liters",
+    "Boîte": "kgs",
+    "Boîte hermétique": "kgs",
+    "Botte ou filet": "kgs",
+    "Bouteille": "liters",
+    "Bouteille hermétique": "liters",
+    "Cageots": "kgs",
+    "Cageots ajourés": "kgs",
+    "Caisse ajourée": "kgs",
+    "Caisse carton": "kgs",
+    "Caisse en bois": "kgs",
+    "Caisse plastique": "kgs",
+    "Caisse plastique ajourée": "kgs",
+    "Caisse rigide": "kgs",
+    "Caisse rigide ventilée": "kgs",
+    "Carton perforé": "kgs",
+    "Cartons ventilés, alvéolés ou avec mousse": "kgs",
+    "Contenants opaques": "kgs",
+    "Emballage sous vide": "kgs",
+    "Filet en polypropylène": "kgs",
+    "Panier rigide": "kgs",
+    "Papier absorbant": "kgs",
+    "Plastique alimentaire": "kgs",
+    "Plastique hermétique": "kgs",
+    "Plateau": "kgs",
+    "Plateau carton avec alvéoles": "kgs",
+    "Plateaux avec séparateurs": "kgs",
+    "Pot en verre": "kgs",
+    "Pot hermétique": "kgs",
+    "Sac kraft": "kgs",
+    "Sac aéré": "kgs",
+    "Sac alimentaire en jute": "kgs",
+    "Sac alimentaires": "kgs",
+    "Sac aluminium": "kgs",
+    "Sac en filet": "kgs",
+    "Sac en jute": "kgs",
+    "Sac en polypropylène": "kgs",
+    "Sac en toile": "kgs",
+    "Sac plastique doublé": "kgs",
+    "Sac tissé": "kgs",
+    "Sachet alimentaire": "kgs",
+    "Sachet aluminium": "kgs",
+    "Sachet aluminium opaque": "kgs",
+    "Sachet hermétique": "kgs",
+    "Sachet kraft": "kgs",
+    "Sachet opaque scellé": "kgs",
+    "Sachet plastique": "kgs",
+    "Sachet plastique alimentaire": "kgs",
+    "Sachet plastique multicouche": "kgs",
+    "Sachet plastique opaque": "kgs",
+    "Sachet scellé": "kgs",
+    "Sachet scellé avec absorption d'humidité": "kgs",
+    "Sachet scellé sous vide": "kgs",
+    "Sachets hermétiques": "kgs",
+    "Sachets hermétiques scellés": "kgs",
+    "Sachets plastiques alimentaires": "kgs",
+    "Sacs en toile": "kgs",
+    "Sacs en toile alimentaire": "kgs",
+    "Sacs kraft": "kgs",
+    "Sacs sous vide": "kgs",
+    "Sans conditionnement- En Vrac": "kgs",
+    "Seau hermétique": "liters"
 }
+CATEGORY_CHOICES = [
+    ('', 'Select a category'),
+    ('cereal', 'Cereal'),
+    ('fruit jam', 'Confiture de fruit'),
+    ('flour', 'Farine'),
+    ('fruit flour', 'Farine de fruit'),
+    ('hibiscus flower', 'Fleur d’hibiscus'),
+    ('fruit', 'Fruit'),
+    ('gum resin', 'Gomme / Résine'),
+    ('seed', 'Graine'),
+    ('medicinal seed', 'Graine médicinale'),
+    ('herb', 'Herbe'),
+    ('juice', 'Jus'),
+    ('vegetable', 'Légume'),
+    ('vegetable spice', 'Légume / Épice'),
+    ('leaf vegetable', 'Légume-feuille'),
+    ('processed vegetable', 'Légume transformé'),
+    ('legume', 'Légumineuse'),
+    ('vegetable fat', 'Matière grasse végétale'),
+    ('nut', 'Noix'),
+    ('nut legume mix', 'Noix / Légumineuse'),
+    ('nut paste', 'Pâte de noix'),
+    ('medicinal plant', 'Plante médicinale'),
+    ('spice powder', 'Poudre d’épice'),
+    ('fruit powder', 'Poudre de fruit'),
+    ('vegetable powder', 'Poudre de légume'),
+    ('root powder', 'Poudre de racine'),
+    ('medicinal powder', 'Poudre médicinale'),
+    ('plant powder', 'Poudre végétale'),
+    ('animal product', 'Produit animal'),
+    ('tree product', 'Produit d’arbre'),
+    ('seed product', 'Produit de graine'),
+    ('bee product', 'Produit de l’abeille'),
+    ('fish product', 'Produit de poisson'),
+    ('fruit pulp', 'Pulpe de fruit'),
+    ('root', 'Racine'),
+    ('spice root', 'Racine d’épice'),
+    ('syrup', 'Sirop'),
+    ('tuber', 'Tubercule'),
+    ('spice', 'Épice'),
+]
+
+Product_Condition_CHOICES = [
+    ('', 'Select product state'),
+    ('dry', 'Sec'),
+    ('dried pulp', 'Pulpe séchée'),
+    ('fresh', 'Frais'),
+    ('dry grain', 'Grain sec'),
+    ('dry powder', 'Sec / Poudre'),
+    ('powder', 'Poudre'),
+    ('paste', 'Pâte'),
+    ('solid fat', 'Graisse solide'),
+    ('processed compressed', 'Transformé / Compressé'),
+    ('jam', 'Confiture'),
+    ('liquid', 'Liquide'),
+    ('dried pod', 'Gousse sèche'),
+    ('dried leaves', 'Feuilles séchées'),
+    ('frozen', 'Congelé'),
+    ('bulk dry', 'Sec (vrac)'),
+    ('fresh leaves', 'Feuilles fraîches'),
+    ('grilled', 'Grillé'),
+    ('processed grain', 'Grain transformé'),
+    ('grilled processed', 'Grillé / Transformé'),
+]
+
 
 class ProductForm(forms.ModelForm):
     packaging_condition = forms.ChoiceField(
@@ -174,15 +288,35 @@ class ProductForm(forms.ModelForm):
             'aria-label': 'Packaging Condition',
         })
     )
-
+    category = forms.ChoiceField(
+        choices=CATEGORY_CHOICES,
+        required=True,
+        label="Category",
+        widget=forms.Select(attrs={
+            'class': 'form-select form-select-lg',
+            'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+            'required': True,
+            'aria-label': 'Category',
+        })
+        )
+    product_condition = forms.ChoiceField(
+        choices=Product_Condition_CHOICES,
+        required=True,
+        label="Product Condition",
+        widget=forms.Select(attrs={
+            'class': 'form-select form-select-lg',
+            'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+            'required': True,
+            'aria-label': 'Product Condition',
+        })
+    )
 
     class Meta:
         model = Product
         exclude = [
             'warehouse', 'total_value', 'weight_quantity', 'status', 'exit_date',
-            'manufacturing_date', 'expiration_date', 'supplier_code', 'variety_or_species',
-            'quality_standards', 'storage_temperature', 'humidity_rate',
-            'co2', 'o2', 'n2', 'ethylene_management', 'nutritional_info', 'regulatory_codes',
+            'manufacturing_date', 'supplier_code',
+            'quality_standards', 'nutritional_info', 'regulatory_codes',
             'product_type', 'lot_number'
         ]
         widgets = {
@@ -193,21 +327,145 @@ class ProductForm(forms.ModelForm):
                 'aria-describedby': 'quantityHelp',
                 'class': 'form-control form-control-lg'
             }),
-            'weight_per_bag': forms.NumberInput(attrs={
+            'weight_per_bag_kg': forms.NumberInput(attrs={
                 'step': '1',
-                'onkeypress': "return   (event.charCode != 101 && event.charCode != 69);",
+                'onkeypress': "return (event.charCode != 101 && event.charCode != 69);",
                 'oninput': "this.value = this.value.replace(/[eE]/g, '');",
                 'aria-describedby': 'weightPerBagHelp',
                 'class': 'form-control form-control-lg'
             }),
-                'weight_quantity_kg': forms.NumberInput(attrs={
-                    'step': '0.01',
-                    'min': '0',
-                    'readonly': 'readonly',
-                    'class': 'form-control form-control-lg'
-                }),
+            'weight_quantity_kg': forms.NumberInput(attrs={
+                'step': '0.01',
+                'min': '0',
+                'readonly': 'readonly',
+                'class': 'form-control form-control-lg'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': '4',
+                'style': 'border-radius: 8px; resize: vertical; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': 'Enter product description...',
+                'aria-label': 'Description'
+            }),
+            'variety_or_species': forms.TextInput(attrs={
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': '',
+                'aria-label': 'variety'
+            }),
+            'origin': forms.TextInput(attrs={
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': '',
+                'aria-label': 'origin'
+            }),
 
+            'supplier_brand': forms.TextInput(attrs={
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': 'e.g., Organic Farms',
+                'aria-label': 'Supplier Brand'
+            }),
+            'unit_of_measure': forms.TextInput(attrs={
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': 'e.g., kg',
+                'aria-label': 'Unit of Measure'
+            }),
+            'physical_dimensions': forms.TextInput(attrs={
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': 'e.g., 20x30x40 cm',
+                'aria-label': 'Physical Dimensions'
+            }),
+            'certifications': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': '4',
+                'style': 'border-radius: 8px; resize: vertical; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': 'Enter certifications...',
+                'aria-label': 'Certifications'
+            }),
+            'minimum_threshold': forms.NumberInput(attrs={
+                'step': '1',
+                'min': '0',
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': 'e.g., 10',
+                'aria-label': 'Minimum Threshold'
+            }),
+            'storage_temperature': forms.NumberInput(attrs={
+                'step': '1',
+                'min': '0',
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': 'e.g., 10',
+                'aria-label': 'Storage Temperature'
+            }),
+            'humidity_rate': forms.NumberInput(attrs={
+                'step': '1',
+                'min': '0',
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': 'Recommended Humidity e.g., 10',
+                'aria-label': 'Humidity rate'
+            }),
+            'co2': forms.NumberInput(attrs={
+                'step': '1',
+                'min': '0',
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': 'Recommended CO2 e.g., 10',
+                'aria-label': 'CO2'
+            }),
+            'o2': forms.NumberInput(attrs={
+                'step': '1',
+                'min': '0',
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': 'Recommended O2 e.g., 10',
+                'aria-label': 'O2'
+            }),
+            'n2': forms.NumberInput(attrs={
+                'step': '1',
+                'min': '0',
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': 'Recommended N2 e.g., 10',
+                'aria-label': 'N2'
+            }),
+            'ethylene_management': forms.NumberInput(attrs={
+                'step': '1',
+                'min': '0',
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': 'Recommended Ethylene Levels e.g., 10',
+                'aria-label': 'Ethylene Level'
+            }),
 
+            'maximum_threshold': forms.NumberInput(attrs={
+                'step': '1',
+                'min': '0',
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': 'e.g., 100',
+                'aria-label': 'Maximum Threshold'
+            }),
+            'selling_unit_price': forms.NumberInput(attrs={
+                'step': '0.01',
+                'min': '0',
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': 'e.g., 29.99',
+                'aria-label': 'Selling Unit Price'
+            }),
+            'storage_cost': forms.NumberInput(attrs={
+                'step': '0.01',
+                'min': '0',
+                'class': 'form-control form-control-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'placeholder': 'e.g., 5.00',
+                'aria-label': 'Storage Cost'
+            }),
         }
 
     def __init__(self, *args, warehouse=None, **kwargs):
@@ -270,18 +528,42 @@ class ProductForm(forms.ModelForm):
             'required': True,
             'aria-label': 'Unit Price',
         })
+        self.fields['purchase_unit_price'].widget.attrs.update({
+            **common_attrs,
+            'step': '0.01',
+            'min': '0',
+            'placeholder': 'e.g., 19.99',
+            'required': True,
+            'aria-label': 'Unit Price',
+        })
+        self.fields['storage_cost'].widget.attrs.update({
+            **common_attrs,
+            'step': '0.01',
+            'min': '0',
+            'placeholder': 'e.g., 19.99',
+            'required': False,
+            'aria-label': 'Unit Price',
+        })
         self.fields['harvest_date'].widget = forms.DateInput(attrs={
             'type': 'date',
             **common_attrs,
             'placeholder': 'Select harvest date',
             'aria-label': 'Harvest Date',
+            'required' : True,
+        })
+        self.fields['expiration_date'].widget = forms.DateInput(attrs={
+            'type': 'date',
+            **common_attrs,
+            'placeholder': 'Select harvest date',
+            'aria-label': 'Expiration Date',
+
         })
         self.fields['entry_date'].widget = forms.DateInput(attrs={
             'type': 'date',
             **common_attrs,
             'value': timezone.now().date().isoformat(),
-            'required': True,
             'aria-label': 'Entry Date',
+            'required': True,
         })
         self.fields['farmer'].widget.attrs.update({
             'class': 'form-select form-select-lg',
@@ -295,10 +577,66 @@ class ProductForm(forms.ModelForm):
             'placeholder': 'Add any additional notes or comments...',
             'aria-label': 'Notes or Comments',
         })
+        self.fields['description'].widget.attrs.update({
+            **common_attrs,
+            'rows': '4',
+            'style': 'border-radius: 8px; resize: vertical; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+            'placeholder': 'Enter product description...',
+            'aria-label': 'Description',
+        })
+        self.fields['category'].widget.attrs.update({
+            **common_attrs,
+            'placeholder': 'e.g., Fruits',
+            'aria-label': 'Category',
+        })
+        self.fields['supplier_brand'].widget.attrs.update({
+            **common_attrs,
+            'placeholder': 'e.g., Organic Farms',
+            'aria-label': 'Supplier Brand',
+        })
+        self.fields['unit_of_measure'].widget.attrs.update({
+            **common_attrs,
+            'placeholder': 'e.g., kg',
+            'aria-label': 'Unit of Measure',
+        })
+        self.fields['physical_dimensions'].widget.attrs.update({
+            **common_attrs,
+            'placeholder': 'e.g., 20x30x40 cm',
+            'aria-label': 'Physical Dimensions',
+        })
+        self.fields['certifications'].widget.attrs.update({
+            **common_attrs,
+            'rows': '4',
+            'style': 'border-radius: 8px; resize: vertical; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+            'placeholder': 'Enter certifications...',
+            'aria-label': 'Certifications',
+        })
+        self.fields['minimum_threshold'].widget.attrs.update({
+            **common_attrs,
+            'min': '0',
+            'placeholder': 'e.g., 10',
+            'aria-label': 'Minimum Threshold',
+        })
+        self.fields['maximum_threshold'].widget.attrs.update({
+            **common_attrs,
+            'min': '0',
+            'placeholder': 'e.g., 100',
+            'aria-label': 'Maximum Threshold',
+        })
+
+
         self.fields['weight_per_bag_kg'].initial = self.instance.weight_per_bag_kg if self.instance and self.instance.pk else None
         self.fields['harvest_date'].required = False
         self.fields['farmer'].required = False
         self.fields['notes_comments'].required = False
+        self.fields['description'].required = False
+        self.fields['category'].required = False
+        self.fields['supplier_brand'].required = False
+        self.fields['unit_of_measure'].required = False
+        self.fields['physical_dimensions'].required = False
+        self.fields['certifications'].required = False
+        self.fields['minimum_threshold'].required = False
+        self.fields['maximum_threshold'].required = False
 
     def clean(self):
         cleaned_data = super().clean()
@@ -308,7 +646,6 @@ class ProductForm(forms.ModelForm):
         weight_quantity_kg = cleaned_data.get('weight_quantity_kg')
         weight_per_bag_kg = cleaned_data.get('weight_per_bag_kg')
         product_type = get_product_metadata().get(product_name, {}).get('product_type', 'Raw')
-
 
         # Validate product_type-specific fields
         #if product_type == 'Raw' and not cleaned_data.get('harvest_date'):
@@ -422,6 +759,7 @@ class ProductForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
 
 class ItemRequestForm(forms.ModelForm):
     class Meta:

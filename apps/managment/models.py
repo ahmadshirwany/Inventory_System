@@ -12,6 +12,7 @@ from dateutil.relativedelta import relativedelta
 import uuid
 from django.utils import timezone
 from apps.authentication.models import CustomUser
+from django.db.models import Max
 
 class Warehouse(models.Model):
     name = models.CharField(max_length=255, help_text="Name of the warehouse")
@@ -221,6 +222,14 @@ class Product(models.Model):
         help_text="Name of the product",
         db_index=True
     )
+    description = models.TextField(blank=True, null=True, help_text="Description of the product")
+    category = models.CharField(max_length=255, blank=True, null=True, help_text="Category of the product")
+    supplier_brand = models.CharField(max_length=255, blank=True, null=True, help_text="Brand provided by the supplier")
+    unit_of_measure = models.CharField(max_length=50, blank=True, null=True, help_text="Unit of measure for the product (e.g., kg, liters)")
+    physical_dimensions = models.CharField(max_length=255, blank=True, null=True, help_text="Physical dimensions of the product (e.g., LxWxH in cm)")
+    certifications = models.TextField(blank=True, null=True, help_text="Certifications or compliance standards of the product")
+    minimum_threshold = models.PositiveIntegerField(blank=True, null=True, help_text="Minimum stock threshold for reordering")
+    maximum_threshold = models.PositiveIntegerField(blank=True, null=True, help_text="Maximum stock threshold for storage")
     origin = models.CharField(max_length=255, null=True, blank=True, help_text="Country or region of origin")
     lot_number = models.CharField(
         max_length=100,
@@ -245,6 +254,7 @@ class Product(models.Model):
                                           help_text="Variety or species of the product")
     packaging_condition = models.CharField(max_length=255, null=True, blank=True,
                                            help_text="Condition of the packaging")
+    product_condition = models.CharField(max_length=255, null=True, blank=True,help_text="Condition of the product")
     weight_quantity = models.DecimalField(max_digits=1000000000, decimal_places=2,
                                           help_text="Weight or quantity of the product (in default units)")
     weight_quantity_kg = models.DecimalField(max_digits=100000000000, decimal_places=2, null=True, blank=True,
@@ -285,6 +295,8 @@ class Product(models.Model):
     ethylene_management = models.CharField(max_length=255, blank=True, null=True,
                                            help_text="Ethylene management strategy")
     unit_price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Price per unit of the product")
+    purchase_unit_price =  models.DecimalField(blank=True,null=True,max_digits=10, decimal_places=2, help_text="Purchase Price per unit of the product")
+    storage_cost =  models.DecimalField(blank=True,null=True,max_digits=10, decimal_places=2, help_text="Storage Cost per unit of the product")
     total_value = models.DecimalField(max_digits=15, decimal_places=2, help_text="Total value of the product in stock")
     nutritional_info = models.TextField(blank=True, null=True, help_text="Nutritional information about the product")
     regulatory_codes = models.CharField(max_length=255, blank=True, null=True,
@@ -309,7 +321,6 @@ class Product(models.Model):
         product_data = metadata[self.product_name]
 
         # Set product_type early if not provided
-
         self.product_type = product_data.get("product_type", self.product_type)
 
         # Adjust dates based on product_type
@@ -469,6 +480,15 @@ class Product(models.Model):
         if self.total_value is not None and self.total_value < 0:  # Add if calculated
             raise ValidationError("Total value cannot be negative.")
 
+        if self.purchase_unit_price is not None and self.purchase_unit_price < 0:
+            raise ValidationError("Purchase unit price cannot be negative.")
+        if self.purchase_unit_price is not None and self.unit_price is not None:
+            if self.purchase_unit_price > self.unit_price:
+                raise ValidationError("Purchase unit price cannot exceed selling unit price.")
+
+        if self.storage_cost is not None and self.storage_cost < 0:
+            raise ValidationError("Storage cost cannot be negative.")
+
         # Status consistency
         if self.quantity_in_stock:
             if self.quantity_in_stock == 0 and self.status not in ['Out of Stock', 'Expired']:
@@ -537,8 +557,6 @@ class Product(models.Model):
             models.UniqueConstraint(fields=['sku', 'warehouse'], name='unique_sku_per_warehouse'),
             models.UniqueConstraint(fields=['barcode', 'warehouse'], name='unique_barcode_per_warehouse'),
         ]
-
-
 class ProductLog(models.Model):
     # Foreign key to the Product model
     product = models.ForeignKey(

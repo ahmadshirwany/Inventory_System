@@ -12,13 +12,17 @@
                 <form method="POST" id="productWizardForm">
                     {% csrf_token %}
                     <input type="hidden" name="add_product" value="1">
+                    <input type="hidden" name="warehouse" value="{{ warehouse.id }}">
                     <div class="wizard-steps">
-                        <div class="step active" data-step="1">Basic Info</div>
-                        <div class="step" data-step="2">Quantities</div>
-                        <div class="step" data-step="3">Details</div>
+                        <div class="step active" data-step="1">Identification</div>
+                        <div class="step" data-step="2">Quality Info</div>
+                        <div class="step" data-step="3">Packaging</div>
+                        <div class="step" data-step="4">Lifecycle</div>
+                        <div class="step" data-step="5">Stock</div>
+                        <div class="step" data-step="6">Costs</div>
                     </div>
 
-                    <!-- Step 1: Basic Info -->
+                    <!-- Step 1: General Product Identification & Classification -->
                     <div class="form-step active" data-step="1">
                         <div class="row">
                             <div class="col-md-4 mb-3">
@@ -35,57 +39,173 @@
                                 <label for="{{ form.product_name.id_for_label }}">Product Name <span class="text-danger">*</span></label>
                                 {{ form.product_name }}
                             </div>
-                        </div>
-                    </div>
+                            <div class="col-md-12 mb-3">
+                                {{ form.description.label_tag }}
+                                {{ form.description }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                               <label for="{{ form.category.id_for_label }}">Category <span class="text-danger">*</span></label>
+                                {{ form.category }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.supplier_brand.label_tag }}
+                                {{ form.supplier_brand }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.variety_or_species.label_tag }}
+                                {{ form.variety_or_species }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.origin.label_tag }}
+                                {{ form.origin }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                   <label for="{{ form.farmer.id_for_label }}">Farmer <span class="text-danger">*</span></label>
 
-                    <!-- Step 2: Quantities -->
-                    <div class="form-step" data-step="2">
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label for="{{ form.packaging_condition.id_for_label }}">Packaging Condition <span class="text-danger">*</span></label>
-                                {{ form.packaging_condition }}
-                            </div>
-                            <div class="col-md-4 mb-3" id="weight_per_bag_container">
-                                <label for="weight_per_bag">Weight per Bag (kg) <span class="text-danger" id="weightPerBagRequired">*</span></label>
-                                <select class="form-select form-select-lg" id="weight_per_bag_select" name="weight_per_bag" style="display: none;">
-                                    <option value="">Select weight</option>
-                                </select>
-                                <input type="number" class="form-control form-control-lg" id="weight_per_bag_input" name="weight_per_bag" step="0.01" min="0" placeholder="Enter weight per bag (kg)" style="display: none;" onkeydown="preventE(event)">
-                            </div>
-                            <div class="col-md-4 mb-3" id="quantity_in_stock_container">
-                                <label for="{{ form.quantity_in_stock.id_for_label }}">Quantity in Stock <span class="text-danger" id="quantityRequired">*</span></label>
-                                {{ form.quantity_in_stock }}
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="{{ form.weight_quantity_kg.id_for_label }}">Weight (kg) <span class="text-danger" id="totalWeightRequired" style="display: none;">*</span></label>
-                                {{ form.weight_quantity_kg }}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 3: Details -->
-                    <div class="form-step" data-step="3">
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label for="{{ form.unit_price.id_for_label }}">Unit Price <span class="text-danger">*</span></label>
-                                {{ form.unit_price }}
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                {{ form.harvest_date.label_tag }}
-                                {{ form.harvest_date }}
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                {{ form.entry_date.label_tag }}
-                                {{ form.entry_date }}
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                {{ form.farmer.label_tag }}
                                 {{ form.farmer }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.regulatory_codes.label_tag }}
+                                {{ form.regulatory_codes }}
+                            </div>
+                            <div class="col-md-12 mb-3">
+                                {{ form.certifications.label_tag }}
+                                {{ form.certifications }}
                             </div>
                             <div class="col-md-12 mb-3">
                                 {{ form.notes_comments.label_tag }}
                                 {{ form.notes_comments }}
                             </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="id_product_type">Product Type</label>
+                                <input type="text" class="form-control form-control-lg" id="id_product_type" name="product_type" readonly value="Raw">
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Technical & Storage Requirements -->
+                    <div class="form-step" data-step="2">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                               <label for="{{ form.product_condition.id_for_label }}">Product Condition <span class="text-danger">*</span></label>
+                                {{ form.product_condition }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.storage_temperature.label_tag }}
+                                {{ form.storage_temperature }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.humidity_rate.label_tag }}
+                                {{ form.humidity_rate }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.co2.label_tag }}
+                                {{ form.co2 }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.o2.label_tag }}
+                                {{ form.o2 }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.n2.label_tag }}
+                                {{ form.n2 }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.ethylene_management.label_tag }}
+                                {{ form.ethylene_management }}
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Packaging & Physical Characteristics -->
+                    <div class="form-step" data-step="3">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                {{ form.physical_dimensions.label_tag }}
+                                {{ form.physical_dimensions }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.packaging_condition.id_for_label }}">Packaging Condition <span class="text-danger">*</span></label>
+                                {{ form.packaging_condition }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.unit_of_measure.id_for_label }}">Unit of Measure</label>
+                                {{ form.unit_of_measure }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.weight_per_bag_kg.id_for_label }}">Weight per Unit <span class="text-danger" id="weightPerBagRequired">*</span></label>
+                                {{ form.weight_per_bag_kg }}
+                            </div>
+
+
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Lifecycle & Shelf Management -->
+                    <div class="form-step" data-step="4">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                {{ form.entry_date.label_tag }}
+                                {{ form.entry_date }}
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                {{ form.harvest_date.label_tag }}
+                                {{ form.harvest_date }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.expiration_date.label_tag }}
+                                {{ form.expiration_date }}
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Stock Levels & Warehouse Management -->
+                    <div class="form-step" data-step="5">
+                        <div class="row">
+                            <div class="col-md-4 mb-3" id="quantity_in_stock_container">
+                                <label for="{{ form.quantity_in_stock.id_for_label }}">Quantity in Stock <span class="text-danger" id="quantityRequired">*</span></label>
+                                {{ form.quantity_in_stock }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.weight_quantity_kg.id_for_label }}">Total Weight <span class="text-danger" id="totalWeightRequired" style="display: none;">*</span></label>
+                                {{ form.weight_quantity_kg }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.minimum_threshold.label_tag }}
+                                {{ form.minimum_threshold }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.maximum_threshold.label_tag }}
+                                {{ form.maximum_threshold }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="id_status">Status</label>
+                                <input type="text" class="form-control form-control-lg" id="id_status" name="status" readonly value="In Stock">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 6: Economic Information & Cost Calculation -->
+                    <div class="form-step" data-step="6">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                {{ form.unit_price.label_tag }}
+                                {{ form.unit_price }}
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                {{ form.purchase_unit_price.label_tag }}
+                                {{ form.purchase_unit_price }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.storage_cost.label_tag }}
+                                {{ form.storage_cost }}
+                            </div>
+
                         </div>
                     </div>
                 </form>
@@ -103,24 +223,97 @@
 
 <style>
     .modal-xl { max-width: 90%; }
+    .modal-content {
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border: none;
+    }
+    .modal-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        padding: 15px 20px;
+    }
+    .modal-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #343a40;
+    }
+    .modal-body {
+        max-height: 80vh;
+        overflow-y: auto;
+        padding: 20px 30px;
+        background-color: #fff;
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        scrollbar-width: auto; /* Firefox */
+        scrollbar-color: #888 #f1f1f1; /* Firefox */
+    }
+    body.modal-open {
+        overflow: hidden; /* Prevent background page scrolling */
+    }
     .wizard-steps { display: flex; justify-content: space-between; margin-bottom: 20px; }
-    .step { flex: 1; text-align: center; padding: 10px; background: #ab47bc; margin: 0 5px; color: white; }
+    .step { flex: 1; text-align: center; padding: 10px; background: #ab47bc; margin: 0 5px; color: white; border-radius: 6px; }
     .step.active { background: #8e24aa; color: white; }
     .form-step { display: none; }
     .form-step.active { display: block; }
-    .error-messages { display: none; margin-bottom: 20px; }
-    .is-invalid { border-color: #dc3545; }
+    .error-messages {
+        display: none;
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 20px;
+        color: #721c24;
+    }
+    .is-invalid { border-color: #dc3545; background-color: #fff5f5; }
+    .modal-body .form-control,
+    .modal-body .form-select {
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        padding: 10px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        background-color: #f8f9fa;
+        font-size: 1rem;
+    }
+    .modal-body .form-control:focus,
+    .modal-body .form-select:focus {
+        border-color: #28a745;
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.1);
+        background-color: #fff;
+    }
+    .modal-body .form-control[readonly] {
+        background-color: #e9ecef;
+        opacity: 1;
+    }
     .modal-body .form-select {
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23333'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
         background-repeat: no-repeat;
         background-position: right 0.75rem center;
         background-size: 12px 12px;
         appearance: none;
-        -webkit-appearance: none;
-        -moz-appearance: none;
         padding-right: 2rem;
     }
     .text-danger { color: #dc3545; }
+    @media (max-width: 768px) {
+        .modal-body {
+            padding: 15px;
+        }
+        .modal-title {
+            font-size: 1.25rem;
+        }
+        .wizard-steps {
+            flex-wrap: wrap;
+        }
+        .step {
+            font-size: 0.9rem;
+            padding: 8px;
+            margin: 2px;
+        }
+        .modal-body .form-control,
+        .modal-body .form-select {
+            font-size: 0.9rem;
+            padding: 8px;
+        }
+    }
 </style>
 
 <script>
@@ -153,19 +346,40 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         const csrfToken = getCookie('csrftoken');
+        if (!csrfToken) {
+            console.error('CSRF token not found');
+            errorDiv.innerHTML = '<p>Session error: Please refresh the page and try again.</p>';
+            errorDiv.style.display = 'block';
+            hideErrorAfterDelay(errorDiv);
+            return;
+        }
+
+        // Prevent modal scroll from affecting background page
+        document.querySelectorAll('.modal-body').forEach(modalBody => {
+            modalBody.addEventListener('wheel', (event) => {
+                event.stopPropagation();
+                const isAtTop = modalBody.scrollTop === 0;
+                const isAtBottom = modalBody.scrollTop + modalBody.clientHeight >= modalBody.scrollHeight;
+                const isScrollingUp = event.deltaY < 0;
+                const isScrollingDown = event.deltaY > 0;
+
+                if ((isScrollingUp && isAtTop) || (isScrollingDown && isAtBottom)) {
+                    event.preventDefault();
+                }
+            });
+        });
 
         // Add Product Wizard
         function setupWizard(modalId, formId, prevBtnId, nextBtnId, submitBtnId, errorDivId) {
             const packagingSelect = document.getElementById('id_packaging_condition');
-            const weightSelect = document.getElementById('weight_per_bag_select');
-            const weightInput = document.getElementById('weight_per_bag_input');
+            const unitOfMeasureInput = document.getElementById('id_unit_of_measure');
+            const weightPerBagInput = document.getElementById('id_weight_per_bag_kg');
             const quantityInput = document.getElementById('id_quantity_in_stock');
             const totalWeightInput = document.getElementById('id_weight_quantity_kg');
             const productNameSelect = document.getElementById('id_product_name');
             const skuInput = document.getElementById('id_sku');
             const barcodeInput = document.getElementById('id_barcode');
             const notesCommentsTextarea = document.getElementById('id_notes_comments');
-            const weightPerBagContainer = document.getElementById('weight_per_bag_container');
             const quantityContainer = document.getElementById('quantity_in_stock_container');
             const skuHelp = document.getElementById('skuHelp');
             const barcodeHelp = document.getElementById('barcodeHelp');
@@ -174,64 +388,38 @@
             const quantityRequired = document.getElementById('quantityRequired');
             const totalWeightRequired = document.getElementById('totalWeightRequired');
 
-            function updateWeightField() {
+            function updateUnitOfMeasure() {
                 const selectedCondition = packagingSelect.value;
-                const weights = packagingConditions[selectedCondition];
-                weightSelect.style.display = 'none';
-                weightInput.style.display = 'none';
-                weightSelect.innerHTML = '<option value="">Select weight</option>';
-                weightSelect.removeAttribute('required');
-                weightInput.removeAttribute('required');
-                quantityInput.removeAttribute('required');
-                totalWeightInput.setAttribute('readonly', 'readonly');
-                totalWeightInput.value = '';
-                quantityContainer.style.display = 'block';
-                weightPerBagContainer.style.display = 'block';
-                weightPerBagRequired.style.display = 'inline';
-                quantityRequired.style.display = 'inline';
-                totalWeightRequired.style.display = 'none';
-
-                if (selectedCondition === "Bulk") {
-                    quantityContainer.style.display = 'none';
-                    weightPerBagContainer.style.display = 'none';
-                    totalWeightInput.removeAttribute('readonly');
-                    totalWeightInput.setAttribute('required', 'required');
-                    quantityInput.value = '';
-                    weightSelect.value = '';
-                    weightInput.value = '';
-                    weightPerBagRequired.style.display = 'none';
-                    quantityRequired.style.display = 'none';
-                    totalWeightRequired.style.display = 'inline';
-                } else if (Array.isArray(weights)) {
-                    weights.forEach(weight => {
-                        const option = document.createElement('option');
-                        option.value = weight;
-                        option.text = `${weight} kg`;
-                        weightSelect.appendChild(option);
-                    });
-                    weightSelect.style.display = 'block';
-                    weightSelect.setAttribute('required', 'required');
-                    quantityInput.setAttribute('required', 'required');
-                } else if (weights === null) {
-                    weightInput.style.display = 'block';
-                    weightInput.setAttribute('required', 'required');
-                    quantityInput.setAttribute('required', 'required');
-                } else {
-                    const option = document.createElement('option');
-                    option.value = weights;
-                    option.text = `${weights} kg`;
-                    option.selected = true;
-                    weightSelect.appendChild(option);
-                    weightSelect.style.display = 'block';
-                    weightSelect.setAttribute('required', 'required');
-                    quantityInput.setAttribute('required', 'required');
-                }
-                updateTotalWeight();
+                const unit = packagingConditions[selectedCondition] || 'kgs';
+                unitOfMeasureInput.value = unit;
+                unitOfMeasureInput.setAttribute('readonly', 'readonly');
+                weightPerBagInput.placeholder = `Enter weight per unit (${unit})`;
+                totalWeightInput.placeholder = `Enter total weight (${unit})`;
             }
 
             function updateTotalWeight() {
-                if (packagingSelect.value !== "Bulk") {
-                    const weightPerBag = weightSelect.style.display === 'block' ? weightSelect.value : weightInput.value;
+                const selectedCondition = packagingSelect.value;
+                quantityContainer.style.display = 'block';
+                weightPerBagInput.style.display = 'block';
+                weightPerBagRequired.style.display = 'inline';
+                quantityRequired.style.display = 'inline';
+                totalWeightRequired.style.display = 'none';
+                totalWeightInput.setAttribute('readonly', 'readonly');
+                totalWeightInput.removeAttribute('required');
+
+                if (selectedCondition === "Sans conditionnement- En Vrac") {
+                    quantityContainer.style.display = 'none';
+                    weightPerBagInput.style.display = 'none';
+                    weightPerBagRequired.style.display = 'none';
+                    quantityRequired.style.display = 'none';
+                    totalWeightRequired.style.display = 'inline';
+                    totalWeightInput.removeAttribute('readonly');
+                    totalWeightInput.setAttribute('required', 'required');
+                    quantityInput.value = '';
+                    weightPerBagInput.value = '';
+                    totalWeightInput.placeholder = `Enter total weight (${unitOfMeasureInput.value})`; // Update placeholder
+                } else {
+                    const weightPerBag = weightPerBagInput.value;
                     const quantity = quantityInput.value;
                     if (weightPerBag && quantity) {
                         const totalWeightKg = parseFloat(weightPerBag) * parseInt(quantity);
@@ -239,6 +427,7 @@
                     } else {
                         totalWeightInput.value = '';
                     }
+                    totalWeightInput.placeholder = `Enter total weight (${unitOfMeasureInput.value})`;
                 }
             }
 
@@ -249,6 +438,13 @@
                 if (additionalNotes && !notesCommentsTextarea.value) {
                     notesCommentsTextarea.value = additionalNotes;
                 }
+            }
+
+            function updateProductType() {
+                const selectedProduct = productNameSelect.value;
+                const productData = productMetadata[selectedProduct] || {};
+                const productTypeInput = document.getElementById('id_product_type');
+                productTypeInput.value = productData['product_type'] || 'Raw';
             }
 
             function updateSkuField() {
@@ -310,15 +506,19 @@
             }
 
             if (packagingSelect) {
-                packagingSelect.addEventListener('change', updateWeightField);
-                weightSelect.addEventListener('change', updateTotalWeight);
-                weightInput.addEventListener('input', updateTotalWeight);
+                packagingSelect.addEventListener('change', () => {
+                    updateUnitOfMeasure();
+                    updateTotalWeight();
+                });
+                weightPerBagInput.addEventListener('input', updateTotalWeight);
                 quantityInput.addEventListener('input', updateTotalWeight);
                 productNameSelect.addEventListener('change', () => {
                     updateNotesComments();
                     updateBarcodeField();
+                    updateProductType();
                 });
-                updateWeightField();
+                updateUnitOfMeasure();
+                updateTotalWeight();
             }
 
             const steps = document.querySelectorAll(`#${modalId} .step`);
@@ -329,7 +529,7 @@
             const form = document.getElementById(formId);
             const errorDiv = document.getElementById(errorDivId);
             let currentStep = 1;
-            const totalSteps = 3;
+            const totalSteps = 6;
 
             function updateSteps() {
                 console.log('Updating steps to:', currentStep);
@@ -398,12 +598,6 @@
                         return;
                     }
                     const formData = new FormData(form);
-                    const weightPerBag = weightSelect.style.display === 'block' ? weightSelect.value : weightInput.value;
-                    if (weightPerBag && packagingSelect.value !== "Bulk") {
-                        formData.set('weight_per_bag_kg', weightPerBag);
-                    } else {
-                        formData.delete('weight_per_bag_kg');
-                    }
                     fetch("{% url 'warehouse_detail' warehouse.slug %}", {
                         method: 'POST',
                         body: formData,
@@ -437,6 +631,9 @@
                     console.log('Modal shown, fetching SKU');
                     updateSkuField();
                     updateBarcodeField();
+                    updateProductType();
+                    updateUnitOfMeasure();
+                    updateTotalWeight();
                 });
 
                 document.getElementById(modalId).addEventListener('hidden.bs.modal', function() {
@@ -445,8 +642,10 @@
                     updateSteps();
                     form.reset();
                     errorDiv.style.display = 'none';
-                    updateWeightField();
+                    updateUnitOfMeasure();
+                    updateTotalWeight();
                     updateBarcodeField();
+                    updateProductType();
                     skuInput.value = '';
                     skuHelp.innerText = 'Auto-generated';
                     form.querySelectorAll('.is-invalid').forEach(input => input.classList.remove('is-invalid'));
