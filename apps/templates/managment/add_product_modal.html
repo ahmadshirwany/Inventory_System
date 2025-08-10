@@ -60,8 +60,7 @@
                                 {{ form.origin }}
                             </div>
                             <div class="col-md-4 mb-3">
-                                   <label for="{{ form.farmer.id_for_label }}">Farmer <span class="text-danger">*</span></label>
-
+                                <label for="{{ form.farmer.id_for_label }}">Farmer <span class="text-danger">*</span></label>
                                 {{ form.farmer }}
                             </div>
                             <div class="col-md-4 mb-3">
@@ -80,7 +79,6 @@
                                 <label for="id_product_type">Product Type</label>
                                 <input type="text" class="form-control form-control-lg" id="id_product_type" name="product_type" readonly value="Raw">
                             </div>
-
                         </div>
                     </div>
 
@@ -115,7 +113,6 @@
                                 {{ form.ethylene_management.label_tag }}
                                 {{ form.ethylene_management }}
                             </div>
-
                         </div>
                     </div>
 
@@ -138,8 +135,6 @@
                                 <label for="{{ form.weight_per_bag_kg.id_for_label }}">Weight per Unit <span class="text-danger" id="weightPerBagRequired">*</span></label>
                                 {{ form.weight_per_bag_kg }}
                             </div>
-
-
                         </div>
                     </div>
 
@@ -150,16 +145,14 @@
                                 {{ form.entry_date.label_tag }}
                                 {{ form.entry_date }}
                             </div>
-
                             <div class="col-md-4 mb-3">
-                                {{ form.harvest_date.label_tag }}
+                                <label for="{{ form.harvest_date.id_for_label }}">Harvest \ Manufacturing date <span class="text-danger" id="harvest_dateRequired">*</span></label>
                                 {{ form.harvest_date }}
                             </div>
                             <div class="col-md-4 mb-3">
                                 {{ form.expiration_date.label_tag }}
                                 {{ form.expiration_date }}
                             </div>
-
                         </div>
                     </div>
 
@@ -196,7 +189,6 @@
                                 {{ form.unit_price.label_tag }}
                                 {{ form.unit_price }}
                             </div>
-
                             <div class="col-md-4 mb-3">
                                 {{ form.purchase_unit_price.label_tag }}
                                 {{ form.purchase_unit_price }}
@@ -205,7 +197,6 @@
                                 {{ form.storage_cost.label_tag }}
                                 {{ form.storage_cost }}
                             </div>
-
                         </div>
                     </div>
                 </form>
@@ -417,7 +408,7 @@
                     totalWeightInput.setAttribute('required', 'required');
                     quantityInput.value = '';
                     weightPerBagInput.value = '';
-                    totalWeightInput.placeholder = `Enter total weight (${unitOfMeasureInput.value})`; // Update placeholder
+                    totalWeightInput.placeholder = `Enter total weight (${unitOfMeasureInput.value})`;
                 } else {
                     const weightPerBag = weightPerBagInput.value;
                     const quantity = quantityInput.value;
@@ -558,20 +549,25 @@
                         const currentFormStep = formSteps[currentStep - 1];
                         const currentInputs = currentFormStep.querySelectorAll('input:not([readonly]), select:not([readonly])');
                         let isValid = true;
+                        const missingFields = [];
+
                         currentInputs.forEach(input => {
                             if (input.hasAttribute('required') && !input.value && input.style.display !== 'none' && input.closest('.form-step').classList.contains('active')) {
                                 console.log('Validation failed for:', input.id);
                                 isValid = false;
                                 input.classList.add('is-invalid');
+                                const label = document.querySelector(`label[for="${input.id}"]`);
+                                missingFields.push(label ? label.textContent.replace(/\s*\*$/, '') : input.id);
                             } else {
                                 input.classList.remove('is-invalid');
                             }
                         });
+
                         if (isValid) {
                             currentStep++;
                             updateSteps();
                         } else {
-                            errorDiv.innerHTML = '<p>Please fill in all required fields.</p>';
+                            errorDiv.innerHTML = `<p>Please fill in the following required fields: ${missingFields.join(', ')}</p>`;
                             errorDiv.style.display = 'block';
                             hideErrorAfterDelay(errorDiv);
                         }
@@ -582,21 +578,27 @@
                     e.preventDefault();
                     console.log('Submit button clicked');
                     let isValid = true;
+                    const missingFields = [];
+
                     form.querySelectorAll('input:not([readonly]), select:not([readonly])').forEach(input => {
                         if (input.hasAttribute('required') && !input.value && input.style.display !== 'none') {
                             console.log('Validation failed for:', input.id);
                             isValid = false;
                             input.classList.add('is-invalid');
+                            const label = document.querySelector(`label[for="${input.id}"]`);
+                            missingFields.push(label ? label.textContent.replace(/\s*\*$/, '') : input.id);
                         } else {
                             input.classList.remove('is-invalid');
                         }
                     });
+
                     if (!isValid) {
-                        errorDiv.innerHTML = '<p>Please fill in all required fields.</p>';
+                        errorDiv.innerHTML = `<p>Please fill in the following required fields: ${missingFields.join(', ')}</p>`;
                         errorDiv.style.display = 'block';
                         hideErrorAfterDelay(errorDiv);
                         return;
                     }
+
                     const formData = new FormData(form);
                     fetch("{% url 'warehouse_detail' warehouse.slug %}", {
                         method: 'POST',

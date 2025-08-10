@@ -477,7 +477,13 @@ class ProductForm(forms.ModelForm):
                 is_farmer=True,
                 owner=warehouse.ownership
             )
-
+            self.fields['farmer'].required = True
+            self.fields['farmer'].widget.attrs.update({
+                'class': 'form-select form-select-lg',
+                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+                'required': True,
+                'aria-label': 'Farmer',
+            })
         common_attrs = {
             'class': 'form-control form-control-lg',
             'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
@@ -511,6 +517,19 @@ class ProductForm(forms.ModelForm):
                 'placeholder': 'e.g., 0.50 (in kg)',
                 'required': True,
                 'aria-label': 'Weight in Kilograms',
+            })
+        )
+        self.fields['weight_per_bag_kg'] = forms.DecimalField(
+            max_digits=100000000000,
+            decimal_places=2,
+            help_text="Total weight of the product in kilograms (editable for Bulk)",
+            widget=forms.NumberInput(attrs={
+                **common_attrs,
+                'step': '0.01',
+                'min': '0',
+                'placeholder': '',
+                'required': True,
+                'aria-label': 'Per Bag Quantity',
             })
         )
         self.fields['quantity_in_stock'].widget.attrs.update({
