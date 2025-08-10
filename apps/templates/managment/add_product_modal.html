@@ -8,7 +8,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-danger error-messages" id="formErrors" style="display: none;"></div>
+                <div class="alert alert-danger error-messages" id="formErrors" style="display: none;" role="alert" aria-live="assertive"></div>
                 <form method="POST" id="productWizardForm">
                     {% csrf_token %}
                     <input type="hidden" name="add_product" value="1">
@@ -186,7 +186,7 @@
                     <div class="form-step" data-step="6">
                         <div class="row">
                             <div class="col-md-4 mb-3">
-                                {{ form.unit_price.label_tag }}
+                                <label for="{{ form.unit_price.id_for_label }}">Unit Price <span class="text-danger">*</span></label>
                                 {{ form.unit_price }}
                             </div>
                             <div class="col-md-4 mb-3">
@@ -367,6 +367,7 @@
             const weightPerBagInput = document.getElementById('id_weight_per_bag_kg');
             const quantityInput = document.getElementById('id_quantity_in_stock');
             const totalWeightInput = document.getElementById('id_weight_quantity_kg');
+            const unitPriceInput = document.getElementById('id_unit_price');
             const productNameSelect = document.getElementById('id_product_name');
             const skuInput = document.getElementById('id_sku');
             const barcodeInput = document.getElementById('id_barcode');

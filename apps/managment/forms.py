@@ -552,7 +552,7 @@ class ProductForm(forms.ModelForm):
             'step': '0.01',
             'min': '0',
             'placeholder': 'e.g., 19.99',
-            'required': True,
+            'required': False,
             'aria-label': 'Unit Price',
         })
         self.fields['storage_cost'].widget.attrs.update({
