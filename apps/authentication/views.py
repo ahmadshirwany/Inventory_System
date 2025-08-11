@@ -127,17 +127,14 @@ def update_profile_picture(request):
 
 @login_required
 def create_user(request):
-    # Ensure only superusers or users in the 'owner' group can access this view
-    if not request.user.is_superuser:
-        if not request.user.groups.filter(name='owner').exists():
-            return render(
-                request,
-                "home/page-403.html",
-                {
-                    'is_owner': request.user.groups.filter(name='owner').exists(),
-                    "message": "Access Denied: You do not have permission to create users."},
-                status=403
-            )
+    is_owner = request.user.groups.filter(name='owner').exists()
+    if not request.user.is_superuser and not is_owner:
+        return render(
+            request,
+            "home/page-403.html",
+            {'is_owner': is_owner, "message": "Access Denied: You do not have permission to create users."},
+            status=403
+        )
     if not request.user.is_superuser:
         current_count = request.user.owned_users.filter(groups__name='user').count()
         user_limit = request.user.user_limit
@@ -155,33 +152,24 @@ def create_user(request):
     success = False
 
     if request.method == "POST":
-        # Pass the current user to the form
         form = CustomUserCreationForm(request.POST, user=request.user)
         if form.is_valid():
             user = form.save()
-            # Assign the selected group to the user
-            group_name = form.cleaned_data.get("group")
-            group = Group.objects.get(name=group_name)
-            user.groups.add(group)
-            msg = f'User "{user.username}" has been created successfully and assigned to the "{group_name}" group.'
+            group_name = form.cleaned_data.get('group')
+            plan_display = user.get_subscription_plan_display() if form.cleaned_data.get('subscription_plan') else 'Basic Plan'
+            msg = f'User "{user.username}" has been created successfully with {plan_display} and assigned to the "{group_name}" group.'
             success = True
-            # Optionally, redirect to a different page
-            # return redirect("admin_dashboard")  # Uncomment and adjust URL as needed
+            return redirect("user_list")
         else:
             msg = 'Form is not valid. Please correct the errors below.'
     else:
-        # Pass the current user to the form and restrict group choices based on permissions
-        initial_data = {}
-        if not request.user.is_superuser:
-            initial_data["group"] = "user"  # Default to 'user' if not a superuser
+        initial_data = {"group": "user", "subscription_plan": "basic"} if not request.user.is_superuser else {}
         form = CustomUserCreationForm(user=request.user, initial=initial_data)
 
     return render(
         request,
         "accounts/create_user.html",
-        {"form": form,
-         'is_owner': request.user.groups.filter(name='owner').exists(),
-         "msg": msg, "success": success}
+        {"form": form, 'is_owner': is_owner, "msg": msg, "success": success, "form_errors": form.errors}
     )
 def register_user(request):
     msg = None

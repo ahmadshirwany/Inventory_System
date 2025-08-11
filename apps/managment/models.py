@@ -386,6 +386,12 @@ class Product(models.Model):
     def clean(self):
         super().clean()
         self.populate_from_metadata()
+        today = timezone.now().date()
+        if self.minimum_threshold is not None and self.maximum_threshold is not None:
+            if self.minimum_threshold > self.maximum_threshold:
+                raise ValidationError("Minimum threshold cannot exceed maximum threshold.")
+        if self.expiration_date and self.expiration_date < today and self.status != 'Expired':
+            raise ValidationError("Expiration date cannot be in the past unless status is 'Expired'.")
         # Validate farmer
         if self.farmer and not self.farmer.is_farmer:
             raise ValidationError("Selected user must be a farmer (is_farmer must be True).")
@@ -506,7 +512,7 @@ class Product(models.Model):
         """Generate a unique SKU based on warehouse ID and sequential number."""
         if not self.warehouse:
             raise ValidationError("Warehouse must be set to generate SKU.")
-        max_seq = Product.objects.filter(warehouse=self.warehouse).aggregate(Max('sku'))['sku__max']
+        max_seq =Product.objects.filter(warehouse=self.warehouse).select_for_update().aggregate(Max('sku'))['sku__max']
         seq = 1
         if max_seq and '-' in max_seq:
             try:
@@ -517,10 +523,12 @@ class Product(models.Model):
 
     def generate_barcode(self):
         """Generate a unique 12-digit barcode."""
-        while True:
-            barcode = str(uuid.uuid4().int)[:12]
+        max_retries = 10
+        for _ in range(max_retries):
+            barcode = str(uuid.uuid4().int)[:12].zfill(12)
             if not Product.objects.filter(barcode=barcode).exists():
                 return barcode
+        raise ValidationError("Unable to generate a unique barcode after multiple attempts.")
 
     def save(self, *args, **kwargs):
         if not self.sku:
@@ -534,7 +542,11 @@ class Product(models.Model):
             self.weight_quantity = self.weight_quantity_kg * 1000
 
         if self.unit_price and self.weight_quantity_kg:
+            if self.weight_quantity_kg <= 0:
+                raise ValidationError("Weight quantity in kg must be positive for total value calculation.")
             self.total_value = self.unit_price * self.weight_quantity_kg
+        else:
+            self.total_value = 0
 
         super().save(*args, **kwargs)
 

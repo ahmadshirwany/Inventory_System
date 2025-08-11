@@ -14,6 +14,7 @@ import re
 from django.db import transaction
 from django.contrib.auth import password_validation
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 
 
 def validate_password_strength(password, field_name="password1"):
@@ -40,10 +41,17 @@ class CustomUserCreationForm(UserCreationForm):
         label="Assign to Group",
         help_text="Select the group to which the user will belong."
     )
+    email = forms.EmailField(required=False, help_text="Optional email address for the user.")
+    subscription_plan = forms.ChoiceField(
+        choices=CustomUser.SUBSCRIPTION_CHOICES,
+        label="Subscription Plan",
+        help_text="Select the subscription plan for the user.",
+        required=False
+    )
 
     class Meta:
         model = CustomUser
-        fields = ("username", "email", "password1", "password2", "group")
+        fields = ("username", "email", "password1", "password2", "group", "subscription_plan")
 
     def __init__(self, *args, **kwargs):
         # Pop the 'user' argument from kwargs
@@ -54,18 +62,47 @@ class CustomUserCreationForm(UserCreationForm):
         if self.request_user and self.request_user.is_authenticated:
             if self.request_user.is_superuser:
                 self.fields['group'].choices = [("owner", "Owner"), ("user", "Employee")]
+                self.fields['subscription_plan'].choices = CustomUser.SUBSCRIPTION_CHOICES
             else:
                 self.fields['group'].choices = [("user", "Employee")]
+                del self.fields['subscription_plan']  # Remove for non-superusers
         else:
-            # Default to 'user' if no user is provided or the user is not authenticated
             self.fields['group'].choices = [("user", "Employee")]
+            del self.fields['subscription_plan']  # Remove if not authenticated
+
+    def clean_group(self):
+        group = self.cleaned_data['group']
+        if group == 'owner' and not self.request_user.is_superuser:
+            raise forms.ValidationError("Only superusers can assign the 'owner' group.")
+        return group
+
+    def clean_subscription_plan(self):
+        plan = self.cleaned_data.get('subscription_plan')
+        if plan and not self.request_user.is_superuser:
+            raise forms.ValidationError("Only superusers can assign a subscription plan.")
+        if self.cleaned_data.get('group') == 'owner' and not plan:
+            raise forms.ValidationError("A subscription plan is required for 'owner' group.")
+        return plan
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self.request_user and self.request_user.user_limit is not None:
+            current_user_count = CustomUser.objects.filter(owner=self.request_user).count()
+            if not self.request_user.can_create_user(current_user_count):
+                raise forms.ValidationError("The requesting user has reached their user creation limit.")
+        return cleaned_data
 
     def save(self, commit=True):
         user = super().save(commit=False)
         if self.request_user:
-            user.owner = self.request_user  # Assign the request user as the owner
+            user.owner = self.request_user
+        user.subscription_plan = self.cleaned_data.get('subscription_plan', 'basic')
+        group_name = self.cleaned_data['group']
+
         if commit:
             user.save()
+            group, _ = Group.objects.get_or_create(name=group_name)
+            user.groups.add(group)
         return user
 
 class LoginForm(forms.Form):

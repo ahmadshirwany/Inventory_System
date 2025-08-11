@@ -26,7 +26,7 @@ def user_profile_picture_path(instance, filename):
 
 class CustomUser(AbstractUser):
     owner = models.ForeignKey(
-        'self',  # Self-referential relationship
+        'self',
         null=True,
         blank=True,
         on_delete=models.CASCADE,  # If the owner is deleted, set this field to NULL
@@ -59,16 +59,28 @@ class CustomUser(AbstractUser):
     is_farmer = models.BooleanField(default=False, help_text="Designates whether this user is a farmer")
     is_client = models.BooleanField(default=False, help_text="Designates whether this user is a client")
 
+    PLAN_LIMITS = {
+        'basic': {'warehouse_limit': 1, 'user_limit': 1},
+        'pro': {'warehouse_limit': 5, 'user_limit': 10},
+        'premium': {'warehouse_limit': 20, 'user_limit': 50},
+        'user': {'warehouse_limit': 0, 'user_limit': 0},
+    }
+
     def save(self, *args, **kwargs):
+        self.clean()
         if not self.owner and not self.is_superuser:
             self.owner = None  # Explicitly set owner to NULL
         if not self.profile_picture:
             # Assign the default image path
             self.profile_picture = 'profile_pictures/blank-profile-picture.png'
         super().save(*args, **kwargs)
+        # Set limits based on subscription_plan
+        limits = self.PLAN_LIMITS.get(self.subscription_plan, self.PLAN_LIMITS['basic'])
+        self.warehouse_limit = limits['warehouse_limit']
+        self.user_limit = limits['user_limit']
         # Handle farmer group
         if self.is_farmer:
-            farmer_group, _ = Group.objects.get_or_create(name='farmer')  # Updated to 'farmer'
+            farmer_group, _ = Group.objects.get_or_create(name='farmer')
             self.groups.clear()
             self.groups.add(farmer_group)
 
@@ -82,7 +94,7 @@ class CustomUser(AbstractUser):
         if self.groups.filter(name='user').exists():
             self.warehouse_limit = 0
             self.user_limit = 0
-            super().save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
     def clean(self):
         if self.is_farmer and self.is_client:
