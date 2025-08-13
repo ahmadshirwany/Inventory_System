@@ -211,6 +211,9 @@ def generate_lot_number():
     date_prefix = timezone.now().strftime('%Y%m%d')  # e.g., 20250305
     unique_suffix = uuid.uuid4().hex[:6].upper()     # 6-character unique hex
     return f"LOT-{date_prefix}-{unique_suffix}"
+def get_product_choices():
+    """Dynamically generate product choices from metadata."""
+    return [(name, name) for name in get_product_metadata().keys()]
 PRODUCT_CHOICES = [(name, name) for name in get_product_metadata().keys()]
 
 class Product(models.Model):
@@ -218,7 +221,7 @@ class Product(models.Model):
     barcode = models.CharField(max_length=50, help_text="Unique barcode identifier", db_index=True)
     product_name = models.CharField(
         max_length=255,
-        choices=PRODUCT_CHOICES,
+        choices=get_product_choices,
         help_text="Name of the product",
         db_index=True
     )
