@@ -1,4 +1,4 @@
-{% extends "layouts/base.html" %}
+    {% extends "layouts/base.html" %}
 
 {% block title %} Create Warehouse {% endblock %}
 
@@ -98,7 +98,16 @@
                                     {% for error in form.name.errors %}{{ error }}<br>{% endfor %}
                                 </div>
                             </div>
-
+                            <div class="form-group">
+                                <label for="{{ form.location.id_for_label }}">{{ form.location.label }}</label>
+                                {{ form.location }}
+                                {% if form.location.help_text %}
+                                    <small class="form-text text-muted">{{ form.location.help_text }}</small>
+                                {% endif %}
+                                <div class="error-message" id="{{ form.location.id_for_label }}-error">
+                                    {% for error in form.location.errors %}{{ error }}<br>{% endfor %}
+                                </div>
+                            </div>
                             <div class="form-group">
                                 <label for="{{ form.type.id_for_label }}">{{ form.type.label }}</label>
                                 {{ form.type }}
@@ -110,16 +119,7 @@
                                 </div>
                             </div>
 
-                            <div class="form-group">
-                                <label for="{{ form.location.id_for_label }}">{{ form.location.label }}</label>
-                                {{ form.location }}
-                                {% if form.location.help_text %}
-                                    <small class="form-text text-muted">{{ form.location.help_text }}</small>
-                                {% endif %}
-                                <div class="error-message" id="{{ form.location.id_for_label }}-error">
-                                    {% for error in form.location.errors %}{{ error }}<br>{% endfor %}
-                                </div>
-                            </div>
+
                         </div>
 
                         <div class="col-md-6">
@@ -161,16 +161,7 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="{{ form.zone_layout.id_for_label }}">{{ form.zone_layout.label }}</label>
-                        {{ form.zone_layout }}
-                        {% if form.zone_layout.help_text %}
-                            <small class="form-text text-muted">{{ form.zone_layout.help_text }}</small>
-                        {% endif %}
-                        <div class="error-message" id="{{ form.zone_layout.id_for_label }}-error">
-                            {% for error in form.zone_layout.errors %}{{ error }}<br>{% endfor %}
-                        </div>
-                    </div>
+
 
                     <div class="btn-group d-flex justify-content-end">
                         <button type="submit" class="btn btn-primary mr-2" id="submitBtn">Create Warehouse</button>
