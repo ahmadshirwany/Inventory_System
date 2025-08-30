@@ -253,7 +253,9 @@ CATEGORY_CHOICES = [
     ('tuber', 'Tubercule'),
     ('spice', 'Épice'),
 ]
-
+CATEGORY_CHOICES = [CATEGORY_CHOICES[0]] + sorted(
+    CATEGORY_CHOICES[1:], key=lambda x: x[1].lower()
+)
 Product_Condition_CHOICES = [
     ('', 'Select product state'),
     ('dry', 'Sec'),

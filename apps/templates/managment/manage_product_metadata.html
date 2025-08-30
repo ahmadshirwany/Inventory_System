@@ -12,7 +12,90 @@
 </head>
 <body>
     <div class="container mt-5">
+
+
         <h1>Manage Product Metadata</h1>
+    <h2>Add New Product</h2>
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label for="{{ add_form.Product.id_for_label }}" class="form-label">Product Name</label>
+                            {{ add_form.Product }}
+                            {% if add_form.Product.errors %}
+                                <div class="text-danger">{{ add_form.Product.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label for="{{ add_form.Product_Type.id_for_label }}" class="form-label">Product Type</label>
+                            {{ add_form.Product_Type }}
+                            {% if add_form.Product_Type.errors %}
+                                <div class="text-danger">{{ add_form.Product_Type.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label for="{{ add_form.Ideal_Temperature_C.id_for_label }}" class="form-label">Ideal Temperature (C)</label>
+                            {{ add_form.Ideal_Temperature_C }}
+                            {% if add_form.Ideal_Temperature_C.errors %}
+                                <div class="text-danger">{{ add_form.Ideal_Temperature_C.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label for="{{ add_form.Relative_Humidity.id_for_label }}" class="form-label">Relative Humidity (%)</label>
+                            {{ add_form.Relative_Humidity }}
+                            {% if add_form.Relative_Humidity.errors %}
+                                <div class="text-danger">{{ add_form.Relative_Humidity.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label for="{{ add_form.Maximum_Storage_Duration_days.id_for_label }}" class="form-label">Maximum Storage Duration (days)</label>
+                            {{ add_form.Maximum_Storage_Duration_days }}
+                            {% if add_form.Maximum_Storage_Duration_days.errors %}
+                                <div class="text-danger">{{ add_form.Maximum_Storage_Duration_days.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label for="{{ add_form.Ethylene_Management.id_for_label }}" class="form-label">Ethylene Management</label>
+                            {{ add_form.Ethylene_Management }}
+                            {% if add_form.Ethylene_Management.errors %}
+                                <div class="text-danger">{{ add_form.Ethylene_Management.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 form-group">
+                            <label for="{{ add_form.CO2.id_for_label }}" class="form-label">CO2 (%)</label>
+                            {{ add_form.CO2 }}
+                            {% if add_form.CO2.errors %}
+                                <div class="text-danger">{{ add_form.CO2.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 form-group">
+                            <label for="{{ add_form.O2.id_for_label }}" class="form-label">O2 (%)</label>
+                            {{ add_form.O2 }}
+                            {% if add_form.O2.errors %}
+                                <div class="text-danger">{{ add_form.O2.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 form-group">
+                            <label for="{{ add_form.N2.id_for_label }}" class="form-label">N2 (%)</label>
+                            {{ add_form.N2 }}
+                            {% if form.N2.errors %}
+                                <div class="text-danger">{{ form.N2.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-12 form-group">
+                            <label for="{{ add_form.Additional_Notes.id_for_label }}" class="form-label">Additional Notes</label>
+                            {{ add_form.Additional_Notes }}
+                            {% if add_form.Additional_Notes.errors %}
+                                <div class="text-danger">{{ add_form.Additional_Notes.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <button type="submit" name="add_product" class="btn btn-success mt-3">Add Product</button>
+                </form>
+            </div>
+        </div>
         {% if messages %}
             <div class="alert alert-dismissible">
                 {% for message in messages %}
@@ -115,87 +198,7 @@
             <p>No products found.</p>
         {% endif %}
 
-        <h2>Add New Product</h2>
-        <div class="card">
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    <div class="row">
-                        <div class="col-md-6 form-group">
-                            <label for="{{ add_form.Product.id_for_label }}" class="form-label">Product Name</label>
-                            {{ add_form.Product }}
-                            {% if add_form.Product.errors %}
-                                <div class="text-danger">{{ add_form.Product.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label for="{{ add_form.Product_Type.id_for_label }}" class="form-label">Product Type</label>
-                            {{ add_form.Product_Type }}
-                            {% if add_form.Product_Type.errors %}
-                                <div class="text-danger">{{ add_form.Product_Type.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label for="{{ add_form.Ideal_Temperature_C.id_for_label }}" class="form-label">Ideal Temperature (C)</label>
-                            {{ add_form.Ideal_Temperature_C }}
-                            {% if add_form.Ideal_Temperature_C.errors %}
-                                <div class="text-danger">{{ add_form.Ideal_Temperature_C.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label for="{{ add_form.Relative_Humidity.id_for_label }}" class="form-label">Relative Humidity (%)</label>
-                            {{ add_form.Relative_Humidity }}
-                            {% if add_form.Relative_Humidity.errors %}
-                                <div class="text-danger">{{ add_form.Relative_Humidity.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label for="{{ add_form.Maximum_Storage_Duration_days.id_for_label }}" class="form-label">Maximum Storage Duration (days)</label>
-                            {{ add_form.Maximum_Storage_Duration_days }}
-                            {% if add_form.Maximum_Storage_Duration_days.errors %}
-                                <div class="text-danger">{{ add_form.Maximum_Storage_Duration_days.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label for="{{ add_form.Ethylene_Management.id_for_label }}" class="form-label">Ethylene Management</label>
-                            {{ add_form.Ethylene_Management }}
-                            {% if add_form.Ethylene_Management.errors %}
-                                <div class="text-danger">{{ add_form.Ethylene_Management.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-4 form-group">
-                            <label for="{{ add_form.CO2.id_for_label }}" class="form-label">CO2 (%)</label>
-                            {{ add_form.CO2 }}
-                            {% if add_form.CO2.errors %}
-                                <div class="text-danger">{{ add_form.CO2.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-4 form-group">
-                            <label for="{{ add_form.O2.id_for_label }}" class="form-label">O2 (%)</label>
-                            {{ add_form.O2 }}
-                            {% if add_form.O2.errors %}
-                                <div class="text-danger">{{ add_form.O2.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-4 form-group">
-                            <label for="{{ add_form.N2.id_for_label }}" class="form-label">N2 (%)</label>
-                            {{ add_form.N2 }}
-                            {% if form.N2.errors %}
-                                <div class="text-danger">{{ form.N2.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-12 form-group">
-                            <label for="{{ add_form.Additional_Notes.id_for_label }}" class="form-label">Additional Notes</label>
-                            {{ add_form.Additional_Notes }}
-                            {% if add_form.Additional_Notes.errors %}
-                                <div class="text-danger">{{ add_form.Additional_Notes.errors }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <button type="submit" name="add_product" class="btn btn-success mt-3">Add Product</button>
-                </form>
-            </div>
-        </div>
+
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

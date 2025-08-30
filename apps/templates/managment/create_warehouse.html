@@ -1,4 +1,4 @@
-    {% extends "layouts/base.html" %}
+{% extends "layouts/base.html" %}
 
 {% block title %} Create Warehouse {% endblock %}
 
@@ -29,6 +29,18 @@
         border-radius: 5px;
         margin-bottom: 20px;
     }
+    .form-errors {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        display: none;
+    }
+    .form-errors ul {
+        margin: 0;
+        padding-left: 20px;
+    }
     .capacity-info {
         margin-top: 10px;
         font-size: 14px;
@@ -42,6 +54,31 @@
     }
     .btn-group {
         margin-top: 20px;
+    }
+    /* Select2 specific styles */
+    .select2-container {
+        width: 100% !important;
+    }
+    .select2-selection--multiple {
+        min-height: 38px;
+        border: 1px solid #ced4da !important;
+        border-radius: 4px;
+    }
+    .select2-selection--multiple.invalid {
+        border-color: #dc3545 !important;
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: #007bff;
+        color: black;
+        border-radius: 4px;
+        padding: 2px 8px;
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        color: white;
+        margin-right: 5px;
+    }
+    .select2-container--default .select2-search--inline .select2-search__field {
+        margin-top: 8px;
     }
     @media (max-width: 768px) {
         .card-header {
@@ -57,6 +94,7 @@
         }
     }
 </style>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 {% endblock stylesheets %}
 
 {% block content %}
@@ -81,6 +119,15 @@
                             {{ message }}
                         </div>
                     {% endfor %}
+                {% endif %}
+                {% if form.non_field_errors %}
+                    <div class="form-errors">
+                        <ul>
+                            {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
                 {% endif %}
 
                 <form method="POST" action="{% url 'warehouse_create' %}" class="form-horizontal" id="warehouseForm">
@@ -133,7 +180,6 @@
                                     {% for error in form.total_capacity.errors %}{{ error }}<br>{% endfor %}
                                 </div>
                             </div>
-
                             <div class="form-group">
                                 <label for="{{ form.available_space.id_for_label }}">{{ form.available_space.label }}</label>
                                 {{ form.available_space }}
@@ -147,7 +193,6 @@
                                     Utilization Rate: 0%
                                 </div>
                             </div>
-
                             <div class="form-group">
                                 <label for="{{ form.users.id_for_label }}">{{ form.users.label }}</label>
                                 {{ form.users }}
@@ -158,10 +203,28 @@
                                     {% for error in form.users.errors %}{{ error }}<br>{% endfor %}
                                 </div>
                             </div>
+                            <div class="form-group">
+                                <label for="{{ form.client.id_for_label }}">{{ form.client.label }}</label>
+                                {{ form.client }}
+                                {% if form.client.help_text %}
+                                    <small class="form-text text-muted">{{ form.client.help_text }}</small>
+                                {% endif %}
+                                <div class="error-message" id="{{ form.client.id_for_label }}-error">
+                                    {% for error in form.client.errors %}{{ error }}<br>{% endfor %}
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="{{ form.farmer.id_for_label }}">{{ form.farmer.label }}</label>
+                                {{ form.farmer }}
+                                {% if form.farmer.help_text %}
+                                    <small class="form-text text-muted">{{ form.farmer.help_text }}</small>
+                                {% endif %}
+                                <div class="error-message" id="{{ form.farmer.id_for_label }}-error">
+                                    {% for error in form.farmer.errors %}{{ error }}<br>{% endfor %}
+                                </div>
+                            </div>
                         </div>
                     </div>
-
-
 
                     <div class="btn-group d-flex justify-content-end">
                         <button type="submit" class="btn btn-primary mr-2" id="submitBtn">Create Warehouse</button>
@@ -176,6 +239,8 @@
 
 <!-- Specific Page JS -->
 {% block javascripts %}
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('warehouseForm');
@@ -183,6 +248,36 @@ document.addEventListener('DOMContentLoaded', function() {
     const availableSpaceInput = document.getElementById('id_available_space');
     const utilizationRateDiv = document.getElementById('utilization-rate');
     const submitBtn = document.getElementById('submitBtn');
+    const usersSelect = document.getElementById('id_users');
+    const clientSelect = document.getElementById('id_client');
+    const farmerSelect = document.getElementById('id_farmer');
+    const formErrorsDiv = document.querySelector('.form-errors');
+
+    // Initialize Select2 for users, client, and farmer fields
+    [usersSelect, clientSelect, farmerSelect].forEach(select => {
+        $(select).select2({
+            placeholder: `Select ${select.id.replace('id_', '')}`,
+            allowClear: true,
+            closeOnSelect: false,
+            width: '100%',
+            theme: 'default',
+            dropdownAutoWidth: true,
+            minimumResultsForSearch: 1
+        });
+    });
+
+    // Handle validation for select fields
+    function validateSelectField(select) {
+        const errorDiv = document.getElementById(`${select.id}-error`);
+        const select2Container = $(select).next('.select2-container');
+        if (errorDiv.textContent.trim()) {
+            errorDiv.style.display = 'block';
+            select2Container.find('.select2-selection--multiple').addClass('invalid');
+        } else {
+            errorDiv.style.display = 'none';
+            select2Container.find('.select2-selection--multiple').removeClass('invalid');
+        }
+    }
 
     function updateCapacityInfo() {
         const total = parseFloat(totalCapacityInput.value) || 0;
@@ -193,6 +288,7 @@ document.addEventListener('DOMContentLoaded', function() {
         availableSpaceInput.classList.remove('invalid');
         document.getElementById('id_total_capacity-error').style.display = 'none';
         document.getElementById('id_available_space-error').style.display = 'none';
+        formErrorsDiv.style.display = 'none';
 
         if (total < 0 || available < 0) {
             isValid = false;
@@ -200,12 +296,18 @@ document.addEventListener('DOMContentLoaded', function() {
             errorField.classList.add('invalid');
             document.getElementById(`${errorField.id}-error`).textContent = 'Value cannot be negative';
             document.getElementById(`${errorField.id}-error`).style.display = 'block';
+            formErrorsDiv.textContent = 'Capacity values cannot be negative';
+            formErrorsDiv.style.display = 'block';
         } else if (total < available) {
             isValid = false;
             totalCapacityInput.classList.add('invalid');
             availableSpaceInput.classList.add('invalid');
-            document.getElementById('id_total_capacity-error').textContent = 'Must be greater than available space';
+            document.getElementById('id_total_capacity-error').textContent = 'Total capacity must be greater than available space';
+            document.getElementById('id_available_space-error').textContent = 'Available space cannot exceed total capacity';
             document.getElementById('id_total_capacity-error').style.display = 'block';
+            document.getElementById('id_available_space-error').style.display = 'block';
+            formErrorsDiv.textContent = 'Total capacity must be greater than available space';
+            formErrorsDiv.style.display = 'block';
         }
 
         const usedSpace = total - available;
@@ -215,16 +317,32 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.disabled = !isValid;
     }
 
-    [totalCapacityInput, availableSpaceInput].forEach(input => {
-        input.addEventListener('input', updateCapacityInfo);
-    });
-
+    // Initialize validation for all fields
     document.querySelectorAll('.error-message').forEach(error => {
         if (error.textContent.trim()) {
             error.style.display = 'block';
             const fieldId = error.id.replace('-error', '');
-            document.getElementById(fieldId).classList.add('invalid');
+            const field = document.getElementById(fieldId);
+            if (['id_users', 'id_client', 'id_farmer'].includes(fieldId)) {
+                $(field).next('.select2-container').find('.select2-selection--multiple').addClass('invalid');
+            } else {
+                field.classList.add('invalid');
+            }
         }
+    });
+
+    // Show non-field errors if present
+    if (formErrorsDiv.querySelector('ul').children.length > 0) {
+        formErrorsDiv.style.display = 'block';
+    }
+
+    // Add event listeners
+    [totalCapacityInput, availableSpaceInput].forEach(input => {
+        input.addEventListener('input', updateCapacityInfo);
+    });
+
+    [usersSelect, clientSelect, farmerSelect].forEach(select => {
+        $(select).on('change', () => validateSelectField(select));
     });
 
     form.addEventListener('submit', function(e) {
@@ -237,6 +355,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Initial validation
+    [usersSelect, clientSelect, farmerSelect].forEach(validateSelectField);
     updateCapacityInfo();
 });
 </script>

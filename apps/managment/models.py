@@ -213,7 +213,7 @@ def generate_lot_number():
     return f"LOT-{date_prefix}-{unique_suffix}"
 def get_product_choices():
     """Dynamically generate product choices from metadata."""
-    return [(name, name) for name in get_product_metadata().keys()]
+    return [(name, name) for name in sorted(get_product_metadata().keys())]
 PRODUCT_CHOICES = [(name, name) for name in get_product_metadata().keys()]
 
 class Product(models.Model):

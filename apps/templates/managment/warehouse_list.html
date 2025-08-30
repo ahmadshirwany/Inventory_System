@@ -112,9 +112,8 @@
                                         <th>Total Capacity (sqm)</th>
                                         <th>Available Space (sqm)</th>
                                         <th>Utilization Rate (%)</th>
-                                        {% if user.is_superuser or is_owner %}
-                                            <th>Actions</th>
-                                        {% endif %}
+                                        <th>Actions</th>
+
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -134,6 +133,10 @@
                                                     data-slug="{{ warehouse.slug }}"
                                                     onclick="event.stopPropagation(); openEditModal(this)">
                                                 Edit
+                                            </button>
+                                            <button class="btn btn-sm btn-success"
+                                                    onclick="event.stopPropagation(); window.location.href='{% if is_client %}{% url 'warehouse_detail_customer' warehouse.slug %}{% else %}{% url 'warehouse_detail' warehouse.slug %}{% endif %}'">
+                                                Open
                                             </button>
                                         </td>
                                         {% endif %}
