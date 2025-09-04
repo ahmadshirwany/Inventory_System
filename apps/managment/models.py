@@ -15,17 +15,30 @@ from apps.authentication.models import CustomUser
 from django.db.models import Max
 
 class Warehouse(models.Model):
+    WAREHOUSE_TYPES = [
+        ('general', 'Entrepôt général 📦'),
+        ('cold_storage', 'Chambre froide / Réfrigéré ❄️'),
+        ('dry_storage', 'Stockage sec 🌾'),
+        ('climate_controlled', 'Stockage à climat contrôlé 🌿'),
+        ('bulk_storage', 'Silo / Stockage en vrac 🏗'),
+        ('freezer', 'Chambre de congélation 🧊'),
+        ('processing_packaging', 'Zone de transformation & emballage 🏭'),
+        ('chemical_storage', 'Entrepôt pour produits chimiques ⚠️'),
+        ('bonded', 'Entrepôt sous douane 🛃'),
+        ('seasonal', 'Stockage saisonnier / temporaire ⛺'),
+    ]
+
     name = models.CharField(max_length=255, help_text="Name of the warehouse")
     ownership = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,  # Delete the warehouse if the owner is deleted
+        on_delete=models.CASCADE,
         related_name="owned_warehouses",
         help_text="Owner of the warehouse"
     )
     type = models.CharField(
-        max_length=100,
-        choices=[('General', 'General'), ('Cold Storage', 'Cold Storage'), ('Bonded', 'Bonded'), ('Automated', 'Automated')],
-        default='General',
+        max_length=50,
+        choices=WAREHOUSE_TYPES,
+        default='general',
         help_text="Type of warehouse"
     )
     location = models.CharField(max_length=255, help_text="Geographical location of the warehouse")
@@ -33,23 +46,26 @@ class Warehouse(models.Model):
     available_space = models.DecimalField(max_digits=10, decimal_places=2, help_text="Available storage space in square meters")
     utilization_rate = models.DecimalField(max_digits=5, decimal_places=2, help_text="Percentage of utilized space (0-100)")
     zone_layout = models.TextField(blank=True, null=True, help_text="Description or diagram of the warehouse zone layout")
-    users = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="warehouses",null=True, blank=True, help_text="Users associated with this warehouse")
+    users = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="warehouses",
+        blank=True,
+        help_text="Users associated with this warehouse"
+    )
     slug = models.SlugField(unique=True, blank=True, help_text="Unique slug for the warehouse URL")
 
     def __str__(self):
         return self.name
 
     def save(self, *args, **kwargs):
-        if self.ownership.subscription_plan == 'basic' and self.ownership.owned_warehouses.exclude(
-                id=self.id).count() >= 3:
+        if self.ownership.subscription_plan == 'basic' and self.ownership.owned_warehouses.exclude(id=self.id).count() >= 3:
             raise ValueError("Basic plan users can only create up to 3 warehouses.")
-        elif self.ownership.subscription_plan == 'pro' and self.ownership.owned_warehouses.exclude(
-                id=self.id).count() >= 5:
+        elif self.ownership.subscription_plan == 'pro' and self.ownership.owned_warehouses.exclude(id=self.id).count() >= 5:
             raise ValueError("Pro plan users can only create up to 5 warehouses.")
-        elif self.ownership.subscription_plan == 'premium' and self.ownership.owned_warehouses.exclude(
-                id=self.id).count() >= 10:
+        elif self.ownership.subscription_plan == 'premium' and self.ownership.owned_warehouses.exclude(id=self.id).count() >= 10:
             raise ValueError("Premium plan users can only create up to 10 warehouses.")
-        if not self.slug:  # Generate a slug only if it doesn't already exist
+
+        if not self.slug:
             base_slug = slugify(self.name)
             unique_slug = base_slug
             num = 1
@@ -57,11 +73,14 @@ class Warehouse(models.Model):
                 unique_slug = f"{base_slug}-{num}"
                 num += 1
             self.slug = unique_slug
+
         if self.total_capacity < self.available_space:
             raise ValidationError("Total capacity cannot be less than available space.")
+
         if self.total_capacity > 0:
             used_space = self.total_capacity - self.available_space
             self.utilization_rate = (used_space / self.total_capacity) * 100
+
         super(Warehouse, self).save(*args, **kwargs)
 
     class Meta:

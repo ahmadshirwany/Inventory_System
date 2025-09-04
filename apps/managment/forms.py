@@ -278,7 +278,18 @@ Product_Condition_CHOICES = [
     ('processed grain', 'Grain transformé'),
     ('grilled processed', 'Grillé / Transformé'),
 ]
+Product_Condition_CHOICES = [Product_Condition_CHOICES[0]] + sorted(
+    Product_Condition_CHOICES[1:], key=lambda x: x[1].lower()
+)
+SOURCE_CHOICES = [
+    ('', 'Select Supplier brand'),
+    ('production_propre', 'Production propre'),
+    ('achat', 'Achat'),
+    ('depot_client', 'Dépôt client'),
+]
 
+# Sort alphabetically by the display label (second element)
+SOURCE_CHOICES = sorted(SOURCE_CHOICES, key=lambda x: x[1].lower())
 
 class ProductForm(forms.ModelForm):
     packaging_condition = forms.ChoiceField(
@@ -301,6 +312,17 @@ class ProductForm(forms.ModelForm):
             'aria-label': 'Category',
         })
         )
+    supplier_brand = forms.ChoiceField(
+    choices=SOURCE_CHOICES,
+    required=True,
+    label="Supplier Brand",
+    widget=forms.Select(attrs={
+        'class': 'form-select form-select-lg',
+        'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+        'required': True,
+        'aria-label': 'Supplier Brand',
+    })
+)
     product_condition = forms.ChoiceField(
         choices=Product_Condition_CHOICES,
         required=True,
@@ -362,12 +384,7 @@ class ProductForm(forms.ModelForm):
                 'aria-label': 'origin'
             }),
 
-            'supplier_brand': forms.TextInput(attrs={
-                'class': 'form-control form-control-lg',
-                'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
-                'placeholder': 'e.g., Organic Farms',
-                'aria-label': 'Supplier Brand'
-            }),
+
             'unit_of_measure': forms.TextInput(attrs={
                 'class': 'form-control form-control-lg',
                 'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
@@ -393,14 +410,14 @@ class ProductForm(forms.ModelForm):
                 'class': 'form-control form-control-lg',
                 'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
                 'placeholder': 'e.g., 10',
-                'aria-label': 'Minimum Threshold'
+                'aria-label': 'Minimum Threshold (Kgs)'
             }),
             'storage_temperature': forms.NumberInput(attrs={
                 'step': '1',
                 'min': '0',
                 'class': 'form-control form-control-lg',
                 'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
-                'placeholder': 'e.g., 10',
+                'placeholder': '',
                 'aria-label': 'Storage Temperature'
             }),
             'humidity_rate': forms.NumberInput(attrs={
@@ -408,7 +425,7 @@ class ProductForm(forms.ModelForm):
                 'min': '0',
                 'class': 'form-control form-control-lg',
                 'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
-                'placeholder': 'Recommended Humidity e.g., 10',
+                'placeholder': '',
                 'aria-label': 'Humidity rate'
             }),
             'co2': forms.NumberInput(attrs={
@@ -416,7 +433,7 @@ class ProductForm(forms.ModelForm):
                 'min': '0',
                 'class': 'form-control form-control-lg',
                 'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
-                'placeholder': 'Recommended CO2 e.g., 10',
+                'placeholder': '',
                 'aria-label': 'CO2'
             }),
             'o2': forms.NumberInput(attrs={
@@ -424,7 +441,7 @@ class ProductForm(forms.ModelForm):
                 'min': '0',
                 'class': 'form-control form-control-lg',
                 'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
-                'placeholder': 'Recommended O2 e.g., 10',
+                'placeholder': '',
                 'aria-label': 'O2'
             }),
             'n2': forms.NumberInput(attrs={
@@ -432,7 +449,7 @@ class ProductForm(forms.ModelForm):
                 'min': '0',
                 'class': 'form-control form-control-lg',
                 'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
-                'placeholder': 'Recommended N2 e.g., 10',
+                'placeholder': '',
                 'aria-label': 'N2'
             }),
             'ethylene_management': forms.NumberInput(attrs={
@@ -440,7 +457,7 @@ class ProductForm(forms.ModelForm):
                 'min': '0',
                 'class': 'form-control form-control-lg',
                 'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
-                'placeholder': 'Recommended Ethylene Levels e.g., 10',
+                'placeholder': '',
                 'aria-label': 'Ethylene Level'
             }),
 
@@ -450,7 +467,7 @@ class ProductForm(forms.ModelForm):
                 'class': 'form-control form-control-lg',
                 'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
                 'placeholder': 'e.g., 100',
-                'aria-label': 'Maximum Threshold'
+                'aria-label': 'Maximum Threshold (Kgs)'
             }),
             'selling_unit_price': forms.NumberInput(attrs={
                 'step': '0.01',
@@ -605,16 +622,22 @@ class ProductForm(forms.ModelForm):
             'placeholder': 'Enter product description...',
             'aria-label': 'Description',
         })
-        self.fields['category'].widget.attrs.update({
-            **common_attrs,
-            'placeholder': 'e.g., Fruits',
-            'aria-label': 'Category',
-        })
-        self.fields['supplier_brand'].widget.attrs.update({
-            **common_attrs,
-            'placeholder': 'e.g., Organic Farms',
-            'aria-label': 'Supplier Brand',
-        })
+        # self.fields['category'].widget.attrs.update({
+        #     **common_attrs,
+        #     'placeholder': 'e.g., Fruits',
+        #     'class': 'form-select form-select-lg',
+        #     'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+        #     'required': True,
+        #     'aria-label': 'Category',
+        # })
+        # self.fields['supplier_brand'].widget.attrs.update({
+        #     **common_attrs,
+        #     'class': 'form-select form-select-lg',
+        #     'style': 'border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);',
+        #     'required': True,
+        #     'placeholder': 'e.g., Organic Farms',
+        #     'aria-label': 'Supplier Brand',
+        # })
         self.fields['unit_of_measure'].widget.attrs.update({
             **common_attrs,
             'placeholder': 'e.g., kg',
@@ -636,13 +659,13 @@ class ProductForm(forms.ModelForm):
             **common_attrs,
             'min': '0',
             'placeholder': 'e.g., 10',
-            'aria-label': 'Minimum Threshold',
+            'aria-label': 'Minimum Threshold (Kgs)',
         })
         self.fields['maximum_threshold'].widget.attrs.update({
             **common_attrs,
             'min': '0',
             'placeholder': 'e.g., 100',
-            'aria-label': 'Maximum Threshold',
+            'aria-label': 'Maximum Threshold (Kgs)' ,
         })
 
 

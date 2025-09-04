@@ -102,8 +102,22 @@ def user_profile(request):
 
     # For GET requests or when POST fails, show the form
     form = PasswordChangeForm(request.user)
-
+    if request.user.is_superuser:
+        group_name = 'admin'
+    else:
+        group_name = request.user.groups.values()[0]['name']
+    if group_name == 'owner':
+        status = 'owner'
+    elif group_name == 'admin':
+        status = 'admin'
+    elif group_name == 'client':
+        status = 'Customer'
+    elif group_name == 'farmer':
+        status = 'Farmer'
+    elif group_name == 'user':
+        status = 'Employee'
     context = {
+        "status" : status,
         "current_user": request.user,
         'is_owner': request.user.groups.filter(name='owner').exists(),
         "form": form,
