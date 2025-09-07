@@ -27,7 +27,7 @@ class Warehouse(models.Model):
         ('bonded', 'Entrepôt sous douane 🛃'),
         ('seasonal', 'Stockage saisonnier / temporaire ⛺'),
     ]
-
+    WAREHOUSE_TYPES = sorted(WAREHOUSE_TYPES, key=lambda x: x[0])
     name = models.CharField(max_length=255, help_text="Name of the warehouse")
     ownership = models.ForeignKey(
         settings.AUTH_USER_MODEL,
