@@ -127,19 +127,21 @@
                                         <td>{{ warehouse.total_capacity }}</td>
                                         <td>{{ warehouse.available_space }}</td>
                                         <td>{{ warehouse.utilization_rate }}</td>
-                                        {% if user.is_superuser or is_owner %}
+
                                         <td>
+                                         {% if user.is_superuser or is_owner %}
                                             <button class="btn btn-sm btn-primary edit-warehouse"
                                                     data-slug="{{ warehouse.slug }}"
                                                     onclick="event.stopPropagation(); openEditModal(this)">
                                                 Edit
                                             </button>
+                                        {% endif %}
                                             <button class="btn btn-sm btn-success"
                                                     onclick="event.stopPropagation(); window.location.href='{% if is_client %}{% url 'warehouse_detail_customer' warehouse.slug %}{% else %}{% url 'warehouse_detail' warehouse.slug %}{% endif %}'">
                                                 Open
                                             </button>
                                         </td>
-                                        {% endif %}
+
                                     </tr>
                                     {% endfor %}
                                 </tbody>
