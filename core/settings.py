@@ -128,6 +128,10 @@ USE_TZ = True
 STATIC_ROOT = os.path.join(CORE_DIR, 'staticfiles')
 STATIC_URL = '/static/'
 AUTH_USER_MODEL = 'authentication.CustomUser'
+
+# Default primary key field type
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 # Extra places for collectstatic to find static files.
 STATICFILES_DIRS = (
     os.path.join(CORE_DIR, 'apps/static'),

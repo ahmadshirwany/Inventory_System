@@ -48,7 +48,7 @@
             <div class="card card-plain">
                 <div class="card-header card-header-primary">
                     <h4 class="card-title mt-0">Farmers</h4>
-                    {% if request.user.is_superuser or is_owner %}
+                    {% if request.user.is_superuser or is_owner or is_user%}
                         <div class="header-buttons">
                             <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#addFarmerModal">
                                 <i class="fa fa-plus"></i> Add New Farmer

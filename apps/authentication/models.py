@@ -33,6 +33,7 @@ class CustomUser(AbstractUser):
         related_name='owned_users'
     )
     SUBSCRIPTION_CHOICES = [
+        ('free', 'Free'),
         ('basic', 'Basic Plan'),
         ('pro', 'Pro Plan'),
         ('premium', 'Premium Plan'),
@@ -49,6 +50,16 @@ class CustomUser(AbstractUser):
         blank=True,
         help_text="The maximum number of Users this user can create. NULL means no Users allowed."
     )
+    client_limit = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="The maximum number of Clients this user can create. NULL means no Clients allowed."
+    )
+    farmer_limit = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="The maximum number of Farmers this user can create. NULL means no Farmers allowed."
+    )
     profile_picture = models.ImageField(
         upload_to=user_profile_picture_path,
         blank=True,
@@ -60,10 +71,10 @@ class CustomUser(AbstractUser):
     is_client = models.BooleanField(default=False, help_text="Designates whether this user is a client")
 
     PLAN_LIMITS = {
-        'basic': {'warehouse_limit': 1, 'user_limit': 1},
-        'pro': {'warehouse_limit': 5, 'user_limit': 10},
-        'premium': {'warehouse_limit': 20, 'user_limit': 50},
-        'user': {'warehouse_limit': 0, 'user_limit': 0},
+        'free' : {'warehouse_limit': 1, 'user_limit': 1, 'client_limit': 1, 'farmer_limit': 1},
+        'basic': {'warehouse_limit': 2, 'user_limit': 10, 'client_limit': 10, 'farmer_limit': 10},
+        'pro': {'warehouse_limit': 5, 'user_limit': 50, 'client_limit': 50, 'farmer_limit': 50},
+        'premium': {'warehouse_limit': 10, 'user_limit': 1000, 'client_limit': 1000, 'farmer_limit': 1000},
     }
 
     def save(self, *args, **kwargs):
@@ -73,11 +84,24 @@ class CustomUser(AbstractUser):
         if not self.profile_picture:
             # Assign the default image path
             self.profile_picture = 'profile_pictures/blank-profile-picture.png'
+        
+        # Only set limits for owners (users without an owner), not for owned users
+        if not self.owner:
+            limits = self.PLAN_LIMITS.get(self.subscription_plan, self.PLAN_LIMITS['basic'])
+            self.warehouse_limit = limits['warehouse_limit']
+            self.user_limit = limits['user_limit']
+            self.client_limit = limits['client_limit']
+            self.farmer_limit = limits['farmer_limit']
+        else:
+            # For owned users, set subscription_plan to 'user' and clear limits
+            self.subscription_plan = 'user'
+            self.warehouse_limit = 0
+            self.user_limit = 0
+            self.client_limit = 0
+            self.farmer_limit = 0
+            
         super().save(*args, **kwargs)
-        # Set limits based on subscription_plan
-        limits = self.PLAN_LIMITS.get(self.subscription_plan, self.PLAN_LIMITS['basic'])
-        self.warehouse_limit = limits['warehouse_limit']
-        self.user_limit = limits['user_limit']
+        
         # Handle farmer group
         if self.is_farmer:
             farmer_group, _ = Group.objects.get_or_create(name='farmer')
@@ -90,25 +114,45 @@ class CustomUser(AbstractUser):
             self.groups.clear()
             self.groups.add(client_group)
 
-        # Handle 'user' group (not related to farmer or client)
-        if self.groups.filter(name='user').exists():
-            self.warehouse_limit = 0
-            self.user_limit = 0
-        super().save(*args, **kwargs)
+        # Handle 'user' group (for regular users)
+        if not self.is_farmer and not self.is_client and self.owner:
+            user_group, _ = Group.objects.get_or_create(name='user')
+            self.groups.clear()
+            self.groups.add(user_group)
 
     def clean(self):
         if self.is_farmer and self.is_client:
             raise ValidationError("A user cannot be both farmer and client simultaneously")
 
+    def get_effective_owner(self):
+        """Get the effective owner for plan limit checking"""
+        return self.owner if self.owner else self
+
     def can_create_warehouse(self, current_warehouse_count):
-        if self.warehouse_limit is None:
+        effective_owner = self.get_effective_owner()
+        if effective_owner.warehouse_limit is None:
             return False
-        return current_warehouse_count < self.warehouse_limit
+        return current_warehouse_count < effective_owner.warehouse_limit
 
     def can_create_user(self, current_user_count):
-        if self.user_limit is None:
+        effective_owner = self.get_effective_owner()
+        if effective_owner.user_limit is None:
             return False
-        return current_user_count < self.user_limit
+        return current_user_count < effective_owner.user_limit
+
+    def can_create_client(self):
+        effective_owner = self.get_effective_owner()
+        current_client_count = Client.objects.filter(user__owner=effective_owner).count()
+        if effective_owner.client_limit is None:
+            return False
+        return current_client_count < effective_owner.client_limit
+
+    def can_create_farmer(self):
+        effective_owner = self.get_effective_owner()
+        current_farmer_count = Farmer.objects.filter(user__owner=effective_owner).count()
+        if effective_owner.farmer_limit is None:
+            return False
+        return current_farmer_count < effective_owner.farmer_limit
 
     def __str__(self):
         return self.username
@@ -199,7 +243,18 @@ class Client(models.Model):
         db_table = 'client'
         db_table_comment = 'Central registry for all platform actors'
 
+    # def clean(self):
+    #     super().clean()
+    #     if self.user and self.user.owner:
+    #         # Check if the owner can create more clients
+    #         current_client_count = Client.objects.filter(user__owner=self.user.owner).count()
+    #         if not self.user.owner.can_create_client(current_client_count):
+    #             raise ValidationError(
+    #                 f"Plan limit exceeded. Owner can only create {self.user.owner.client_limit} clients."
+    #             )
+
     def save(self, *args, **kwargs):
+        self.clean()
         super().save(*args, **kwargs)
         # Ensure the associated user is marked as a client and assigned to the 'client' group
         if self.user:

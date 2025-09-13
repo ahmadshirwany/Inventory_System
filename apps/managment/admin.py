@@ -1,5 +1,8 @@
 from django.contrib import admin
+from django.utils.html import format_html
+from django.urls import reverse
 from .models import Warehouse, Product, ItemRequest, get_product_metadata, refresh_product_metadata
+from apps.authentication.plan_utils import check_plan_limits, get_plan_usage_summary
 import datetime
 
 @admin.register(Warehouse)
@@ -7,6 +10,7 @@ class WarehouseAdmin(admin.ModelAdmin):
     list_display = (
         'name',
         'ownership',
+        'ownership_plan',
         'type',
         'location',
         'total_capacity',
@@ -17,6 +21,7 @@ class WarehouseAdmin(admin.ModelAdmin):
     list_filter = (
         'type',
         'ownership',
+        'ownership__subscription_plan',
         'location',
     )
     search_fields = (
@@ -57,18 +62,34 @@ class WarehouseAdmin(admin.ModelAdmin):
         'slug'
     )
 
+    def ownership_plan(self, obj):
+        """Display the subscription plan of the warehouse owner"""
+        if obj.ownership:
+            plan = obj.ownership.subscription_plan
+            color = {
+                'free': '#dc3545',
+                'basic': '#ffc107', 
+                'pro': '#17a2b8',
+                'premium': '#28a745'
+            }.get(plan, '#6c757d')
+            return format_html(
+                '<span style="color: {}; font-weight: bold;">{}</span>',
+                color,
+                plan.title()
+            )
+        return "No owner"
+    
+    ownership_plan.short_description = 'Owner Plan'
+    ownership_plan.admin_order_field = 'ownership__subscription_plan'
+
     def save_model(self, request, obj, form, change):
         if not change:
-            user = obj.ownership
-            subscription_plan = getattr(user, 'subscription_plan', None)
-            if subscription_plan == 'basic' and user.owned_warehouses.count() >= 3:
-                self.message_user(request, "Basic plan users can only create up to 3 warehouses.", level='error')
-                return
-            elif subscription_plan == 'pro' and user.owned_warehouses.count() >= 5:
-                self.message_user(request, "Pro plan users can only create up to 5 warehouses.", level='error')
-                return
-            elif subscription_plan == 'premium' and user.owned_warehouses.count() >= 10:
-                self.message_user(request, "Premium plan users can only create up to 10 warehouses.", level='error')
+            # Use the new plan limits system
+            try:
+                current_count = obj.ownership.owned_warehouses.count()
+                check_plan_limits(obj.ownership, 'warehouse', current_count)
+            except Exception as e:
+                self.message_user(request, f"Plan limit error: {str(e)}", level='error')
                 return
         super().save_model(request, obj, form, change)
 
@@ -90,38 +111,50 @@ class WarehouseAdmin(admin.ModelAdmin):
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
         'sku', 'barcode', 'warehouse', 'product_name', 'product_type', 'quantity_in_stock',
-        'status', 'entry_date', 'expiration_date', 'farmer'
+        'weight_quantity_kg', 'status', 'entry_date', 'expiration_date', 'farmer', 'unit_price'
     )
     list_filter = (
-        'product_type', 'status', 'warehouse', 'farmer',
+        'product_type', 'status', 'warehouse', 'farmer', 'category', 'packaging_condition',
         ('entry_date', admin.DateFieldListFilter),
         ('expiration_date', admin.DateFieldListFilter),
+        ('harvest_date', admin.DateFieldListFilter),
+        ('manufacturing_date', admin.DateFieldListFilter),
     )
-    search_fields = ('sku', 'barcode', 'product_name', 'lot_number', 'supplier_code')
+    search_fields = ('sku', 'barcode', 'product_name', 'lot_number', 'supplier_code', 'variety_or_species', 'origin')
     ordering = ('-entry_date',)
     readonly_fields = ('lot_number', 'total_value', 'entry_date')
     fieldsets = (
         ('Identification', {
-            'fields': ('sku', 'barcode', 'lot_number', 'product_name')
+            'fields': ('sku', 'barcode', 'lot_number', 'product_name', 'description')
         }),
         ('Product Details', {
-            'fields': ('product_type', 'variety_or_species', 'origin', 'supplier_code')
+            'fields': ('product_type', 'variety_or_species', 'origin', 'supplier_code', 'category', 'supplier_brand')
+        }),
+        ('Physical Properties', {
+            'fields': ('unit_of_measure', 'physical_dimensions', 'weight_quantity', 'weight_quantity_kg', 'weight_per_bag_kg')
         }),
         ('Dates', {
             'fields': ('harvest_date', 'manufacturing_date', 'entry_date', 'expiration_date', 'exit_date')
         }),
-        ('Quantity and Value', {
-            'fields': ('weight_quantity', 'weight_quantity_kg', 'quantity_in_stock', 'unit_price', 'total_value')
+        ('Quantity and Pricing', {
+            'fields': ('quantity_in_stock', 'unit_price', 'purchase_unit_price', 'storage_cost', 'total_value')
         }),
         ('Storage Conditions', {
             'fields': (
-                'packaging_condition', 'humidity_rate', 'storage_temperature', 'co2', 'o2', 'n2', 'ethylene_management')
+                'packaging_condition', 'product_condition', 'humidity_rate', 'storage_temperature', 
+                'co2', 'o2', 'n2', 'ethylene_management')
+        }),
+        ('Quality & Compliance', {
+            'fields': ('certifications', 'quality_standards', 'regulatory_codes', 'nutritional_info')
         }),
         ('Status and Relationships', {
             'fields': ('status', 'warehouse', 'farmer')
         }),
+        ('Thresholds', {
+            'fields': ('minimum_threshold', 'maximum_threshold')
+        }),
         ('Additional Information', {
-            'fields': ('quality_standards', 'nutritional_info', 'regulatory_codes', 'notes_comments')
+            'fields': ('notes_comments',)
         }),
     )
     actions = ['mark_as_expired', 'mark_as_out_of_stock']
@@ -159,7 +192,7 @@ class ProductAdmin(admin.ModelAdmin):
 class ItemRequestAdmin(admin.ModelAdmin):
     list_display = (
         'id', 'warehouse', 'client', 'product_name', 'quantity_requested',
-        'weight_requested_kg', 'status', 'request_date', 'approval_date', 'completion_date'
+        'weight_requested_kg', 'total_price', 'status', 'request_date', 'approval_date', 'completion_date'
     )
     list_filter = (
         'status',
@@ -171,14 +204,16 @@ class ItemRequestAdmin(admin.ModelAdmin):
     )
     search_fields = (
         'product_name',
-        'client__username',
+        'client__name',
+        'client__email',
         'warehouse__name'
     )
     ordering = ('-request_date',)
     readonly_fields = (
         'request_date',
         'approval_date',
-        'completion_date'
+        'completion_date',
+        'total_price'
     )
     fieldsets = (
         ('Request Details', {
@@ -190,6 +225,9 @@ class ItemRequestAdmin(admin.ModelAdmin):
                 'weight_requested_kg',
                 'status'
             )
+        }),
+        ('Pricing', {
+            'fields': ('total_price',)
         }),
         ('Dates', {
             'fields': (

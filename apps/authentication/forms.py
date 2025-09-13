@@ -86,6 +86,19 @@ class CustomUserCreationForm(UserCreationForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        password1 = cleaned_data.get("password1")
+        password2 = cleaned_data.get("password2")
+
+        # Validate passwords
+        if password1 and password2:
+            if password1 != password2:
+                raise forms.ValidationError("Passwords do not match.")
+            validate_password_strength(password1, "password1")
+            try:
+                password_validation.validate_password(password1)
+            except forms.ValidationError as e:
+                raise forms.ValidationError({"password1": e})
+
         if self.request_user and self.request_user.user_limit is not None:
             current_user_count = CustomUser.objects.filter(owner=self.request_user).count()
             if not self.request_user.can_create_user(current_user_count):
@@ -94,7 +107,7 @@ class CustomUserCreationForm(UserCreationForm):
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        if self.request_user:
+        if not self.request_user.is_superuser:
             user.owner = self.request_user
         user.subscription_plan = self.cleaned_data.get('subscription_plan', 'basic')
         group_name = self.cleaned_data['group']
@@ -249,11 +262,19 @@ class FarmerCreationForm(forms.ModelForm):
     @transaction.atomic
     def save(self, request, commit=True):
         # Create CustomUser instance
+        if request.user.is_authenticated and request.user.groups.filter(name='owner').exists():
+            if not request.user.can_create_farmer():
+                raise forms.ValidationError("You have reached your Farmer creation limit.")
+            current_user_owner = request.user
+        else:
+            if not request.user.owner.can_create_farmer():
+                raise forms.ValidationError("You have reached your Farmer creation limit.")
+            current_user_owner = request.user.owner if request.user.is_authenticated else None
         user = CustomUser(
             username=self.cleaned_data['username'],
             email=self.cleaned_data['user_email'],
             is_farmer=True,
-            owner=request.user if request.user.is_authenticated else None
+            owner=current_user_owner
         )
         user.set_password(self.cleaned_data['password1'])
         if commit:
@@ -349,6 +370,14 @@ class ClientCreationForm(forms.ModelForm):
 
     @transaction.atomic
     def save(self, request, commit=True):
+        if request.user.is_authenticated and request.user.groups.filter(name='owner').exists():
+            if not request.user.can_create_client():
+                raise forms.ValidationError("You have reached your client creation limit.")
+            current_user_owner = request.user
+        else:
+            if not request.user.owner.can_create_client():
+                raise forms.ValidationError("You have reached your client creation limit.")
+            current_user_owner = request.user.owner if request.user.is_authenticated else None
         user = CustomUser(
             username=self.cleaned_data['username'],
             email=self.cleaned_data['email'],

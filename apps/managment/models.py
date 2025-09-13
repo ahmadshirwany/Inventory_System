@@ -58,12 +58,12 @@ class Warehouse(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
-        if self.ownership.subscription_plan == 'basic' and self.ownership.owned_warehouses.exclude(id=self.id).count() >= 3:
-            raise ValueError("Basic plan users can only create up to 3 warehouses.")
-        elif self.ownership.subscription_plan == 'pro' and self.ownership.owned_warehouses.exclude(id=self.id).count() >= 5:
-            raise ValueError("Pro plan users can only create up to 5 warehouses.")
-        elif self.ownership.subscription_plan == 'premium' and self.ownership.owned_warehouses.exclude(id=self.id).count() >= 10:
-            raise ValueError("Premium plan users can only create up to 10 warehouses.")
+        # Check warehouse limits using the new plan limits system
+        current_warehouse_count = self.ownership.owned_warehouses.exclude(id=self.id).count()
+        if not self.ownership.can_create_warehouse(current_warehouse_count):
+            raise ValidationError(
+                f"Plan limit exceeded. You can only create {self.ownership.warehouse_limit} warehouses with your {self.ownership.subscription_plan} plan."
+            )
 
         if not self.slug:
             base_slug = slugify(self.name)

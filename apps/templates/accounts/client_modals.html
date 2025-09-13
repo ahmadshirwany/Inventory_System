@@ -7,66 +7,87 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-danger error-messages" id="formErrors" style="display: none;"></div>
-                <form method="POST" id="clientForm" action="{% url 'client_list' %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="add_client" value="1">
-                    <div class="row">
-                        <!-- User Fields -->
-                        <div class="col-md-4 mb-3">
-                            <label class="required" for="id_username">{{ form.username.label }}</label>
-                            {{ form.username }}
-                            <small class="help-text">{{ form.username.help_text }}</small>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="required" for="id_email">{{ form.email.label }}</label>
-                            {{ form.email }}
-                            <small class="help-text">{{ form.email.help_text }}</small>
-                        </div>
-                        <div class="col-md-4 mb-3 password-field-container">
-                            <label class="required" for="id_password1">{{ form.password1.label }}</label>
-                            {{ form.password1 }}
-                            <span id="id_password1-match" class="password-match"></span>
-                            <small class="help-text">{{ form.password1.help_text }}</small>
-                        </div>
-                        <div class="col-md-4 mb-3 password-field-container">
-                            <label class="required" for="id_password2">{{ form.password2.label }}</label>
-                            {{ form.password2 }}
-                            <span id="id_password2-match" class="password-match"></span>
-                            <small class="help-text">{{ form.password2.help_text }}</small>
-                        </div>
-                        <!-- Client Fields -->
-                        <div class="col-md-4 mb-3">
-                            <label class="required" for="id_name">{{ form.name.label }}</label>
-                            {{ form.name }}
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="required" for="id_user_type">{{ form.user_type.label }}</label>
-                            {{ form.user_type }}
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="required" for="id_phone">{{ form.phone.label }}</label>
-                            {{ form.phone }}
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="id_address">{{ form.address.label }}</label>
-                            {{ form.address }}
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="id_country">{{ form.country.label }}</label>
-                            {{ form.country }}
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="required" for="id_account_status">{{ form.account_status.label }}</label>
-                            {{ form.account_status }}
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="id_notes">{{ form.notes.label }}</label>
-                            {{ form.notes }}
-                        </div>
-                    </div>
-                </form>
+    <div class="alert alert-danger error-messages" id="formErrors" style="display: none;"></div>
+    <form method="POST" id="clientForm" action="{% url 'client_list' %}">
+        {% csrf_token %}
+        <input type="hidden" name="add_client" value="1">
+
+        <!-- User Account Information -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h6 class="section-title">User Account Information</h6>
+                <hr class="section-divider">
             </div>
+            <div class="col-md-4 mb-3">
+                <label class="required" for="id_username">{{ form.username.label }}</label>
+                {{ form.username }}
+                <small class="help-text">{{ form.username.help_text }}</small>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="required" for="id_email">{{ form.email.label }}</label>
+                {{ form.email }}
+                <small class="help-text">{{ form.email.help_text }}</small>
+            </div>
+            <div class="col-md-4 mb-3 password-field-container">
+                <label class="required" for="id_password1">{{ form.password1.label }}</label>
+                {{ form.password1 }}
+                <span id="id_password1-match" class="password-match"></span>
+                <small class="help-text">{{ form.password1.help_text }}</small>
+            </div>
+            <div class="col-md-4 mb-3 password-field-container">
+                <label class="required" for="id_password2">{{ form.password2.label }}</label>
+                {{ form.password2 }}
+                <span id="id_password2-match" class="password-match"></span>
+                <small class="help-text">{{ form.password2.help_text }}</small>
+            </div>
+        </div>
+
+        <!-- Personal Information -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h6 class="section-title">Personal Information</h6>
+                <hr class="section-divider">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="required" for="id_name">{{ form.name.label }}</label>
+                {{ form.name }}
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="required" for="id_phone">{{ form.phone.label }}</label>
+                {{ form.phone }}
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="id_address">{{ form.address.label }}</label>
+                {{ form.address }}
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="id_country">{{ form.country.label }}</label>
+                {{ form.country }}
+            </div>
+        </div>
+
+        <!-- Client Details -->
+        <div class="row">
+            <div class="col-12">
+                <h6 class="section-title">Client Details</h6>
+                <hr class="section-divider">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="required" for="id_user_type">{{ form.user_type.label }}</label>
+                {{ form.user_type }}
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="required" for="id_account_status">{{ form.account_status.label }}</label>
+                {{ form.account_status }}
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="id_notes">{{ form.notes.label }}</label>
+                {{ form.notes }}
+            </div>
+        </div>
+    </form>
+</div>
+
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-success" onclick="submitClientForm()">Submit</button>
@@ -122,28 +143,180 @@
 {% endfor %}
 
 <style>
-    .modal-xl { max-width: 90%; }
-    .error-messages { display: none; margin-bottom: 20px; }
-    .is-invalid { border-color: #dc3545; }
-    .required:after { content: " *"; color: red; }
+    .modal-xl {
+        max-width: 90%;
+    }
+    .modal-content {
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border: none;
+    }
+    .modal-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        padding: 15px 20px;
+    }
+    .modal-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #343a40;
+    }
+    .modal-body {
+        padding: 20px 30px;
+        background-color: #fff;
+        max-height: 70vh; /* Set max height for scrollable content */
+        overflow-y: auto; /* Enable vertical scrolling */
+    }
+    body.modal-open {
+        overflow: hidden; /* Prevent background page scrolling */
+    }
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 10px;
+    }
+    .section-divider {
+        border-top: 1px solid #e9ecef;
+        margin-bottom: 20px;
+    }
+    .form-control {
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        padding: 10px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        background-color: #f8f9fa;
+    }
+    .form-control:focus {
+        border-color: #28a745;
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.1);
+        background-color: #fff;
+    }
+    .password-input {
+        padding-right: 40px;
+    }
+    textarea.form-control {
+        min-height: 80px;
+        resize: vertical;
+    }
+    .required:after {
+        content: " *";
+        color: #dc3545;
+        font-weight: bold;
+    }
     .password-field-container {
         position: relative;
     }
     .password-match {
         position: absolute;
-        right: 10px;
-        top: 50%;
+        right: 12px;
+        top: calc(50% + 12px);
         transform: translateY(-50%);
-        font-size: 16px;
+        font-size: 1rem;
         font-weight: bold;
+        width: 20px;
+        height: 20px;
+        line-height: 20px;
+        text-align: center;
+        border-radius: 50%;
+        background-color: #f8f9fa;
     }
     .match {
-        color: #28a745; /* Green for match */
+        color: #28a745;
+        background-color: #e6f4ea;
     }
     .no-match {
-        color: #dc3545; /* Red for no match */
+        color: #dc3545;
+        background-color: #f8d7da;
+    }
+    .error-messages {
+        display: none;
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 20px;
+        color: #721c24;
+        font-size: 0.9rem;
+    }
+    .error-messages p:before {
+        content: "⚠ ";
+        font-weight: bold;
+    }
+    .is-invalid {
+        border-color: #dc3545;
+        background-color: #fff5f5;
+    }
+    .custom-btn {
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+    .btn-secondary.custom-btn {
+        background-color: #6c757d;
+        border-color: #6c757d;
+    }
+    .btn-secondary.custom-btn:hover {
+        background-color: #5a6268;
+        border-color: #545b62;
+        transform: translateY(-1px);
+    }
+    .btn-success.custom-btn {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+    .btn-success.custom-btn:hover {
+        background-color: #218838;
+        border-color: #1e7e34;
+        transform: translateY(-1px);
+    }
+    @media (max-width: 768px) {
+        .modal-body {
+            padding: 15px;
+        }
+        .section-title {
+            font-size: 1.1rem;
+        }
+        .form-control {
+            font-size: 0.9rem;
+            padding: 8px;
+        }
+        .password-input {
+            padding-right: 35px;
+        }
+        .password-match {
+            right: 10px;
+            font-size: 0.9rem;
+            width: 18px;
+            height: 18px;
+            line-height: 18px;
+        }
+        .custom-btn {
+            padding: 8px 15px;
+            font-size: 0.9rem;
+        }
     }
 </style>
+
+<!-- Add this at the end of your script section -->
+<script>
+    // Add this to your existing script
+    document.querySelectorAll('.modal-body').forEach(modalBody => {
+        modalBody.addEventListener('wheel', (event) => {
+            event.stopPropagation();
+            const isAtTop = modalBody.scrollTop === 0;
+            const isAtBottom = modalBody.scrollTop + modalBody.clientHeight >= modalBody.scrollHeight;
+            const isScrollingUp = event.deltaY < 0;
+            const isScrollingDown = event.deltaY > 0;
+
+            if ((isScrollingUp && isAtTop) || (isScrollingDown && isAtBottom)) {
+                event.preventDefault();
+            }
+        });
+    });
+</script>
+
 
 <script>
     function getCookie(name) {

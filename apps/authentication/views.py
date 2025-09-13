@@ -23,6 +23,7 @@ from django.contrib.auth import get_user_model
 from django.db import models
 from django.contrib.auth import authenticate
 from django.core.exceptions import PermissionDenied,ValidationError
+from .plan_utils import check_plan_limits, get_plan_usage_summary
 
 class CustomLogoutView(View):
     def get(self, request):
@@ -150,14 +151,14 @@ def create_user(request):
             status=403
         )
     if not request.user.is_superuser:
-        current_count = request.user.owned_users.filter(groups__name='user').count()
-        user_limit = request.user.user_limit
-
-        if user_limit is None or current_count >= user_limit:
+        try:
+            current_count = request.user.owned_users.filter(groups__name='user').count()
+            check_plan_limits(request.user, 'user', current_count)
+        except ValidationError as e:
             return render(
                 request,
                 "home/page-403.html",
-                {"message": "Access Deniedd: You reached your user creation limit.",
+                {"message": str(e),
                  'is_owner': request.user.groups.filter(name='owner').exists(), },
                 status=403
             )
@@ -286,12 +287,21 @@ def user_list(request):
 def farmer_list(request):
     # Handle POST requests (add/delete)
     is_owner = request.user.groups.filter(name='owner').exists()
-    can_add_or_edit = request.user.is_superuser or is_owner
+    can_add_or_edit = request.user.is_superuser or is_owner or request.user.groups.filter(name='user').exists()
     if request.method == 'POST':
         if 'add_farmer' in request.POST:
             if not can_add_or_edit:
                 return JsonResponse({'error': 'Permission denied: Only owners or superusers can add farmers'},
                                     status=403)
+            
+            # Check plan limits for farmers
+            if not request.user.is_superuser:
+                try:
+                    current_count = Farmer.objects.filter(user__owner=request.user).count()
+                    check_plan_limits(request.user, 'farmer', current_count)
+                except ValidationError as e:
+                    return JsonResponse({'error': str(e)}, status=403)
+            
             form = FarmerCreationForm(request.POST)
             if form.is_valid():
                 form.save(request)  # Pass request to set owner
@@ -339,12 +349,17 @@ def farmer_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
+    # Get plan usage information
+    usage_summary = get_plan_usage_summary(request.user) if not request.user.is_superuser else {}
+    
     return render(request, 'accounts/farmer_list.html', {
         'page_obj': page_obj,
         'filters': filters,
         'form': FarmerCreationForm(),
         'is_owner': is_owner,
         'is_user': request.user.groups.filter(name='user').exists(),
+        'usage_summary': usage_summary,
+        'farmer_usage': usage_summary.get('farmer', {}),
     })
 
 @login_required
@@ -358,6 +373,14 @@ def client_list(request):
     # Handle POST requests for adding or deleting clients
     if request.method == 'POST':
         if 'add_client' in request.POST:
+            # Check plan limits for clients
+            if not request.user.is_superuser:
+                try:
+                    current_count = Client.objects.filter(user__owner=request.user).count()
+                    check_plan_limits(request.user, 'client', current_count)
+                except ValidationError as e:
+                    return JsonResponse({'error': str(e)}, status=403)
+            
             form = ClientCreationForm(request.POST)
             if form.is_valid():
                 form.save(request)
@@ -401,6 +424,9 @@ def client_list(request):
     # Form for adding new client (not used directly in template due to modal/AJAX)
     form = ClientCreationForm()
 
+    # Get plan usage information
+    usage_summary = get_plan_usage_summary(request.user) if not request.user.is_superuser else {}
+    
     context = {
         'page_obj': page_obj,
         'filters': filters,
@@ -408,8 +434,21 @@ def client_list(request):
         'form': form,  # Included for reference, though not rendered directly
         'is_user': request.user.groups.filter(name='user').exists(),
         'is_farmer': request.user.groups.filter(name='farmer').exists(),
+        'usage_summary': usage_summary,
+        'client_usage': usage_summary.get('client', {}),
     }
     return render(request, 'accounts/client_list.html', context)
 @login_required
 def edit_user(request):
     pass
+
+@login_required
+def plan_usage_api(request):
+    """
+    API endpoint to get current plan usage (for AJAX requests).
+    """
+    if request.user.is_superuser:
+        return JsonResponse({})
+    
+    usage = get_plan_usage_summary(request.user)
+    return JsonResponse(usage)

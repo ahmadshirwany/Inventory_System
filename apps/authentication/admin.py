@@ -1,7 +1,11 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django import forms
+from django.utils.html import format_html
+from django.urls import reverse
+from django.utils.safestring import mark_safe
 from .models import CustomUser, Farmer, Client
+from .plan_utils import get_plan_usage_summary
 import uuid
 
 # Custom form for Farmer to ensure required fields
@@ -60,24 +64,56 @@ class ClientInline(admin.StackedInline):
 
 # Custom admin for CustomUser
 class CustomUserAdmin(BaseUserAdmin):
-    list_display = ('username', 'email', 'subscription_plan', 'is_farmer', 'is_client', 'is_staff')
-    list_filter = ('subscription_plan', 'is_farmer', 'is_client', 'is_staff')
+    list_display = ('username', 'email', 'subscription_plan', 'plan_usage_display', 'is_farmer', 'is_client', 'is_staff', 'owner')
+    list_filter = ('subscription_plan', 'is_farmer', 'is_client', 'is_staff', 'owner')
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
         ('Personal Info', {'fields': ('first_name', 'last_name', 'email', 'profile_picture')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
-        ('Custom Fields', {'fields': ('owner', 'subscription_plan', 'warehouse_limit', 'user_limit', 'is_farmer', 'is_client')}),
+        ('Plan & Limits', {
+            'fields': ('subscription_plan', 'owner'),
+            'description': 'Subscription plan and ownership information'
+        }),
+        ('Resource Limits', {
+            'fields': ('warehouse_limit', 'user_limit', 'client_limit', 'farmer_limit'),
+            'description': 'Maximum number of resources this user can create'
+        }),
+        ('User Types', {'fields': ('is_farmer', 'is_client')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('username', 'email', 'password1', 'password2', 'subscription_plan', 'is_farmer', 'is_client'),
+            'fields': ('username', 'email', 'password1', 'password2', 'subscription_plan', 'owner', 'is_farmer', 'is_client'),
         }),
     )
-    inlines = [FarmerInline, ClientInline]  # Added ClientInline
-    search_fields = ('username', 'email')
+    inlines = [FarmerInline, ClientInline]
+    search_fields = ('username', 'email', 'first_name', 'last_name')
     ordering = ('username',)
+    readonly_fields = ('plan_usage_display',)
+
+    def plan_usage_display(self, obj):
+        """Display current plan usage for the user"""
+        if obj.is_superuser:
+            return format_html('<span style="color: #28a745;">Superuser - No Limits</span>')
+        
+        usage = get_plan_usage_summary(obj)
+        if not usage:
+            return "No usage data"
+        
+        html_parts = []
+        for resource_type, data in usage.items():
+            color = '#dc3545' if data['remaining'] == 0 else '#ffc107' if data['remaining'] <= 1 else '#28a745'
+            html_parts.append(
+                f'<span style="color: {color}; margin-right: 10px;">'
+                f'{resource_type.title()}: {data["current"]}/{data["limit"]}'
+                f'</span>'
+            )
+        
+        return format_html(''.join(html_parts))
+    
+    plan_usage_display.short_description = 'Plan Usage'
+    plan_usage_display.allow_tags = True
 
     def save_model(self, request, obj, form, change):
         if not change:
@@ -91,23 +127,49 @@ class CustomUserAdmin(BaseUserAdmin):
 # Admin for Farmer model (standalone view)
 class FarmerAdmin(admin.ModelAdmin):
     form = FarmerForm
-    list_display = ('name', 'farm_name', 'farm_location', 'email', 'contact_number')
-    list_filter = ('registration_date',)
-    search_fields = ('name', 'farm_name', 'email')
+    list_display = ('name', 'farm_name', 'farm_location', 'email', 'contact_number', 'user', 'owner_display')
+    list_filter = ('registration_date', 'user__owner', 'user__subscription_plan')
+    search_fields = ('name', 'farm_name', 'email', 'user__username', 'user__owner__username')
     fieldsets = (
-        (None, {'fields': ('name',)}),
-        ('Contact Info', {'fields': ('contact_number', 'email', 'address')}),
+        ('Farmer Information', {'fields': ('name', 'farmer_id')}),
+        ('Contact Information', {'fields': ('contact_number', 'email', 'address')}),
         ('Farm Details', {'fields': ('farm_name', 'farm_location', 'total_land_area')}),
-        ('Additional Info', {'fields': ('certifications', 'compliance_standards', 'notes', 'registration_date')}),
+        ('Certifications & Compliance', {'fields': ('certifications', 'compliance_standards')}),
+        ('Additional Information', {'fields': ('notes', 'registration_date')}),
+        ('User Account', {'fields': ('user',)}),
     )
+    readonly_fields = ('farmer_id', 'user')
+
+    def owner_display(self, obj):
+        """Display the owner of the farmer"""
+        if obj.user and obj.user.owner:
+            return format_html(
+                '<a href="{}">{}</a>',
+                reverse('admin:authentication_customuser_change', args=[obj.user.owner.pk]),
+                obj.user.owner.username
+            )
+        return "No owner"
+    
+    owner_display.short_description = 'Owner'
+    owner_display.admin_order_field = 'user__owner__username'
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
-            return ['user']
-        return []
+            return ['farmer_id', 'user']
+        return ['farmer_id']
 
     def save_model(self, request, obj, form, change):
         if not change:
+            # Check plan limits before creating farmer
+            if obj.user and obj.user.owner:
+                from .plan_utils import check_plan_limits
+                try:
+                    current_count = Farmer.objects.filter(user__owner=obj.user.owner).count()
+                    check_plan_limits(obj.user.owner, 'farmer', current_count)
+                except Exception as e:
+                    self.message_user(request, f"Plan limit error: {str(e)}", level='error')
+                    return
+            
             username = obj.name.lower().replace(' ', '_') + '_' + str(uuid.uuid4())[:8]
             email = obj.email if obj.email else f"{username}@example.com"
             user = CustomUser.objects.create_user(
@@ -128,23 +190,48 @@ class FarmerAdmin(admin.ModelAdmin):
 # Admin for Client model (standalone view)
 class ClientAdmin(admin.ModelAdmin):
     form = ClientForm
-    list_display = ('name', 'user_type', 'email', 'phone', 'account_status')
-    list_filter = ('user_type', 'account_status', 'registration_date')
-    search_fields = ('name', 'email', 'phone')
+    list_display = ('name', 'user_type', 'email', 'phone', 'account_status', 'user', 'owner_display')
+    list_filter = ('user_type', 'account_status', 'registration_date', 'user__owner', 'user__subscription_plan')
+    search_fields = ('name', 'email', 'phone', 'user__username', 'user__owner__username')
     fieldsets = (
-        (None, {'fields': ('name',)}),
-        ('Contact Info', {'fields': ('email', 'phone', 'address', 'country')}),
+        ('Client Information', {'fields': ('name', 'client_id')}),
+        ('Contact Information', {'fields': ('email', 'phone', 'address', 'country')}),
         ('Client Details', {'fields': ('user_type', 'account_status')}),
-        ('Additional Info', {'fields': ('notes', 'registration_date')}),
+        ('Additional Information', {'fields': ('notes', 'registration_date')}),
+        ('User Account', {'fields': ('user',)}),
     )
+    readonly_fields = ('client_id', 'user')
+
+    def owner_display(self, obj):
+        """Display the owner of the client"""
+        if obj.user and obj.user.owner:
+            return format_html(
+                '<a href="{}">{}</a>',
+                reverse('admin:authentication_customuser_change', args=[obj.user.owner.pk]),
+                obj.user.owner.username
+            )
+        return "No owner"
+    
+    owner_display.short_description = 'Owner'
+    owner_display.admin_order_field = 'user__owner__username'
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
-            return ['user', 'client_id']
+            return ['client_id', 'user']
         return ['client_id']
 
     def save_model(self, request, obj, form, change):
         if not change:
+            # Check plan limits before creating client
+            if obj.user and obj.user.owner:
+                from .plan_utils import check_plan_limits
+                try:
+                    current_count = Client.objects.filter(user__owner=obj.user.owner).count()
+                    check_plan_limits(obj.user.owner, 'client', current_count)
+                except Exception as e:
+                    self.message_user(request, f"Plan limit error: {str(e)}", level='error')
+                    return
+            
             username = obj.name.lower().replace(' ', '_') + '_' + str(uuid.uuid4())[:8]
             email = obj.email if obj.email else f"{username}@example.com"
             user = CustomUser.objects.create_user(

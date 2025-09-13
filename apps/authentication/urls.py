@@ -5,7 +5,7 @@ Copyright (c) 2019 - present AppSeed.us
 
 from django.urls import path
 from .views import login_view, register_user, create_user, user_list, edit_user, user_profile, update_profile_picture, \
-    farmer_list,client_list
+    farmer_list,client_list, plan_usage_api
 from django.contrib.auth.views import LogoutView
 from django.conf import settings
 from django.conf.urls.static import static
@@ -21,5 +21,6 @@ urlpatterns = [
     path('update-profile-picture/', update_profile_picture, name='update_profile_picture'),
     path('farmers/', farmer_list, name='farmer_list'),
     path('clients/', client_list, name='client_list'),
+    path('api/plan-usage/', plan_usage_api, name='plan_usage_api'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

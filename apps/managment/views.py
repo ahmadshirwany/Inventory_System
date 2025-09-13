@@ -14,6 +14,7 @@ from .forms import WarehouseForm, ProductForm,ItemRequestForm,PACKAGING_CONDITIO
 from django.utils import timezone
 from django.core.exceptions import PermissionDenied,ValidationError
 from apps.authentication.models import CustomUser
+from apps.authentication.plan_utils import check_plan_limits, get_plan_usage_summary
 from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.contrib import messages
@@ -61,12 +62,16 @@ def index(request):
         for cutomer in cutomers:
             accessible_warehouses = list(Warehouse.objects.filter(users=cutomer).values_list('name', flat=True))
             cutomer.acess = accessible_warehouses
+        # Get plan usage information
+        usage_summary = get_plan_usage_summary(request.user) if not request.user.is_superuser else {}
+        
         context = {'segment': 'index',
                    'warehouses': queryset,
                    'is_owner': request.user.groups.filter(name='owner').exists(),
                    'is_user': request.user.groups.filter(name='user').exists(),
                    'users' : users,
-                   'cutomers':cutomers
+                   'cutomers':cutomers,
+                   'usage_summary': usage_summary,
                    }
     elif  request.user.is_superuser:
         users = CustomUser.objects.filter(groups__name='user')
@@ -163,15 +168,15 @@ def create_warehouse(request):
              'is_owner': request.user.groups.filter(name='owner').exists(),},
             status=403
         )
-    # Check warehouse limit
-    current_count = request.user.owned_warehouses.count()
-    warehouse_limit = request.user.warehouse_limit
-
-    if warehouse_limit is None or current_count >= warehouse_limit:
+    # Check warehouse limit using plan limits system
+    try:
+        current_count = request.user.owned_warehouses.count()
+        check_plan_limits(request.user, 'warehouse', current_count)
+    except ValidationError as e:
         return render(
             request,
             "home/page-403.html",
-            {"message": "Access Deniedd: You reached your warehouse creation limit.",
+            {"message": str(e),
              'is_owner': request.user.groups.filter(name='owner').exists(),},
             status=403
         )
@@ -196,12 +201,17 @@ def create_warehouse(request):
     else:
         form = WarehouseForm(user=request.user)
 
+    # Get plan usage information
+    usage_summary = get_plan_usage_summary(request.user) if not request.user.is_superuser else {}
+    
     context = {
         'form': form,
         'form_action': 'Create',
-        'warehouse_limit': warehouse_limit,
+        'warehouse_limit': request.user.warehouse_limit,
         'current_count': current_count,
         'is_owner': request.user.groups.filter(name='owner').exists(),
+        'usage_summary': usage_summary,
+        'warehouse_usage': usage_summary.get('warehouse', {}),
     }
     return render(request, 'managment/create_warehouse.html', context)
 
@@ -228,7 +238,11 @@ def warehouse_list(request):
                     status=400
                 )
         elif 'username' in request.POST:  # Add user
-            if request.user.is_superuser or request.user.can_create_user(request.user.owned_users.count()):
+            try:
+                if not request.user.is_superuser:
+                    current_count = request.user.owned_users.count()
+                    check_plan_limits(request.user, 'user', current_count)
+                
                 user = CustomUser(
                     username=request.POST['username'],
                     owner=request.user if not request.user.is_superuser else None,
@@ -239,8 +253,8 @@ def warehouse_list(request):
                 user.set_password(request.POST.get('password', 'default_password'))  # Set a default or require password
                 user.save()
                 return JsonResponse({'success': f'User "{user.username}" created successfully'})
-            else:
-                return JsonResponse({'error': 'You have reached your user creation limit.'}, status=403)
+            except ValidationError as e:
+                return JsonResponse({'error': str(e)}, status=403)
 
     # Handle GET requests
     name_query = request.GET.get('name', '').strip()
@@ -270,7 +284,11 @@ def warehouse_list(request):
         return render(
             request,
             "home/page-403.html",
-            {"message": "Access Denied: You do not have access to any warehouses."},
+            {'is_owner': request.user.groups.filter(name='owner').exists(),
+             'is_client': request.user.groups.filter(name='client').exists(),
+             'is_user': request.user.groups.filter(name='user').exists(),
+             'is_farmer': request.user.groups.filter(name='farmer').exists(),
+                "message": "Access Denied: You do not have access to any warehouses."},
             status=403
         )
 
@@ -284,6 +302,9 @@ def warehouse_list(request):
         warehouse.filtered_users = warehouse.users.filter(groups__name='user')
         warehouse.filtered_clients = warehouse.users.filter(groups__name='client')
         warehouse.filtered_farmers = warehouse.users.filter(groups__name='customer')
+    # Get plan usage information
+    usage_summary = get_plan_usage_summary(request.user) if not request.user.is_superuser else {}
+    
     context = {
         'warehouses': warehouses,
         'filters': {
@@ -299,6 +320,9 @@ def warehouse_list(request):
         'is_client': request.user.groups.filter(name='client').exists(),
         'is_user': request.user.groups.filter(name='user').exists(),
         'is_farmer': request.user.groups.filter(name='farmer').exists(),
+        'usage_summary': usage_summary,
+        'warehouse_usage': usage_summary.get('warehouse', {}),
+        'user_usage': usage_summary.get('user', {}),
     }
     return render(request, 'managment/warehouse_list.html', context)
 
