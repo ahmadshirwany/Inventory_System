@@ -220,6 +220,49 @@
                 </p>
             </div>
         </div>
+    <div class="card mt-3">
+        <div class="card-header card-header-info">
+            <h5 class="card-title mb-0">Account Limits & Usage</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Limit</th>
+                        <th>Current Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Warehouses</td>
+                        <td>{{ warehouse_limit|default:"&infin;" }}</td>
+                        <td>{{ current_warehouse_count }}</td>
+                    </tr>
+                    <tr>
+                        <td>Users</td>
+                        <td>{{ user_limit|default:"&infin;" }}</td>
+                        <td>{{ current_user_count }}</td>
+                    </tr>
+                    <tr>
+                        <td>Clients</td>
+                        <td>{{ client_limit|default:"&infin;" }}</td>
+                        <td>{{ current_client_count }}</td>
+                    </tr>
+                    <tr>
+                        <td>Farmers</td>
+                        <td>{{ farmer_limit|default:"&infin;" }}</td>
+                        <td>{{ current_farmer_count }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            {% if is_superuser %}
+                <span class="badge badge-success">Superuser</span>
+            {% elif is_admin %}
+                <span class="badge badge-primary">Admin</span>
+            {% endif %}
+        </div>
+    </div>
     </div>
 </div>
 {% endblock content %}

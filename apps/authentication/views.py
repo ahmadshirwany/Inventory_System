@@ -24,6 +24,8 @@ from django.db import models
 from django.contrib.auth import authenticate
 from django.core.exceptions import PermissionDenied,ValidationError
 from .plan_utils import check_plan_limits, get_plan_usage_summary
+from ..managment.models import Warehouse
+
 
 class CustomLogoutView(View):
     def get(self, request):
@@ -117,6 +119,30 @@ def user_profile(request):
         status = 'Farmer'
     elif group_name == 'user':
         status = 'Employee'
+        # Get limits
+    if not request.user.is_superuser:
+        effective_owner = request.user.get_effective_owner() if hasattr(request.user,
+                                                                        'get_effective_owner') else request.user
+        warehouse_limit = getattr(effective_owner, 'warehouse_limit', None)
+        user_limit = getattr(effective_owner, 'user_limit', None)
+        client_limit = getattr(effective_owner, 'client_limit', None)
+        farmer_limit = getattr(effective_owner, 'farmer_limit', None)
+
+        # Get current counts
+        current_warehouse_count = request.user.owned_warehouses.count() if hasattr(request.user, 'owned_warehouses') else 0
+        current_user_count = request.user.owned_users.filter(groups__name='user').count() if hasattr(request.user,
+                                                                                                     'owned_users') else 0
+        current_client_count = Client.objects.filter(user__owner=effective_owner).count()
+        current_farmer_count = Farmer.objects.filter(user__owner=effective_owner).count()
+    else:
+        warehouse_limit = None
+        user_limit = None
+        client_limit = None
+        farmer_limit = None
+        current_warehouse_count = None
+        current_user_count = None
+        current_client_count = None
+        current_farmer_count = None
     context = {
         "status" : status,
         "current_user": request.user,
@@ -125,6 +151,17 @@ def user_profile(request):
         'is_client': request.user.groups.filter(name='client').exists(),
         'is_user': request.user.groups.filter(name='user').exists(),
         'is_farmer': request.user.groups.filter(name='farmer').exists(),
+        'warehouse_limit': warehouse_limit,
+        'user_limit': user_limit,
+        'client_limit': client_limit,
+        'farmer_limit': farmer_limit,
+        'current_warehouse_count': current_warehouse_count,
+        'current_user_count': current_user_count,
+        'current_client_count': current_client_count,
+        'current_farmer_count': current_farmer_count,
+        'is_superuser': request.user.is_superuser,
+        'is_admin': request.user.groups.filter(name='admin').exists(),
+
     }
     return render(request, "managment/user_profile.html", context)
 from django.contrib import messages
