@@ -121,8 +121,11 @@ def user_profile(request):
         status = 'Employee'
         # Get limits
     if not request.user.is_superuser:
-        effective_owner = request.user.get_effective_owner() if hasattr(request.user,
-                                                                        'get_effective_owner') else request.user
+        if not request.user.groups.filter(name='owner').exists():
+            effective_owner = request.user.get_effective_owner() if hasattr(request.user,
+                                                                            'get_effective_owner') else request.user
+        else:
+            effective_owner = request.user
         warehouse_limit = getattr(effective_owner, 'warehouse_limit', None)
         user_limit = getattr(effective_owner, 'user_limit', None)
         client_limit = getattr(effective_owner, 'client_limit', None)

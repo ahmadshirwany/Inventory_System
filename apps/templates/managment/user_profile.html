@@ -234,6 +234,7 @@
                     </tr>
                 </thead>
                 <tbody>
+                 {% if request.user.is_superuser or is_owner %}
                     <tr>
                         <td>Warehouses</td>
                         <td>{{ warehouse_limit|default:"&infin;" }}</td>
@@ -244,16 +245,19 @@
                         <td>{{ user_limit|default:"&infin;" }}</td>
                         <td>{{ current_user_count }}</td>
                     </tr>
+                 {% endif %}
                     <tr>
                         <td>Clients</td>
                         <td>{{ client_limit|default:"&infin;" }}</td>
                         <td>{{ current_client_count }}</td>
                     </tr>
+                  {% if not is_farmer %}
                     <tr>
                         <td>Farmers</td>
                         <td>{{ farmer_limit|default:"&infin;" }}</td>
                         <td>{{ current_farmer_count }}</td>
                     </tr>
+                {% endif %}
                 </tbody>
             </table>
             {% if is_superuser %}
