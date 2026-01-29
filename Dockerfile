@@ -1,18 +1,29 @@
-FROM python:3.9
+FROM python:3.11
 
-COPY . .
+# Set working directory
+WORKDIR /app
 
-# set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-# install python dependencies
+# Install python dependencies
+COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# running migrations
-RUN python manage.py migrate
+# Copy project files
+COPY . .
 
-# gunicorn
-CMD ["gunicorn", "--config", "gunicorn-cfg.py", "core.wsgi"]
+# Create media directory
+RUN mkdir -p core/media/profile_pictures
+
+# Collect static files
+RUN python manage.py collectstatic --noinput
+
+# Expose port
+EXPOSE 5005
+
+# Run migrations and start gunicorn
+CMD python manage.py migrate && gunicorn --config gunicorn-cfg.py core.wsgi
 

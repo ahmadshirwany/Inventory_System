@@ -2,7 +2,7 @@
 
 
 
-     Creative Tim Modifications
+     Material Dashboard Modifications
 
      Lines: 236 was changed from top: 5px to top: 50% and we added margin-top: -9px. In this way the close button will be aligned vertically
      Line:219 - modified when the icon is set, we add the class "alert-with-icon", so there will be enough space for the icon.

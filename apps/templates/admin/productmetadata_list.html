@@ -1,0 +1,50 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+  <h1>Product Metadata</h1>
+  {% if messages %}
+    <ul class="messages">
+      {% for message in messages %}
+        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  <h2>Products</h2>
+  <p><a href="{% url 'add_product' %}">Add New Product</a></p>
+  {% if products %}
+    <table>
+      <thead>
+        <tr>
+          <th>Product Name</th>
+          <th>Ethylene Management</th>
+          <th>Ideal Temperature (C)</th>
+          <th>Relative Humidity (%)</th>
+          <th>Max Storage Duration (days)</th>
+          <th>CO2 (%)</th>
+          <th>O2 (%)</th>
+          <th>N2 (%)</th>
+          <th>Product Type</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for product in products %}
+          <tr>
+            <td>{{ product.Product }}</td>
+            <td>{{ product.ethylene_management }}</td>
+            <td>{{ product.ideal_temperature }}</td>
+            <td>{{ product.Relative Humidity (%) }}</td>
+            <td>{{ product.Maximum Storage Duration (days) }}</td>
+            <td>{{ product.CO2 (%) }}</td>
+            <td>{{ product.O2 (%) }}</td>
+            <td>{{ product.N2 (%) }}</td>
+            <td>{{ product.Product Type }}</td>
+            <td><a href="{% url 'edit_product' product.Product %}">Edit</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No products available.</p>
+  {% endif %}
+  <p><a href="{% url 'admin:index' %}">Back to Admin</a></p>
+{% endblock %}

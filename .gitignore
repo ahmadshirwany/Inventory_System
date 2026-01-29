@@ -2,12 +2,18 @@
 __pycache__/
 *.py[cod]
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+
 # Ignore database file
 db.sqlite3
 IP_data.json
 
 # Ignore media uploads
 core/media/profile_pictures/
+media/
 
 # tests and coverage
 *.pytest_cache
@@ -19,15 +25,25 @@ core/media/profile_pictures/
 *.sqlite
 *.db3
 *.log
+
 # venv
 env
 venv
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
 # other
 .DS_Store
 
 # javascript
 package-lock.json
+node_modules/
 
 staticfiles/*
 !staticfiles/.gitkeep 

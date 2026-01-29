@@ -1,0 +1,109 @@
+{% load static %}
+
+<!-- Plan Limits Widget - Include this in your templates -->
+{% if usage_summary and not user.is_superuser %}
+<div class="card card-stats">
+    <div class="card-header">
+        <h4 class="card-title">Plan Usage</h4>
+        <p class="card-category">Current plan: <strong>{{ user.subscription_plan|title }}</strong></p>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Warehouse Usage -->
+            <div class="col-md-3 col-sm-6">
+                <div class="stats">
+                    <div class="info-icon text-warning">
+                        <i class="nc-icon nc-shop"></i>
+                    </div>
+                    <div class="info">
+                        <h3 class="info-title">{{ usage_summary.warehouse.current }}/{{ usage_summary.warehouse.limit }}</h3>
+                        <p class="info-subtitle">Warehouses</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Usage -->
+            <div class="col-md-3 col-sm-6">
+                <div class="stats">
+                    <div class="info-icon text-info">
+                        <i class="nc-icon nc-single-02"></i>
+                    </div>
+                    <div class="info">
+                        <h3 class="info-title">{{ usage_summary.user.current }}/{{ usage_summary.user.limit }}</h3>
+                        <p class="info-subtitle">Users</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Client Usage -->
+            <div class="col-md-3 col-sm-6">
+                <div class="stats">
+                    <div class="info-icon text-success">
+                        <i class="nc-icon nc-single-02"></i>
+                    </div>
+                    <div class="info">
+                        <h3 class="info-title">{{ usage_summary.client.current }}/{{ usage_summary.client.limit }}</h3>
+                        <p class="info-subtitle">Clients</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Farmer Usage -->
+            <div class="col-md-3 col-sm-6">
+                <div class="stats">
+                    <div class="info-icon text-primary">
+                        <i class="nc-icon nc-single-02"></i>
+                    </div>
+                    <div class="info">
+                        <h3 class="info-title">{{ usage_summary.farmer.current }}/{{ usage_summary.farmer.limit }}</h3>
+                        <p class="info-subtitle">Farmers</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Bars -->
+        <div class="row mt-3">
+            <div class="col-md-12">
+                {% for resource_type, usage in usage_summary.items %}
+                <div class="progress-container">
+                    <span class="progress-badge">{{ resource_type|title }}</span>
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-{{ resource_type|default:'info' }}" 
+                             role="progressbar" 
+                             style="width: {% widthratio usage.current usage.limit 100 %}%"
+                             aria-valuenow="{{ usage.current }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="{{ usage.limit }}">
+                            {{ usage.current }}/{{ usage.limit }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Warning Messages -->
+        {% for resource_type, usage in usage_summary.items %}
+            {% if usage.remaining <= 1 and usage.remaining > 0 %}
+            <div class="alert alert-warning alert-dismissible fade show mt-2" role="alert">
+                <i class="fa fa-exclamation-triangle"></i>
+                <strong>Warning:</strong> You are approaching your {{ resource_type }} limit. 
+                Only {{ usage.remaining }} remaining.
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            {% elif usage.remaining == 0 %}
+            <div class="alert alert-danger alert-dismissible fade show mt-2" role="alert">
+                <i class="fa fa-exclamation-circle"></i>
+                <strong>Limit Reached:</strong> You have reached your {{ resource_type }} limit. 
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

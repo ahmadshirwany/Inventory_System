@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (c) 2019 - present AppSeed.us
+Inventory Management System
 """
 
 import os,json
@@ -8,6 +8,8 @@ from decouple import config
 from unipath import Path
 CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
 CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_USE_SESSIONS = False
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = Path(__file__).parent
 CORE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -22,7 +24,19 @@ with open("IP_data.json", "r") as file:
 DEBUG = True
 # load production server from .env
 #ALLOWED_HOSTS = ['localhost', '127.0.0.1', config('SERVER', default='127.0.0.1')]
-ALLOWED_HOSTS = [data_adress["IP"],'localhost', '*']
+ALLOWED_HOSTS = [data_adress["IP"],'localhost', '127.0.0.1', '*']
+
+# CSRF Settings for Docker/Proxy
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:85',
+    'http://127.0.0.1:85',
+    'http://localhost:5005',
+    'http://127.0.0.1:5005',
+]
+
+# Proxy settings for nginx
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Application definition
 
